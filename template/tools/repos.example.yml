@@ -1,0 +1,27 @@
+# Copy to repos.yml and edit. tools/sync_github_repos.py reads repos.yml and writes one markdown
+# mirror per repo under `projects/`. Edit repos on GitHub; never hand-edit a mirror's auto body.
+#
+# Per-repo keys:
+#   repo     (required)  owner/name on github.com
+#   note     (required)  mirror filename, written under settings.notes_dir
+#   aliases  (optional)  other owner/name to try if `repo` 404s (e.g. after a rename)
+#   tags / related / client / program  (optional)  curated frontmatter seeded on first sync
+
+settings:
+  notes_dir: projects        # where mirror notes are written (relative to vault root)
+  max_doc_bytes: 60000       # per-file cap on mirrored doc text
+  max_total_bytes: 300000    # per-repo cap on total mirrored doc text
+  recent_commits: 10         # how many recent commits to list
+
+repos:
+  - repo: your-org/your-repo
+    note: your-repo.md
+    tags: [repo]
+    related: ["[[projects/projects|Projects]]"]
+
+  # - repo: your-org/another-repo
+  #   aliases: ["your-org/another-repo-renamed"]
+  #   note: another-repo.md
+  #   tags: [repo, product]
+  #   related: ["[[projects/projects|Projects]]"]
+  #   client: "[[Acme Corp]]"

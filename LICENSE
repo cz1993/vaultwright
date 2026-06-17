@@ -1,0 +1,32 @@
+                    GNU AFFERO GENERAL PUBLIC LICENSE
+                       Version 3, 19 November 2007
+
+ Copyright (C) 2026 GuildBuild Inc. and the Vaultwright contributors
+
+ This program is free software: you can redistribute it and/or modify it
+ under the terms of the GNU Affero General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or (at your
+ option) any later version.
+
+ This program is distributed in the hope that it will be useful, but WITHOUT
+ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ FOR A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more
+ details.
+
+ You should have received a copy of the GNU Affero General Public License
+ along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+ A separate COMMERCIAL LICENSE is available for organizations that do not wish
+ to comply with the AGPL-3.0 (e.g. for closed/hosted use at scale). See
+ LICENSING.md.
+
+==============================================================================
+  VENDORING TODO — do this before the first public release:
+  Replace the text BELOW this banner with the complete, verbatim GNU Affero
+  General Public License v3.0:
+
+      curl -o LICENSE https://www.gnu.org/licenses/agpl-3.0.txt
+
+  Then keep the copyright/commercial notice above in NOTICE and in each source
+  file header. The placeholder above states intent but is NOT the full license.
+==============================================================================

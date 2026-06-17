@@ -1,0 +1,16 @@
+Vaultwright
+Copyright (C) 2026 GuildBuild Inc. and the Vaultwright contributors
+
+This product is licensed under the GNU Affero General Public License v3.0
+(see LICENSE), with a separate commercial license available (see LICENSING.md).
+"Vaultwright" is a trademark of GuildBuild Inc. (see TRADEMARK.md).
+
+This project orchestrates, but does not bundle, third-party software:
+  - Microsoft markitdown — MIT License
+  - PyYAML — MIT License
+  - git / GitHub CLI (gh) — their respective licenses
+  - Obsidian — a third-party application used as the human UI; not affiliated with,
+    or endorsed by, this project.
+
+Inspired by Andrej Karpathy's "LLM wiki" pattern
+(https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f).

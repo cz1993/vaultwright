@@ -1,0 +1,63 @@
+views:
+  - type: table
+    name: All documents
+    order:
+      - file.name
+      - type
+      - status
+      - domain
+      - updated
+    sort:
+      - property: file.mtime
+        direction: DESC
+  - type: table
+    name: By status
+    order:
+      - file.name
+      - status
+      - type
+      - domain
+      - owner
+    sort:
+      - property: status
+        direction: ASC
+  - type: table
+    name: Office mirrors
+    filters:
+      and:
+        - type == "source-mirror"
+    order:
+      - file.name
+      - source
+      - source_format
+      - source_modified
+      - synced
+    sort:
+      - property: synced
+        direction: DESC
+  - type: table
+    name: Needs attention
+    filters:
+      or:
+        - status == "draft"
+        - status == "in-review"
+    order:
+      - file.name
+      - status
+      - type
+      - domain
+      - updated
+  - type: table
+    name: Repos
+    filters:
+      and:
+        - type == "repo-mirror"
+    order:
+      - file.name
+      - repo
+      - default_branch
+      - last_commit_date
+      - synced
+    sort:
+      - property: synced
+        direction: DESC

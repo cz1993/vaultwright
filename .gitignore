@@ -1,0 +1,13 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# OS / editors
+.DS_Store
+*.log
+
+# local test vaults
+/examples/*-vault/
+/tmp/
