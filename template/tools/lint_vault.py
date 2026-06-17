@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-lint_vault.py — health check for the GuildBuild knowledge base.
+lint_vault.py — health check for a Vaultwright knowledge base.
 
 Reports (does not fix): notes missing required frontmatter, invalid type/status values,
 unresolved wikilinks, orphan notes (no inbound links), and Office-mirror gaps.

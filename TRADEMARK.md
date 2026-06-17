@@ -1,6 +1,6 @@
 # Trademark policy
 
-"Vaultwright" and the Vaultwright logo (the "Marks") are trademarks of GuildBuild Inc.
+"Vaultwright" and the Vaultwright logo (the "Marks") are trademarks of Ci Zhu (cz1993)
 
 The AGPL-3.0 license (see `LICENSE`) covers the **code**. It does **not** grant rights to the
 **Marks**. This is intentional and is the mechanism by which the project stays identifiable.
@@ -15,7 +15,7 @@ The AGPL-3.0 license (see `LICENSE`) covers the **code**. It does **not** grant 
 **You may not**, without written permission:
 
 - name a modified version or a fork "Vaultwright," or use the Marks as your product's name/logo;
-- use the Marks in a way that suggests endorsement by or affiliation with GuildBuild Inc.
+- use the Marks in a way that suggests endorsement by or affiliation with Ci Zhu (cz1993)
 
 If you distribute a modified version, give it a different name. Questions / permission requests:
-open an issue or contact GuildBuild Inc.
+open an issue or contact Ci Zhu (cz1993)

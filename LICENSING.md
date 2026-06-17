@@ -47,13 +47,13 @@ To be able to offer a commercial license, the owner must hold sufficient rights 
 Two options — pick one with your lawyer:
 
 - **CLA (recommended for dual-licensing):** contributors sign a Contributor License Agreement
-  granting GuildBuild Inc. the right to relicense their contributions (e.g. via CLA Assistant).
+  granting Ci Zhu (cz1993) the right to relicense their contributions (e.g. via CLA Assistant).
 - **DCO (lighter, weaker):** contributors add `Signed-off-by:` (Developer Certificate of Origin).
   Simpler, but does **not** by itself grant relicensing rights, which complicates dual-licensing.
 
 `CONTRIBUTING.md` currently sets up DCO; switch to a CLA before accepting outside contributions if
 you want to keep commercial dual-licensing clean. Consider assigning copyright to a single entity
-(GuildBuild Inc.).
+(Ci Zhu (cz1993)).
 
 ## Alternatives considered (and why not, for now)
 
