@@ -47,6 +47,7 @@ A successful first workflow produces:
 - generated mirrors under `_mirrors/`;
 - repo mirrors under `80_sources/repos/`;
 - source/repo manifests, audit events, and lifecycle status reports;
+- aggregate pilot evidence reports that avoid source or mirror content;
 - curated hubs for the highest-value document clusters;
 - an agent-readable markdown substrate with source links, frontmatter, headings, manifests, and
   refresh boundaries;

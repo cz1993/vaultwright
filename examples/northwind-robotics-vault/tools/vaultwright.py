@@ -102,6 +102,14 @@ def command_migration(args: argparse.Namespace) -> int:
     return run(cmd, root)
 
 
+def command_pilot(args: argparse.Namespace) -> int:
+    root = args.root.resolve()
+    cmd = python_cmd(root, "pilot_report.py")
+    if args.json:
+        cmd.append("--json")
+    return run(cmd, root)
+
+
 def command_recovery(args: argparse.Namespace) -> int:
     root = args.root.resolve()
     cmd = python_cmd(root, "recovery_report.py")
@@ -232,6 +240,7 @@ def command_doctor(args: argparse.Namespace) -> int:
         "benchmark_tasks.py",
         "conversion_report.py",
         "migration_report.py",
+        "pilot_report.py",
         "recovery_report.py",
     ):
         if not (root / "tools" / script).exists():
@@ -314,6 +323,9 @@ def build_parser() -> argparse.ArgumentParser:
     migration = sub.add_parser("migration", help="Print a read-only legacy folder migration report.")
     migration.add_argument("--json", action="store_true", help="Print machine-readable migration JSON.")
     migration.set_defaults(func=command_migration)
+    pilot = sub.add_parser("pilot", help="Print a read-only design-partner pilot evidence report.")
+    pilot.add_argument("--json", action="store_true", help="Print machine-readable pilot JSON.")
+    pilot.set_defaults(func=command_pilot)
     recovery = sub.add_parser("recovery", help="Print a read-only manifest recovery checklist.")
     recovery.add_argument("--json", action="store_true", help="Print machine-readable recovery JSON.")
     recovery.set_defaults(func=command_recovery)

@@ -44,6 +44,7 @@ COPIED_TOOL_FILES = [
     "benchmark_tasks.py",
     "conversion_report.py",
     "lint_vault.py",
+    "pilot_report.py",
     "recovery_report.py",
     "repos.example.yml",
     "requirements.txt",
@@ -291,6 +292,17 @@ def run_example_regeneration(tmp_path: Path, name: str, generated_rels: list[Pat
     assert conversion.returncode == 0, conversion.stderr or conversion.stdout
     assert "conversion: read-only spot-check report; no files were changed" in conversion.stdout
     assert "spot-check items" in conversion.stdout
+    assert_source_payloads_unchanged(vault, original_sources)
+
+    pilot = subprocess.run(
+        [sys.executable, str(vault / "tools" / "vaultwright.py"), "pilot"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+    assert pilot.returncode == 0, pilot.stderr or pilot.stdout
+    assert "pilot: read-only evidence report; no source content was printed" in pilot.stdout
+    assert "pilot: source manifest" in pilot.stdout
     assert_source_payloads_unchanged(vault, original_sources)
 
     for path in generated:

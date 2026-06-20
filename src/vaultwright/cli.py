@@ -124,6 +124,12 @@ def build_parser() -> argparse.ArgumentParser:
         func=command_delegate,
         delegate_args=lambda args: ["--json"] if args.json else [],
     )
+    pilot = sub.add_parser("pilot", help="Print a read-only design-partner pilot evidence report.")
+    pilot.add_argument("--json", action="store_true", help="Print machine-readable pilot JSON.")
+    pilot.set_defaults(
+        func=command_delegate,
+        delegate_args=lambda args: ["--json"] if args.json else [],
+    )
     recovery = sub.add_parser("recovery", help="Print a read-only manifest recovery checklist.")
     recovery.add_argument("--json", action="store_true", help="Print machine-readable recovery JSON.")
     recovery.set_defaults(

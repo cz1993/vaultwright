@@ -20,7 +20,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e . pytest
       - name: Compile Python tools
-        run: python -m py_compile template/tools/lint_vault.py template/tools/sync_office_md.py template/tools/sync_github_repos.py template/tools/benchmark_tasks.py template/tools/conversion_report.py template/tools/migration_report.py template/tools/recovery_report.py template/tools/vaultwright.py src/vaultwright/cli.py src/vaultwright/__init__.py scripts/no_data_scan.py
+        run: python -m py_compile template/tools/lint_vault.py template/tools/sync_office_md.py template/tools/sync_github_repos.py template/tools/benchmark_tasks.py template/tools/conversion_report.py template/tools/migration_report.py template/tools/pilot_report.py template/tools/recovery_report.py template/tools/vaultwright.py src/vaultwright/cli.py src/vaultwright/__init__.py scripts/no_data_scan.py
       - name: Shell syntax
         run: bash -n scripts/init.sh template/tools/sync_all.sh .githooks/pre-commit
       - name: Unit tests
@@ -41,12 +41,14 @@ jobs:
           "$tmp_build/venv/bin/vaultwright" init "$tmp_vault"
           test -f "$tmp_vault/CLAUDE.md"
           test -f "$tmp_vault/tools/conversion_report.py"
+          test -f "$tmp_vault/tools/pilot_report.py"
           test -f "$tmp_vault/tools/recovery_report.py"
           "$tmp_build/venv/bin/vaultwright" --root "$tmp_vault" doctor
           "$tmp_build/venv/bin/vaultwright" --root "$tmp_vault" plan
           "$tmp_build/venv/bin/vaultwright" --root "$tmp_vault" benchmark
           "$tmp_build/venv/bin/vaultwright" --root "$tmp_vault" conversion --json
           "$tmp_build/venv/bin/vaultwright" --root "$tmp_vault" migration --json
+          "$tmp_build/venv/bin/vaultwright" --root "$tmp_vault" pilot --json
           "$tmp_build/venv/bin/vaultwright" --root "$tmp_vault" recovery --json
       - name: Template lint
         run: python template/tools/lint_vault.py

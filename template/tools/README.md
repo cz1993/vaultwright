@@ -6,11 +6,12 @@ These keep your knowledge base current and healthy. See `../CLAUDE.md` §6 for t
 | --- | --- |
 | `sync_office_md.py` | markdown **mirror** under `_mirrors/` for every `.docx/.pptx/.xlsx` (Microsoft markitdown), refreshed on content change |
 | `sync_github_repos.py` | markdown **mirror** under `80_sources/repos/` for each repo in `repos.yml` (README + docs + metadata), refreshed on HEAD change |
-| `vaultwright.py` | thin operator wrapper: `plan`, `sync`, `status`, `conversion`, `migration`, `recovery`, `lint`, `benchmark`, `doctor`, and repo-root `init` |
+| `vaultwright.py` | thin operator wrapper: `plan`, `sync`, `status`, `conversion`, `migration`, `pilot`, `recovery`, `lint`, `benchmark`, `doctor`, and repo-root `init` |
 | `lint_vault.py` | health check — frontmatter, broken wikilinks, orphans, overlap warnings, mirror gaps |
 | `benchmark_tasks.py` | validates `_meta/agent-readiness-tasks.yml` benchmark packs and referenced source/mirror paths |
 | `conversion_report.py` | prints a read-only conversion spot-check report from the source manifest |
 | `migration_report.py` | prints a read-only migration report for legacy or unknown top-level folders |
+| `pilot_report.py` | prints a read-only aggregate pilot evidence report without source content |
 | `recovery_report.py` | prints a read-only recovery checklist from source/repo manifest lifecycle states |
 | `sync_all.sh` | run both syncs + the linter (for a cron/launchd job) |
 
@@ -31,6 +32,7 @@ python3.11 tools/vaultwright.py sync
 python3.11 tools/vaultwright.py status
 python3.11 tools/vaultwright.py conversion
 python3.11 tools/vaultwright.py migration
+python3.11 tools/vaultwright.py pilot
 python3.11 tools/vaultwright.py recovery
 python3.11 tools/vaultwright.py lint
 python3.11 tools/vaultwright.py benchmark
@@ -52,6 +54,11 @@ slides, PDFs, source links, and generated-region boundaries before relying on mi
 folders that need human classification before any manual move. Non-reserved hidden or
 underscore-prefixed folders are reported too, because they may contain staged imports or legacy
 source material.
+
+`pilot` is read-only. It summarizes aggregate pilot evidence from manifests, audit events,
+conversion priorities, recovery action counts, and benchmark tasks without printing source paths,
+source text, mirror text, or repository document bodies. Use `--json` to attach the aggregate
+metrics to an anonymized design-partner worksheet.
 
 `recovery` is also read-only. It reads `_meta/source-manifest.json`, `_meta/repo-manifest.json`, and
 the latest matching `_meta/sync-audit.jsonl` events, then prints only records that need operator

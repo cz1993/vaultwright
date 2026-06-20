@@ -342,7 +342,7 @@ Professional-services use should begin with a conservative operating model:
 | Mirror storage | Office mirrors and optional text-based PDF mirrors live under `_mirrors/` | Fixes messy source-folder problem |
 | Office sync | Plan/sync/status, manifest, audit events, manual-edit detection, lifecycle next-action guidance | Useful alpha foundation |
 | Repo sync | Plan/sync/status, repo manifest, audit events, manual-edit detection, lifecycle next-action guidance | Useful for code/source repositories |
-| CLI | Vault-local wrapper and source-installable `vaultwright` entry point; CI now installs the built wheel and verifies packaged init, doctor, plan, benchmark, conversion, migration, and JSON recovery delegation; doctor reports dependency, manifest, audit, recovery-action counts, git, and GitHub-auth posture; conversion, migration, and recovery print read-only operator checklists | Better operator ergonomics; tagged release publishing still needs hardening |
+| CLI | Vault-local wrapper and source-installable `vaultwright` entry point; CI now installs the built wheel and verifies packaged init, doctor, plan, benchmark, conversion, migration, pilot, and JSON recovery delegation; doctor reports dependency, manifest, audit, recovery-action counts, git, and GitHub-auth posture; conversion, migration, pilot, and recovery print read-only operator reports | Better operator ergonomics; tagged release publishing still needs hardening |
 | Examples | Government-services showcase plus Northwind regression fixture | Better demo plus stable tests |
 | Provenance | Public fixture ledger with source URLs, licence posture, and review date | Good discipline; must be maintained |
 | Safety | No-data scanner, pre-commit hook, CI checks | Strong for repository hygiene |
@@ -361,6 +361,7 @@ Current evidence is encouraging but limited.
 | Government showcase | Canadian business registration, GST/HST, CRA account, and funding/support fixtures | Better demonstration of a consulting-relevant pain point |
 | Office source manifest | Stable source IDs, hashes, mirror paths, lifecycle states, audit events, missing/manual-edit detection | Important lifecycle foundation, not finished operator UX |
 | Conversion spot-check report | Read-only manifest report prioritizes high/medium/low conversion review items from states, warnings, errors, formats, and source/mirror existence | Useful pilot checklist; not a quantitative conversion-quality score |
+| Pilot evidence report | Read-only aggregate report summarizes corpus shape, manifest states, audit counts, conversion priorities, recovery counts, and benchmark tasks without source content | Useful for private design-partner worksheets; not external validation by itself |
 | Repo source manifest | Stable repo IDs, local-tree/remote-HEAD hashes, audit events, manual-edit detection | Useful coverage for repo mirrors |
 | Source-installable CLI | Console entry point delegates to vault-local tools and supports source-checkout `init` | Good development ergonomics |
 | Private dogfood | Small copied corpus produced mirrors without source-folder clutter | Useful smoke test only |
@@ -446,7 +447,8 @@ Deliverables:
 - deeper lifecycle recovery UX beyond current read-only recovery checklist;
 - pilot-calibrated migration runbooks for legacy folder layouts;
 - conversion spot-check report plus operator guide;
-- pilot worksheet based on `docs/DESIGN_PARTNER_PROTOCOL.md`;
+- pilot worksheet and aggregate `vaultwright pilot` evidence report based on
+  `docs/DESIGN_PARTNER_PROTOCOL.md`;
 - sample statement-of-work outline for consulting delivery.
 
 Exit criteria:

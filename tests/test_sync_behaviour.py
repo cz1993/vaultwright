@@ -77,6 +77,7 @@ def test_vaultwright_cli_doctor_passes_on_template() -> None:
     assert (ROOT / "template/tools/benchmark_tasks.py").exists()
     assert (ROOT / "template/tools/conversion_report.py").exists()
     assert (ROOT / "template/tools/migration_report.py").exists()
+    assert (ROOT / "template/tools/pilot_report.py").exists()
     assert (ROOT / "template/tools/recovery_report.py").exists()
 
 
@@ -177,6 +178,18 @@ def test_packaged_vaultwright_cli_delegates_to_target_vault(tmp_path: Path) -> N
     assert benchmark.returncode == 0, benchmark.stderr or benchmark.stdout
     assert "benchmark validation skipped" in benchmark.stdout
 
+    pilot = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "pilot"],
+        cwd=ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert pilot.returncode == 0, pilot.stderr or pilot.stdout
+    assert "pilot: read-only evidence report; no source content was printed" in pilot.stdout
+    assert "_meta/source-manifest.json: missing" in pilot.stdout
+
     conversion = subprocess.run(
         [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "conversion"],
         cwd=ROOT,
@@ -260,6 +273,7 @@ def test_packaged_vaultwright_cli_init_from_packaged_template(tmp_path: Path) ->
     assert (target / ".gitignore").exists()
     assert (target / "tools" / "conversion_report.py").exists()
     assert (target / "tools" / "migration_report.py").exists()
+    assert (target / "tools" / "pilot_report.py").exists()
     assert (target / "tools" / "recovery_report.py").exists()
     assert (target / "tools" / "vaultwright.py").exists()
 
@@ -425,6 +439,164 @@ def test_vaultwright_conversion_report_prioritizes_spot_checks(tmp_path: Path) -
 
     assert {path: path.read_bytes() for path in before_sources} == before_sources
     assert {path: path.read_text(encoding="utf-8") for path in before_mirrors} == before_mirrors
+
+
+def test_vaultwright_pilot_report_summarizes_evidence_without_content(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    source = vault / "40_delivery" / "client-plan.docx"
+    mirror = vault / "_mirrors" / "40_delivery" / "client-plan.md"
+    repo_note = vault / "80_sources" / "repos" / "fixture.md"
+    source.parent.mkdir(parents=True, exist_ok=True)
+    mirror.parent.mkdir(parents=True, exist_ok=True)
+    repo_note.parent.mkdir(parents=True, exist_ok=True)
+    source.write_bytes(b"confidential source bytes")
+    mirror.write_text("Generated mirror text that should not appear\n", encoding="utf-8")
+    repo_note.write_text("Generated repo mirror text that should not appear\n", encoding="utf-8")
+    before_source = source.read_bytes()
+    before_mirror = mirror.read_text(encoding="utf-8")
+    before_repo_note = repo_note.read_text(encoding="utf-8")
+    (vault / "_meta" / "source-manifest.json").write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "records": [
+                    {
+                        "source_id": "src-plan",
+                        "current_source_path": "40_delivery/client-plan.docx",
+                        "mirror_path": "_mirrors/40_delivery/client-plan.md",
+                        "source_format": "docx",
+                        "source_size": len(before_source),
+                        "lifecycle_state": "clean",
+                        "warnings": ["Conversion-quality risk: sample warning"],
+                        "errors": [],
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (vault / "_meta" / "repo-manifest.json").write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "records": [
+                    {
+                        "repo_id": "repo-fixture",
+                        "configured_repo": "local/fixture",
+                        "note_path": "80_sources/repos/fixture.md",
+                        "lifecycle_state": "clean",
+                        "warnings": [],
+                        "errors": [],
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (vault / "_meta" / "sync-audit.jsonl").write_text(
+        json.dumps(
+            {
+                "timestamp": "2026-06-20T00:00:00Z",
+                "tool": "sync_office_md",
+                "status": "unchanged",
+                "lifecycle_state": "clean",
+                "source_id": "src-plan",
+                "mirror_path": "_mirrors/40_delivery/client-plan.md",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (vault / "_meta" / "agent-readiness-tasks.yml").write_text(
+        "schema_version: 1\n"
+        "corpus: fixture\n"
+        "comparison_modes: [raw_source_folder, document_chat_transcript, vaultwright_markdown]\n"
+        "scoring:\n"
+        "  scale: 0-2\n"
+        "tasks:\n"
+        "  - id: answer-1\n"
+        "    family: answer\n"
+        "    prompt: What is the plan?\n"
+        "    source_paths: [40_delivery/client-plan.docx]\n"
+        "    generated_mirror_paths: [_mirrors/40_delivery/client-plan.md]\n"
+        "    curated_paths: []\n"
+        "    success_criteria: [Cites the source]\n"
+        "  - id: reconcile-1\n"
+        "    family: reconcile\n"
+        "    prompt: What differs?\n"
+        "    source_paths: [40_delivery/client-plan.docx]\n"
+        "    generated_mirror_paths: [_mirrors/40_delivery/client-plan.md]\n"
+        "    curated_paths: []\n"
+        "    success_criteria: [Names the conflict]\n"
+        "  - id: update-1\n"
+        "    family: update\n"
+        "    prompt: What changed?\n"
+        "    source_paths: [40_delivery/client-plan.docx]\n"
+        "    generated_mirror_paths: [_mirrors/40_delivery/client-plan.md]\n"
+        "    curated_paths: []\n"
+        "    success_criteria: [Names refresh action]\n"
+        "  - id: audit-1\n"
+        "    family: audit\n"
+        "    prompt: Is it traceable?\n"
+        "    source_paths: [40_delivery/client-plan.docx]\n"
+        "    generated_mirror_paths: [_mirrors/40_delivery/client-plan.md]\n"
+        "    curated_paths: []\n"
+        "    success_criteria: [Finds provenance]\n"
+        "  - id: consolidate-1\n"
+        "    family: consolidate\n"
+        "    prompt: Where should it live?\n"
+        "    source_paths: [40_delivery/client-plan.docx]\n"
+        "    generated_mirror_paths: [_mirrors/40_delivery/client-plan.md]\n"
+        "    curated_paths: []\n"
+        "    success_criteria: [Avoids duplicate notes]\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "vaultwright.py"), "pilot"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+    json_result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "vaultwright.py"), "pilot", "--json"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+    assert "pilot: read-only evidence report; no source content was printed" in result.stdout
+    assert "pilot: source manifest records=1 warnings=1 errors=0" in result.stdout
+    assert "pilot: audit events=1" in result.stdout
+    assert "pilot: conversion available=True high=0 medium=1 low=0" in result.stdout
+    assert "pilot: recovery available=True items=0" in result.stdout
+    assert "pilot: benchmark available=True tasks=5" in result.stdout
+    assert "confidential source bytes" not in result.stdout
+    assert "Generated mirror text" not in result.stdout
+    assert "Generated repo mirror text" not in result.stdout
+    assert str(vault) not in result.stdout
+
+    assert json_result.returncode == 0, json_result.stderr or json_result.stdout
+    report = json.loads(json_result.stdout)
+    payload = json_result.stdout
+    assert "confidential source bytes" not in payload
+    assert "Generated mirror text" not in payload
+    assert "Generated repo mirror text" not in payload
+    assert str(vault) not in payload
+    assert report["report"]["source_manifest"]["records"] == 1
+    assert report["report"]["source_manifest"]["states"] == {"clean": 1}
+    assert report["report"]["source_manifest"]["formats"] == {"docx": 1}
+    assert report["report"]["repo_manifest"]["records"] == 1
+    assert report["report"]["audit"]["events"] == 1
+    assert report["report"]["conversion"]["summary"]["medium"] == 1
+    assert report["report"]["recovery"]["summary"]["total"] == 0
+    assert report["report"]["benchmark"]["summary"]["tasks"] == 5
+
+    assert source.read_bytes() == before_source
+    assert mirror.read_text(encoding="utf-8") == before_mirror
+    assert repo_note.read_text(encoding="utf-8") == before_repo_note
 
 
 def test_vaultwright_conversion_report_handles_invalid_inputs(tmp_path: Path) -> None:

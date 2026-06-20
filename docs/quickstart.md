@@ -49,6 +49,7 @@ python3.11 tools/vaultwright.py status          # review manifest-backed lifecyc
 python3.11 tools/vaultwright.py conversion      # read-only conversion spot-check report
 python3.11 tools/vaultwright.py migration       # dry-run report for legacy/unknown folders
 python3.11 tools/vaultwright.py recovery        # read-only recovery checklist, if states need action
+python3.11 tools/vaultwright.py pilot           # aggregate pilot evidence, no source content
 python3.11 tools/vaultwright.py benchmark       # validate benchmark tasks, if configured
 
 python3.11 tools/vaultwright.py lint            # health check

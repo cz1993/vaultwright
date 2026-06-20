@@ -5,6 +5,9 @@
 Vaultwright is not validated until external operators use it on real client-shaped corpora. This
 protocol keeps validation concrete, comparable, and honest.
 
+Use `docs/PILOT_WORKSHEET.md` as the working artifact for each pilot. Attach aggregate output from
+`tools/vaultwright.py pilot --json` to the private pilot record, not to this public repository.
+
 ## Target Participants
 
 Recruit small consulting, advisory, implementation, compliance, or operations teams that handle
@@ -31,8 +34,10 @@ Each pilot should use a copied, permission-cleared corpus:
    states.
 6. Curate the first hubs and entity pages.
 7. Answer a fixed set of operational questions with citations.
-8. Modify or move selected sources, rerun status/sync, and verify lifecycle reporting.
-9. One-week follow-up: determine whether the participant returned to the vault.
+8. Capture aggregate evidence: run `tools/vaultwright.py pilot --json` and store it with the
+   private pilot worksheet.
+9. Modify or move selected sources, rerun status/sync, and verify lifecycle reporting.
+10. One-week follow-up: determine whether the participant returned to the vault.
 
 ## Required Metrics
 
@@ -61,6 +66,9 @@ For each pilot, maintain an anonymized summary:
 - issues found;
 - product changes made;
 - participant quote only with written permission.
+
+`tools/vaultwright.py pilot --json` is designed for this evidence packet. It reports aggregate
+counts only and must not be treated as permission to commit pilot evidence to this repository.
 
 ## Success Standard
 

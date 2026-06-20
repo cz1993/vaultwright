@@ -48,8 +48,8 @@ Initial scaffold extracted and generalized from a real small-business vault.
 - Packaged the starter vault template under `src/vaultwright/template`, so `vaultwright init` can
   scaffold from an installed wheel without a source checkout or `VAULTWRIGHT_REPO`.
 - CI now builds a wheel, installs it into a clean environment, and smoke-tests packaged
-  `vaultwright init`, `doctor`, `plan`, `benchmark`, `conversion`, `migration`, and JSON `recovery`
-  delegation.
+  `vaultwright init`, `doctor`, `plan`, `benchmark`, `conversion`, `migration`, `pilot`, and JSON
+  `recovery` delegation.
 - `vaultwright doctor` now reports manifest lifecycle counts, sync audit presence, recovery action
   counts, git backup posture, and GitHub auth posture as read-only preflight context.
 - Added `tools/recovery_report.py` and `vaultwright recovery`, a read-only recovery checklist for
@@ -60,6 +60,8 @@ Initial scaffold extracted and generalized from a real small-business vault.
 - Added `tools/migration_report.py` and `vaultwright migration`, a read-only report for legacy
   alias folders and unknown top-level folders, including non-reserved hidden/underscore folders,
   before any manual migration.
+- Added `tools/pilot_report.py`, `vaultwright pilot`, and `docs/PILOT_WORKSHEET.md` for aggregate
+  design-partner evidence capture without printing source or mirror content.
 - Recovery reports now attach the latest matching sync-audit status, lifecycle state, warnings, and
   errors for each manifest item that needs operator action.
 - Recovery reports now flag stale atomic temp files left by interrupted writes, without deleting
