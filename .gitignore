@@ -21,6 +21,12 @@ data/
 secrets/
 private/
 
+# Private pilot evidence/results stay outside the public codebase
+**/_meta/agent-readiness-results.yml
+**/_meta/agent-readiness-results.yaml
+**/_meta/*agent-readiness*result*.yml
+**/_meta/*agent-readiness*result*.yaml
+
 # OS / editors
 .DS_Store
 *.log

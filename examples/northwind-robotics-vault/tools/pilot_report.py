@@ -17,6 +17,7 @@ SOURCE_MANIFEST = Path("_meta/source-manifest.json")
 REPO_MANIFEST = Path("_meta/repo-manifest.json")
 AUDIT_LOG = Path("_meta/sync-audit.jsonl")
 BENCHMARK_TASKS = Path("_meta/agent-readiness-tasks.yml")
+BENCHMARK_RESULTS = Path("_meta/agent-readiness-results.yml")
 EXCLUDED_PARTS = {
     ".git",
     ".github",
@@ -211,6 +212,23 @@ def benchmark_summary(root: Path) -> tuple[dict[str, Any], list[str], list[str]]
         summary = dict(summary)
         summary["warnings"] = len(warnings)
         summary["errors"] = len(errors)
+        result_summary: dict[str, Any] = {"available": False}
+        result_path = root / BENCHMARK_RESULTS
+        if result_path.exists() and hasattr(module, "validate_result_pack"):
+            results, result_errors, result_warnings = module.validate_result_pack(
+                result_path,
+                task_path,
+                require_complete=False,
+            )
+            result_summary = {
+                "available": True,
+                "summary": results,
+                "warnings": len(result_warnings),
+                "errors": len(result_errors),
+            }
+            warnings.extend(result_warnings)
+            errors.extend(result_errors)
+        summary["results"] = result_summary
         messages = [f"benchmark report has {len(warnings)} warnings; run `vaultwright benchmark`"] if warnings else []
         failures = [f"benchmark report has {len(errors)} errors; run `vaultwright benchmark`"] if errors else []
         return {"available": True, "summary": summary}, messages, failures
@@ -319,6 +337,15 @@ def print_human(root: Path, report: dict[str, Any], warnings: list[str], errors:
         f"available={report['benchmark']['available']} "
         f"tasks={benchmark.get('tasks', 0)}"
     )
+    results = benchmark.get("results", {})
+    result_summary = results.get("summary", {}) if isinstance(results, dict) else {}
+    if isinstance(results, dict) and results.get("available"):
+        print(
+            "pilot: benchmark results "
+            f"available=True "
+            f"results={result_summary.get('results', 0)} "
+            f"missing={result_summary.get('missing_results', 0)}"
+        )
 
 
 def build_parser() -> argparse.ArgumentParser:

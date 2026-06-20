@@ -93,11 +93,21 @@ def build_parser() -> argparse.ArgumentParser:
         ("doctor", "Check required files, Python version, and dependencies."),
     ):
         sub.add_parser(name, help=help_text).set_defaults(func=command_delegate, delegate_args=[])
-    benchmark = sub.add_parser("benchmark", help="Validate the agent-readiness benchmark task pack.")
+    benchmark = sub.add_parser("benchmark", help="Validate the agent-readiness benchmark task pack and optional result pack.")
+    benchmark.add_argument("--tasks", type=Path, help="Task pack path relative to the vault root.")
+    benchmark.add_argument("--results", type=Path, help="Optional benchmark results path relative to the vault root.")
     benchmark.add_argument("--require-generated", action="store_true", help="Require generated mirror paths to exist.")
+    benchmark.add_argument("--require-results", action="store_true", help="Require benchmark results for every task/mode pair.")
+    benchmark.add_argument("--json", action="store_true", help="Print machine-readable benchmark JSON.")
     benchmark.set_defaults(
         func=command_delegate,
-        delegate_args=lambda args: ["--require-generated"] if args.require_generated else [],
+        delegate_args=lambda args: (
+            (["--tasks", str(args.tasks)] if args.tasks else [])
+            + (["--results", str(args.results)] if args.results else [])
+            + (["--require-generated"] if args.require_generated else [])
+            + (["--require-results"] if args.require_results else [])
+            + (["--json"] if args.json else [])
+        ),
     )
     conversion = sub.add_parser("conversion", help="Print a read-only conversion spot-check report.")
     conversion.add_argument("--json", action="store_true", help="Print machine-readable conversion JSON.")

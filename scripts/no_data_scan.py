@@ -53,6 +53,8 @@ GENERATED_ARTIFACT_NAMES = {".DS_Store", "Thumbs.db", "thumbs.db"}
 GENERATED_ARTIFACT_DIRS = {"build", "dist"}
 GENERATED_ARTIFACT_PARTS = {"__MACOSX"}
 GENERATED_ARTIFACT_SUFFIXES = {".log"}
+PRIVATE_RESULT_FILENAMES = {"agent-readiness-results.yml", "agent-readiness-results.yaml"}
+YAML_SUFFIXES = {".yaml", ".yml"}
 
 DISALLOWED_DATA_EXTS = {
     ".7z",
@@ -264,6 +266,19 @@ def scan_text_patterns(rel: str, text: str, *, include_payment_card: bool = True
     return findings
 
 
+def looks_like_agent_readiness_results(rel_path: Path, text: str) -> bool:
+    if rel_path.suffix.lower() not in YAML_SUFFIXES or "_meta" not in rel_path.parts:
+        return False
+    required_patterns = (
+        r"(?m)^\s*schema_version\s*:\s*1\s*$",
+        r"(?m)^\s*results\s*:\s*$",
+        r"(?m)^\s*-\s*task_id\s*:",
+        r"(?m)^\s*mode\s*:",
+        r"(?m)^\s*score\s*:",
+    )
+    return all(re.search(pattern, text) for pattern in required_patterns)
+
+
 def is_ooxml_content_part(name: str) -> bool:
     low = name.lower()
     return any(low == prefix.lower() or low.startswith(prefix.lower()) for prefix in OOXML_CONTENT_PART_PREFIXES)
@@ -364,6 +379,9 @@ def scan_bytes(
         findings.append(f"{rel}: generated/vendor directory must not be committed ({generated_parts[0]})")
 
     name = rel_path.name
+    if name in PRIVATE_RESULT_FILENAMES and "_meta" in rel_path.parts:
+        findings.append(f"{rel}: benchmark result packs must stay out of the public repo")
+
     if (
         name in GENERATED_ARTIFACT_NAMES
         or rel_path.suffix.lower() in GENERATED_ARTIFACT_SUFFIXES
@@ -403,6 +421,8 @@ def scan_bytes(
         return findings
 
     text = raw.decode("utf-8", errors="ignore")
+    if looks_like_agent_readiness_results(rel_path, text):
+        findings.append(f"{rel}: benchmark result packs must stay out of the public repo")
     findings.extend(scan_text_patterns(rel, text))
     return findings
 

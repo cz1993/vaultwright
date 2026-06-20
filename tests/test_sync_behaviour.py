@@ -349,6 +349,374 @@ def test_packaged_vaultwright_cli_delegates_to_target_vault(tmp_path: Path) -> N
     assert report["summary"]["total"] == 0
 
 
+def write_agent_benchmark_fixture(vault: Path) -> None:
+    source = vault / "40_delivery" / "client-plan.docx"
+    mirror = vault / "_mirrors" / "40_delivery" / "client-plan.md"
+    source.parent.mkdir(parents=True, exist_ok=True)
+    mirror.parent.mkdir(parents=True, exist_ok=True)
+    source.write_bytes(b"synthetic benchmark source")
+    mirror.write_text("---\nsource_path: 40_delivery/client-plan.docx\n---\nSynthetic mirror\n", encoding="utf-8")
+    tasks = []
+    for family in ("answer", "reconcile", "update", "audit", "consolidate"):
+        tasks.append(
+            {
+                "id": f"{family}-1",
+                "family": family,
+                "prompt": f"What should the {family} task prove?",
+                "source_paths": ["40_delivery/client-plan.docx"],
+                "generated_mirror_paths": ["_mirrors/40_delivery/client-plan.md"],
+                "curated_paths": [],
+                "success_criteria": ["Uses source-backed evidence"],
+            }
+        )
+    (vault / "_meta" / "agent-readiness-tasks.yml").write_text(
+        yaml.safe_dump(
+            {
+                "schema_version": 1,
+                "corpus": "fixture",
+                "comparison_modes": [
+                    "raw_source_folder",
+                    "document_chat_transcript",
+                    "vaultwright_markdown",
+                ],
+                "scoring": {"scale": "0-2"},
+                "tasks": tasks,
+            },
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
+    (vault / "_meta" / "agent-readiness-results.yml").write_text(
+        yaml.safe_dump(
+            {
+                "schema_version": 1,
+                "corpus": "fixture",
+                "results": [
+                    {
+                        "task_id": "answer-1",
+                        "mode": "vaultwright_markdown",
+                        "score": 2,
+                        "reviewer_corrections": 0,
+                        "elapsed_seconds": 12.5,
+                        "cited_source_paths": ["40_delivery/client-plan.docx"],
+                        "cited_generated_mirror_paths": ["_mirrors/40_delivery/client-plan.md"],
+                    },
+                    {
+                        "task_id": "answer-1",
+                        "mode": "raw_source_folder",
+                        "score": 1,
+                        "reviewer_corrections": 1,
+                        "cited_source_paths": ["40_delivery/client-plan.docx"],
+                    },
+                    {
+                        "task_id": "audit-1",
+                        "mode": "document_chat_transcript",
+                        "score": 0,
+                        "reviewer_corrections": 2,
+                        "privacy_or_provenance_violation": True,
+                    },
+                ],
+            },
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
+
+
+def test_vaultwright_benchmark_reports_result_scores_without_answer_content(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    write_agent_benchmark_fixture(vault)
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(vault / "tools" / "vaultwright.py"),
+            "benchmark",
+            "--results",
+            "_meta/agent-readiness-results.yml",
+        ],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+    assert "benchmark_tasks: 5 tasks" in result.stdout
+    assert "benchmark_results: 3 results" in result.stdout
+    assert "vaultwright_markdown: results=1 score=2/2 avg=2.00 corrections=0 violations=0" in result.stdout
+    assert "raw_source_folder: results=1 score=1/2 avg=1.00 corrections=1 violations=0" in result.stdout
+    assert "document_chat_transcript: results=1 score=0/2 avg=0.00 corrections=2 violations=1" in result.stdout
+    assert "warning: benchmark results incomplete: missing 12 task/mode scores" in result.stdout
+
+
+def test_vaultwright_benchmark_require_results_fails_on_incomplete_scores(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    write_agent_benchmark_fixture(vault)
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(vault / "tools" / "vaultwright.py"),
+            "benchmark",
+            "--results",
+            "_meta/agent-readiness-results.yml",
+            "--require-results",
+        ],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 1
+    assert "benchmark results incomplete: missing 12 task/mode scores" in result.stderr
+
+
+def test_vaultwright_benchmark_rejects_answer_text_and_reviewer_notes(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    write_agent_benchmark_fixture(vault)
+    (vault / "_meta" / "agent-readiness-results.yml").write_text(
+        yaml.safe_dump(
+            {
+                "schema_version": 1,
+                "corpus": "fixture",
+                "results": [
+                    {
+                        "task_id": "answer-1",
+                        "mode": "vaultwright_markdown",
+                        "score": 2,
+                        "reviewer_corrections": 0,
+                        "cited_source_paths": ["40_delivery/client-plan.docx"],
+                        "cited_generated_mirror_paths": ["_mirrors/40_delivery/client-plan.md"],
+                        "answer_text": "private generated answer should stay hidden",
+                        "reviewer_notes": "private reviewer notes should stay hidden",
+                    }
+                ],
+            },
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(vault / "tools" / "vaultwright.py"),
+            "benchmark",
+            "--results",
+            "_meta/agent-readiness-results.yml",
+        ],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 1
+    assert "unsupported result field answer_text" in result.stderr
+    assert "unsupported result field reviewer_notes" in result.stderr
+    assert "private generated answer" not in result.stdout
+    assert "private generated answer" not in result.stderr
+    assert "private reviewer notes" not in result.stdout
+    assert "private reviewer notes" not in result.stderr
+
+
+def test_vaultwright_benchmark_rejects_top_level_private_result_fields(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    write_agent_benchmark_fixture(vault)
+    (vault / "_meta" / "agent-readiness-results.yml").write_text(
+        yaml.safe_dump(
+            {
+                "schema_version": 1,
+                "corpus": "fixture",
+                "answer_text": "private top-level answer should stay hidden",
+                "reviewer_notes": "private top-level notes should stay hidden",
+                "results": [
+                    {
+                        "task_id": "answer-1",
+                        "mode": "vaultwright_markdown",
+                        "score": 2,
+                        "reviewer_corrections": 0,
+                        "cited_source_paths": ["40_delivery/client-plan.docx"],
+                    }
+                ],
+            },
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(vault / "tools" / "vaultwright.py"),
+            "benchmark",
+            "--results",
+            "_meta/agent-readiness-results.yml",
+        ],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 1
+    assert "unsupported top-level field answer_text" in result.stderr
+    assert "unsupported top-level field reviewer_notes" in result.stderr
+    assert "private top-level answer" not in result.stdout
+    assert "private top-level answer" not in result.stderr
+    assert "private top-level notes" not in result.stdout
+    assert "private top-level notes" not in result.stderr
+
+
+def test_vaultwright_benchmark_rejects_unrelated_citations(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    write_agent_benchmark_fixture(vault)
+    unrelated = vault / "50_operations" / "unrelated.docx"
+    unrelated.parent.mkdir(parents=True, exist_ok=True)
+    unrelated.write_bytes(b"unrelated source")
+    (vault / "_meta" / "agent-readiness-results.yml").write_text(
+        yaml.safe_dump(
+            {
+                "schema_version": 1,
+                "corpus": "fixture",
+                "results": [
+                    {
+                        "task_id": "answer-1",
+                        "mode": "vaultwright_markdown",
+                        "score": 2,
+                        "reviewer_corrections": 0,
+                        "cited_source_paths": ["50_operations/unrelated.docx"],
+                    }
+                ],
+            },
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(vault / "tools" / "vaultwright.py"),
+            "benchmark",
+            "--results",
+            "_meta/agent-readiness-results.yml",
+        ],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 1
+    assert "cited_source_paths must cite a path declared by the task: 50_operations/unrelated.docx" in result.stderr
+
+
+def test_vaultwright_benchmark_rejects_non_finite_elapsed_seconds(tmp_path: Path) -> None:
+    for value in ("-1", ".nan", ".inf"):
+        vault = tmp_path / f"vault-{value.replace('.', 'dot').replace('-', 'neg')}"
+        shutil.copytree(ROOT / "template", vault)
+        write_agent_benchmark_fixture(vault)
+        (vault / "_meta" / "agent-readiness-results.yml").write_text(
+            "schema_version: 1\n"
+            "corpus: fixture\n"
+            "results:\n"
+            "  - task_id: answer-1\n"
+            "    mode: vaultwright_markdown\n"
+            "    score: 2\n"
+            "    reviewer_corrections: 0\n"
+            "    elapsed_seconds: " + value + "\n"
+            "    cited_source_paths: [40_delivery/client-plan.docx]\n",
+            encoding="utf-8",
+        )
+
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(vault / "tools" / "vaultwright.py"),
+                "benchmark",
+                "--results",
+                "_meta/agent-readiness-results.yml",
+                "--json",
+            ],
+            cwd=vault,
+            text=True,
+            capture_output=True,
+        )
+
+        assert result.returncode == 1
+        assert "elapsed_seconds must be a finite non-negative number" in result.stdout
+        assert "NaN" not in result.stdout
+        assert "Infinity" not in result.stdout
+
+
+def test_vaultwright_benchmark_require_results_requires_task_pack(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+
+    result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "vaultwright.py"), "benchmark", "--require-results"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 1
+    assert "benchmark_tasks: missing task pack: _meta/agent-readiness-tasks.yml" in result.stderr
+
+
+def test_vaultwright_benchmark_default_result_file_requires_task_pack(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    (vault / "_meta" / "agent-readiness-results.yml").write_text(
+        "schema_version: 1\ncorpus: fixture\nresults: []\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "vaultwright.py"), "benchmark"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 1
+    assert "benchmark_tasks: missing task pack: _meta/agent-readiness-tasks.yml" in result.stderr
+
+
+def test_packaged_vaultwright_cli_delegates_benchmark_result_args(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    write_agent_benchmark_fixture(vault)
+    env = {**os.environ, "PYTHONPATH": str(ROOT / "src")}
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "vaultwright.cli",
+            "--root",
+            str(vault),
+            "benchmark",
+            "--results",
+            "_meta/agent-readiness-results.yml",
+            "--json",
+        ],
+        cwd=ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+    payload = json.loads(result.stdout)
+    assert payload["summary"]["tasks"] == 5
+    assert payload["result_summary"]["results"] == 3
+    assert payload["result_summary"]["modes"]["vaultwright_markdown"]["score"] == 2
+
+
 def test_packaged_vaultwright_cli_init_from_source_checkout(tmp_path: Path) -> None:
     target = tmp_path / "new-vault"
     env = {**os.environ, "PYTHONPATH": str(ROOT / "src"), "VAULTWRIGHT_REPO": str(ROOT)}

@@ -72,6 +72,36 @@ def test_no_data_scan_flags_data_file_outside_allowed_dirs(tmp_path: Path) -> No
     assert "DATA_PROVENANCE.md" in result.stderr
 
 
+def test_no_data_scan_flags_agent_readiness_result_packs(tmp_path: Path) -> None:
+    path = tmp_path / "vault" / "_meta" / "agent-readiness-results.yml"
+    path.parent.mkdir(parents=True)
+    path.write_text("schema_version: 1\ncorpus: fixture\nresults: []\n", encoding="utf-8")
+
+    result = run_scan(path)
+
+    assert result.returncode == 1
+    assert "benchmark result packs must stay out of the public repo" in result.stderr
+
+
+def test_no_data_scan_flags_renamed_agent_readiness_result_pack_shape(tmp_path: Path) -> None:
+    path = tmp_path / "vault" / "_meta" / "agent-readiness-results-public.yml"
+    path.parent.mkdir(parents=True)
+    path.write_text(
+        "schema_version: 1\n"
+        "corpus: fixture\n"
+        "results:\n"
+        "  - task_id: answer-1\n"
+        "    mode: vaultwright_markdown\n"
+        "    score: 2\n",
+        encoding="utf-8",
+    )
+
+    result = run_scan(path)
+
+    assert result.returncode == 1
+    assert "benchmark result packs must stay out of the public repo" in result.stderr
+
+
 def test_no_data_scan_allows_generated_sync_audit_but_scans_text(tmp_path: Path) -> None:
     audit = tmp_path / "vault" / "_meta" / "sync-audit.jsonl"
     audit.parent.mkdir(parents=True)

@@ -342,7 +342,7 @@ Professional-services use should begin with a conservative operating model:
 | Mirror storage | Office mirrors and optional text-based PDF mirrors live under `_mirrors/` | Fixes messy source-folder problem |
 | Office sync | Plan/sync/status, manifest, audit events, manual-edit detection, lifecycle next-action guidance | Useful alpha foundation |
 | Repo sync | Plan/sync/status, repo manifest, audit events, manual-edit detection, lifecycle next-action guidance | Useful for code/source repositories |
-| CLI | Vault-local wrapper and source-installable `vaultwright` entry point; CI now installs the built wheel and verifies packaged init, doctor, plan, benchmark, conversion, migration, pilot, and JSON recovery delegation; doctor reports dependency, manifest, audit, recovery-action counts, git/GitHub backup posture, optional Obsidian config/plugin posture, and `.gitignore` backup guard coverage; conversion, migration, pilot, and recovery print read-only operator reports | Better operator ergonomics; tagged release publishing still needs hardening |
+| CLI | Vault-local wrapper and source-installable `vaultwright` entry point; CI now installs the built wheel and verifies packaged init, doctor, plan, benchmark, conversion, migration, pilot, and JSON recovery delegation; doctor reports dependency, manifest, audit, recovery-action counts, git/GitHub backup posture, optional Obsidian config/plugin posture, and `.gitignore` backup guard coverage; benchmark validates task packs and optional aggregate result packs; conversion, migration, pilot, and recovery print read-only operator reports | Better operator ergonomics; tagged release publishing still needs hardening |
 | Examples | Government-services showcase plus Northwind regression fixture | Better demo plus stable tests |
 | Provenance | Public fixture ledger with source URLs, licence posture, and review date | Good discipline; must be maintained |
 | Safety | No-data scanner, pre-commit hook, CI checks | Strong for repository hygiene |
@@ -361,7 +361,7 @@ Current evidence is encouraging but limited.
 | Government showcase | Canadian business registration, GST/HST, CRA account, and funding/support fixtures | Better demonstration of a consulting-relevant pain point |
 | Office source manifest | Stable source IDs, hashes, mirror paths, lifecycle states, audit events, missing/manual-edit detection | Important lifecycle foundation, not finished operator UX |
 | Conversion spot-check report | Read-only manifest report prioritizes high/medium/low conversion review items from states, warnings, errors, formats, and source/mirror existence | Useful pilot checklist; not a quantitative conversion-quality score |
-| Pilot evidence report | Read-only aggregate report summarizes corpus shape, manifest states, audit counts, conversion priorities, recovery counts, and benchmark tasks without source content | Useful for private design-partner worksheets; not external validation by itself |
+| Pilot evidence report | Read-only aggregate report summarizes corpus shape, manifest states, audit counts, conversion priorities, recovery counts, benchmark tasks, and optional benchmark result scores without source content | Useful for private design-partner worksheets; not external validation by itself |
 | Repo source manifest | Stable repo IDs, local-tree/remote-HEAD hashes, audit events, manual-edit detection | Useful coverage for repo mirrors |
 | Source-installable CLI | Console entry point delegates to vault-local tools and supports source-checkout `init` | Good development ergonomics |
 | Private dogfood | Small copied corpus produced mirrors without source-folder clutter | Useful smoke test only |
@@ -375,7 +375,8 @@ Known gaps:
 - No retrieval task measures before/after usefulness.
 - No benchmark yet proves that AI agents perform better against Vaultwright-generated markdown than
   against raw source folders or ad hoc document-chat outputs; `docs/AGENT_READINESS_BENCHMARK.md`
-  defines the required comparison protocol.
+  defines the required comparison protocol and `vaultwright benchmark --results` can validate
+  aggregate result packs when private pilots produce them.
 - No independent security review has been completed.
 - No distribution-quality package release exists.
 - No formal support model, pricing, or consulting statement of work exists.
@@ -650,7 +651,8 @@ Roadmap:
 - Typed links and richer evidence relationships.
 - Agent-readiness benchmarks comparing raw source folders, document-chat transcripts, and
   Vaultwright-generated markdown for question answering, reconciliation, update, and audit tasks,
-  using `docs/AGENT_READINESS_BENCHMARK.md`.
+  using `docs/AGENT_READINESS_BENCHMARK.md` and optional aggregate result packs validated by
+  `vaultwright benchmark --results`.
 - External design-partner evidence.
 
 ## 21. Bottom Line

@@ -8,7 +8,7 @@ These keep your knowledge base current and healthy. See `../CLAUDE.md` §6 for t
 | `sync_github_repos.py` | markdown **mirror** under `80_sources/repos/` for each repo in `repos.yml` (README + docs + metadata), refreshed on HEAD change |
 | `vaultwright.py` | thin operator wrapper: `plan`, `sync`, `status`, `conversion`, `migration`, `pilot`, `recovery`, `lint`, `benchmark`, `doctor`, and repo-root `init` |
 | `lint_vault.py` | health check — frontmatter, broken wikilinks, orphans, overlap warnings, mirror gaps |
-| `benchmark_tasks.py` | validates `_meta/agent-readiness-tasks.yml` benchmark packs and referenced source/mirror paths |
+| `benchmark_tasks.py` | validates `_meta/agent-readiness-tasks.yml` task packs and optional aggregate result packs |
 | `conversion_report.py` | prints a read-only conversion spot-check report from the source manifest |
 | `migration_report.py` | prints a read-only migration report for legacy or unknown top-level folders |
 | `pilot_report.py` | prints a read-only aggregate pilot evidence report without source content |
@@ -57,9 +57,10 @@ underscore-prefixed folders are reported too, because they may contain staged im
 source material.
 
 `pilot` is read-only. It summarizes aggregate pilot evidence from manifests, audit events,
-conversion priorities, recovery action counts, and benchmark tasks without printing source paths,
-source text, mirror text, or repository document bodies. Use `--json` to attach the aggregate
-metrics to an anonymized design-partner worksheet.
+conversion priorities, recovery action counts, benchmark tasks, and optional benchmark result
+scores without printing source paths, source text, mirror text, answer text, reviewer notes, or
+repository document bodies. Use `--json` to attach the aggregate metrics to an anonymized
+design-partner worksheet.
 
 `recovery` is also read-only. It reads `_meta/source-manifest.json`, `_meta/repo-manifest.json`, and
 the latest matching `_meta/sync-audit.jsonl` events, then prints only records that need operator
@@ -156,6 +157,21 @@ python3.11 tools/vaultwright.py benchmark --require-generated  # after running s
 The first command allows generated mirror paths to be planned but not present yet. The
 `--require-generated` variant is for synced working copies and fails when a referenced mirror path
 does not exist.
+
+If a private pilot records comparison scores in `_meta/agent-readiness-results.yml`, summarize the
+aggregate results with:
+
+```bash
+python3.11 tools/vaultwright.py benchmark --results _meta/agent-readiness-results.yml
+python3.11 tools/vaultwright.py benchmark --results _meta/agent-readiness-results.yml --require-results
+python3.11 tools/vaultwright.py benchmark --results _meta/agent-readiness-results.yml --json
+```
+
+Result packs score each task across `raw_source_folder`, `document_chat_transcript`, and
+`vaultwright_markdown`. The report prints per-mode scores, correction counts, and privacy/
+provenance violation counts, but it does not print answer text or reviewer notes. Result packs are
+ignored and scanner-blocked in the public repository by default; keep them in private pilot
+workspaces unless an anonymized aggregate has been reviewed separately.
 
 ## Keep it fresh (unattended)
 

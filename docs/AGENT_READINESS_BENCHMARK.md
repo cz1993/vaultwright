@@ -75,6 +75,70 @@ For each benchmark run, keep:
 - lint and sync status output;
 - no-data confirmation that no private corpus evidence is committed to this repository.
 
+## Result Pack
+
+Task packs define what to run. Result packs summarize what happened after an agent or operator runs
+those tasks in each comparison mode. Keep result packs in the private pilot vault or an anonymized
+review packet; do not commit confidential answers, client names, source text, mirror text, or
+reviewer notes to this public repository.
+
+The public Vaultwright repository ignores and rejects committed `_meta/agent-readiness-results.yml`
+files by default. Store them in private pilot workspaces, then copy only aggregate numbers into a
+review packet after no-data review.
+
+Default local path:
+
+```text
+_meta/agent-readiness-results.yml
+```
+
+Minimal schema:
+
+```yaml
+schema_version: 1
+corpus: government-services-vault
+results:
+  - task_id: answer-gst-readiness
+    mode: vaultwright_markdown
+    score: 2
+    reviewer_corrections: 0
+    elapsed_seconds: 95
+    cited_source_paths:
+      - 60_finance/tax/gst-hst-readiness.docx
+    cited_generated_mirror_paths:
+      - _mirrors/60_finance/tax/gst-hst-readiness.md
+    privacy_or_provenance_violation: false
+```
+
+Rules enforced by the validator:
+
+- `task_id` must exist in the task pack;
+- `mode` must be one of `raw_source_folder`, `document_chat_transcript`, or
+  `vaultwright_markdown`;
+- `score` must be `0`, `1`, or `2`;
+- reviewer corrections must be a non-negative integer;
+- elapsed seconds, when present, must be finite and non-negative;
+- citation paths must be relative vault paths;
+- cited paths must exist in the current vault copy;
+- cited paths must be declared on the referenced task;
+- source citations must not point into `_mirrors/`;
+- generated mirror citations must point into `_mirrors/`;
+- unsupported top-level or per-result fields are rejected so answer text and reviewer notes are not
+  stored in result packs;
+- `--require-results` fails unless every task has a score for every comparison mode.
+
+Validate and summarize results with:
+
+```bash
+python3.11 tools/vaultwright.py benchmark --results _meta/agent-readiness-results.yml
+python3.11 tools/vaultwright.py benchmark --results _meta/agent-readiness-results.yml --require-results
+python3.11 tools/vaultwright.py benchmark --results _meta/agent-readiness-results.yml --json
+```
+
+The human-readable report prints aggregate per-mode scores, correction counts, and privacy/
+provenance violation counts. It does not print answer text, reviewer notes, source text, mirror
+text, or document bodies.
+
 ## Example Task Pack
 
 The public government-services demo includes a starter task pack at
@@ -92,6 +156,9 @@ Validate a configured task pack with:
 python3.11 tools/vaultwright.py benchmark
 python3.11 tools/vaultwright.py benchmark --require-generated  # after sync
 ```
+
+No public result pack is committed for the example. Completing one requires running the comparison
+protocol and reviewing the answers.
 
 ## Guardrails
 

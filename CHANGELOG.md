@@ -31,6 +31,9 @@ Initial scaffold extracted and generalized from a real small-business vault.
   `examples/government-services-vault/_meta/agent-readiness-tasks.yml`.
 - Added `tools/benchmark_tasks.py` and `vaultwright benchmark` to validate agent-readiness task
   packs before and after generated mirrors exist.
+- `vaultwright benchmark` now validates optional `_meta/agent-readiness-results.yml` result packs
+  and reports aggregate per-mode scores, correction counts, and privacy/provenance violation
+  counts without printing answer text or reviewer notes.
 - Vendored the full AGPL-3.0 license text into `LICENSE`, kept project-specific licensing notices
   in `NOTICE`, and added SPDX headers to source/tool/test files.
 - Added a test gate to keep SPDX headers present on Python and shell source files.

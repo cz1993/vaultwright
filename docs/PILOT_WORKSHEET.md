@@ -36,6 +36,8 @@ Record from `python3.11 tools/vaultwright.py pilot --json` after first sync:
 - conversion high/medium/low counts:
 - recovery action count:
 - benchmark task count:
+- benchmark result count:
+- benchmark missing task/mode scores:
 
 Do not paste source paths, document text, mirror text, secrets, personal data, or client identifiers
 into this worksheet.
@@ -53,6 +55,7 @@ python3.11 tools/vaultwright.py conversion
 python3.11 tools/vaultwright.py recovery
 python3.11 tools/vaultwright.py pilot --json
 python3.11 tools/vaultwright.py benchmark --require-generated
+python3.11 tools/vaultwright.py benchmark --results _meta/agent-readiness-results.yml --require-results
 python3.11 tools/vaultwright.py lint
 ```
 
@@ -70,7 +73,8 @@ python3.11 tools/vaultwright.py lint
 ## Agent-Readiness Tasks
 
 Use `docs/AGENT_READINESS_BENCHMARK.md` for scoring. Keep prompts, scores, and citations
-anonymized.
+anonymized, and keep any private result pack outside this public repository unless it has been
+reviewed for source text, personal data, client names, answer text, and reviewer notes.
 
 | Task ID | Raw folder score | Document-chat score | Vaultwright markdown score | Notes |
 | --- | ---: | ---: | ---: | --- |

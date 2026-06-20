@@ -4,6 +4,12 @@ data/
 secrets/
 private/
 
+# Private pilot evidence/results stay outside the public codebase
+_meta/agent-readiness-results.yml
+_meta/agent-readiness-results.yaml
+_meta/*agent-readiness*result*.yml
+_meta/*agent-readiness*result*.yaml
+
 # Obsidian per-machine UI state (keep the rest of .obsidian if you version your config)
 .obsidian/workspace*.json
 

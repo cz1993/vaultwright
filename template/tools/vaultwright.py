@@ -88,8 +88,16 @@ def command_lint(args: argparse.Namespace) -> int:
 def command_benchmark(args: argparse.Namespace) -> int:
     root = args.root.resolve()
     cmd = python_cmd(root, "benchmark_tasks.py")
+    if args.tasks:
+        cmd.extend(["--tasks", str(args.tasks)])
+    if args.results:
+        cmd.extend(["--results", str(args.results)])
     if args.require_generated:
         cmd.append("--require-generated")
+    if args.require_results:
+        cmd.append("--require-results")
+    if args.json:
+        cmd.append("--json")
     return run(cmd, root)
 
 
@@ -487,8 +495,12 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("sync", help="Run Office and repo mirror syncs.").set_defaults(func=command_sync)
     sub.add_parser("status", help="Report manifest-backed lifecycle status.").set_defaults(func=command_status)
     sub.add_parser("lint", help="Run vault health checks.").set_defaults(func=command_lint)
-    benchmark = sub.add_parser("benchmark", help="Validate the agent-readiness benchmark task pack.")
+    benchmark = sub.add_parser("benchmark", help="Validate the agent-readiness benchmark task pack and optional result pack.")
+    benchmark.add_argument("--tasks", type=Path, help="Task pack path relative to the vault root.")
+    benchmark.add_argument("--results", type=Path, help="Optional benchmark results path relative to the vault root.")
     benchmark.add_argument("--require-generated", action="store_true", help="Require generated mirror paths to exist.")
+    benchmark.add_argument("--require-results", action="store_true", help="Require benchmark results for every task/mode pair.")
+    benchmark.add_argument("--json", action="store_true", help="Print machine-readable benchmark JSON.")
     benchmark.set_defaults(func=command_benchmark)
     conversion = sub.add_parser("conversion", help="Print a read-only conversion spot-check report.")
     conversion.add_argument("--json", action="store_true", help="Print machine-readable conversion JSON.")
