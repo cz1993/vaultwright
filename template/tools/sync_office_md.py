@@ -78,6 +78,18 @@ FORBIDDEN_MIRROR_PARTS = {
     ".git", ".githooks", ".github", ".obsidian", "_archive", "_fixtures",
     "_meta", "_templates", "_tmp", "node_modules", "tools",
 }
+LIFECYCLE_GUIDANCE = {
+    "planned": "review the plan, then run sync to create the generated mirror.",
+    "source_changed": "run sync to refresh the generated region, then review linked curated notes.",
+    "source_moved": "confirm the source move is intentional, then run sync to update the mirror path.",
+    "stale": "run sync before relying on the mirror; the source or configuration is newer.",
+    "converter_changed": "review conversion quality, then run sync if the new converter output is acceptable.",
+    "unsupported": "keep the original as source of truth; convert the file manually or use a supported format.",
+    "source_missing": "do not delete the retained mirror automatically; confirm whether the source was moved, archived, or deleted.",
+    "manual_modification": "inspect the mirror below the generated sentinel and preserve human edits before forcing regeneration.",
+    "conflict": "resolve the target mirror/source identity conflict before syncing.",
+    "error": "fix the reported error, then rerun plan/status before syncing.",
+}
 
 # Frontmatter keys the script owns and overwrites on every sync.
 MANAGED_KEYS = {
@@ -767,6 +779,27 @@ def status_for_plan(plan: dict) -> str:
     return state
 
 
+def lifecycle_guidance_lines(state_counts: dict[str, int]) -> list[str]:
+    lines: list[str] = []
+    for state in sorted(state_counts):
+        count = state_counts.get(state, 0)
+        if count <= 0 or state == "clean":
+            continue
+        guidance = LIFECYCLE_GUIDANCE.get(state)
+        if guidance:
+            lines.append(f"{state} ({count}): {guidance}")
+    return lines
+
+
+def print_lifecycle_guidance(state_counts: dict[str, int]) -> None:
+    lines = lifecycle_guidance_lines(state_counts)
+    if not lines:
+        return
+    print("next actions:")
+    for line in lines:
+        print(f"  - {line}")
+
+
 def review_blocks_force(record: dict) -> bool:
     if record.get("lifecycle_state") == "conflict":
         return True
@@ -968,6 +1001,7 @@ def print_plan_or_status(
     print(f"\nsync_office_md {mode}: {len(files)} current sources, {missing} missing manifest sources -> {action_summary}")
     print(f"lifecycle: {state_summary}")
     print(f"warnings: {warning_total}")
+    print_lifecycle_guidance(state_counts)
     return 1 if action_counts.get("error", 0) else 0
 
 

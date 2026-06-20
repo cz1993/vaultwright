@@ -56,7 +56,8 @@ Successful syncs also maintain `_meta/source-manifest.json`. The manifest record
 ID, source hash/size, mirror path, converter/config version, lifecycle state, warnings, and last
 successful sync time. `--plan` never writes mirrors or the manifest; `--status` reads the manifest
 and current source tree to surface clean, planned, unsupported, missing, stale, conflicted, and
-manual-modification states.
+manual-modification states. Plan/status output also prints `next actions` for lifecycle states that
+need review, sync, source recovery, or conflict resolution.
 
 The Office plan also reports warning counts for:
 
@@ -91,6 +92,8 @@ directory instead of calling GitHub.
 Successful repo syncs maintain `_meta/repo-manifest.json`. Office and repo syncs append
 machine-readable events to `_meta/sync-audit.jsonl`. These generated metadata files explain what
 changed, which source or repo identity was involved, and the lifecycle state after sync.
+Repo plan/status output also prints `next actions` for changed, unreachable, conflicted, manually
+modified, and errored repo mirrors.
 
 ## Agent-readiness benchmark tasks
 

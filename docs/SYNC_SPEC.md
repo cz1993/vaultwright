@@ -32,10 +32,11 @@ Current implementation status:
 - implemented for Office mirrors: stable source IDs, current/previous source paths, mirror path,
   source hash/size, converter/config version, lifecycle state, warnings/errors, source-missing
   marking, non-mutating plan/status reports, sensitive-name warnings, duplicate-byte warnings, and
-  format-specific conversion-quality warnings;
+  format-specific conversion-quality warnings, plus lifecycle next-action guidance in plan/status
+  output;
 - implemented for repo mirrors: stable repo IDs, configured/resolved repo, note path, local-tree or
   remote HEAD hash, lifecycle state, warnings/errors, non-mutating plan/status reports, and
-  generated-region manual-edit detection;
+  generated-region manual-edit detection, plus lifecycle next-action guidance in plan/status output;
 - partially implemented: move detection by unique hash match when the old manifest path is absent;
 - not complete: full rename/move UX, rollback automation, quantitative conversion-quality scoring,
   and exhaustive conflict-resolution flows.

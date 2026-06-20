@@ -55,6 +55,15 @@ FORBIDDEN_OUTPUT_PARTS = {
     ".git", ".githooks", ".github", ".obsidian", "_archive", "_fixtures",
     "_meta", "_templates", "_tmp", "node_modules", "tools",
 }
+LIFECYCLE_GUIDANCE = {
+    "planned": "review the plan, then run sync to create the repo mirror.",
+    "repo_changed": "run sync to refresh README/docs/metadata, then review curated notes.",
+    "stale": "run sync before relying on the mirror; the repo or configuration is newer.",
+    "unreachable": "check repo spelling, network access, and GitHub auth; existing mirror content is retained.",
+    "manual_modification": "inspect the repo mirror below the generated sentinel and preserve human edits before forcing regeneration.",
+    "conflict": "resolve the target note/repo identity conflict before syncing.",
+    "error": "fix the reported error, then rerun plan/status before syncing.",
+}
 
 
 def now_iso():
@@ -739,6 +748,27 @@ def status_for_plan(plan: dict) -> str:
     return state
 
 
+def lifecycle_guidance_lines(state_counts: dict[str, int]) -> list[str]:
+    lines: list[str] = []
+    for state in sorted(state_counts):
+        count = state_counts.get(state, 0)
+        if count <= 0 or state == "clean":
+            continue
+        guidance = LIFECYCLE_GUIDANCE.get(state)
+        if guidance:
+            lines.append(f"{state} ({count}): {guidance}")
+    return lines
+
+
+def print_lifecycle_guidance(state_counts: dict[str, int]) -> None:
+    lines = lifecycle_guidance_lines(state_counts)
+    if not lines:
+        return
+    print("next actions:")
+    for line in lines:
+        print(f"  - {line}")
+
+
 def update_manifest_after_sync(manifest: dict, plan: dict, status: str) -> None:
     record = dict(plan["record"])
     note_path = plan["note_path"]
@@ -790,6 +820,7 @@ def print_plan_or_status(settings, repos, token, manifest, mode: str, quiet: boo
     state_summary = ", ".join(f"{state}={count}" for state, count in sorted(state_counts.items())) or "no states"
     print(f"\nsync_github_repos {mode}: {len(repos)} configured repos -> {summary}")
     print(f"lifecycle: {state_summary}")
+    print_lifecycle_guidance(state_counts)
     return 1 if action_counts.get("error", 0) else 0
 
 

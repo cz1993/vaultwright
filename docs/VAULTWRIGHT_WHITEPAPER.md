@@ -340,8 +340,8 @@ Professional-services use should begin with a conservative operating model:
 | Product positioning | Narrowed to governed document-to-markdown lifecycle with agent-ready substrate as the future direction | Stronger than generic AI wiki framing |
 | Information architecture | Function-based folder structure with configurable domain map | Better cross-industry baseline |
 | Mirror storage | Office mirrors and optional text-based PDF mirrors live under `_mirrors/` | Fixes messy source-folder problem |
-| Office sync | Plan/sync/status, manifest, audit events, manual-edit detection | Useful alpha foundation |
-| Repo sync | Plan/sync/status, repo manifest, audit events, manual-edit detection | Useful for code/source repositories |
+| Office sync | Plan/sync/status, manifest, audit events, manual-edit detection, lifecycle next-action guidance | Useful alpha foundation |
+| Repo sync | Plan/sync/status, repo manifest, audit events, manual-edit detection, lifecycle next-action guidance | Useful for code/source repositories |
 | CLI | Vault-local wrapper and source-installable `vaultwright` entry point; doctor reports dependency, manifest, audit, git, and GitHub-auth posture | Better operator ergonomics; distribution packaging not final |
 | Examples | Government-services showcase plus Northwind regression fixture | Better demo plus stable tests |
 | Provenance | Public fixture ledger with source URLs, licence posture, and review date | Good discipline; must be maintained |
@@ -440,7 +440,7 @@ Deliverables:
 
 - packaged install path that does not depend on source-checkout assumptions;
 - continued `doctor` expansion for Obsidian/plugin and backup-recovery checks;
-- improved lifecycle status wording;
+- deeper lifecycle recovery UX beyond current next-action guidance;
 - dry-run migration report for legacy folder layouts;
 - conversion spot-check guide;
 - pilot worksheet based on `docs/DESIGN_PARTNER_PROTOCOL.md`;
@@ -450,7 +450,7 @@ Exit criteria:
 
 - a new operator can complete `init -> plan -> sync -> status -> lint` from docs;
 - no source files are changed;
-- status output explains every warning/error without code inspection.
+- status output explains lifecycle warning/error direction without code inspection.
 
 ### Phase 2 - Design-Partner Validation
 

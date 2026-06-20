@@ -39,6 +39,8 @@ Initial scaffold extracted and generalized from a real small-business vault.
 - Office mirror sync now supports non-mutating `--plan` and manifest-backed `--status` reporting,
   and writes `_meta/source-manifest.json` on sync with stable source IDs, source hashes, mirror
   paths, converter/config version, lifecycle state, warnings, and last successful sync.
+- Office and repo plan/status output now includes lifecycle next-action guidance for review,
+  missing, moved, changed, unreachable, conflict, unsupported, and error states.
 - Added `tools/vaultwright.py`, a thin operator wrapper for `plan`, `sync`, `status`, `lint`, and
   `doctor`, plus repo-root `init`.
 - Added `pyproject.toml` and the source-installable `vaultwright` console entry point, which

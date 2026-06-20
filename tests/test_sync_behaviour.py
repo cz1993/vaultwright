@@ -362,6 +362,8 @@ def test_github_sync_reports_manual_generated_region_modification(tmp_path: Path
     )
     assert third.returncode == 0, third.stderr or third.stdout
     assert "review:manual_modification" in third.stdout
+    assert "next actions:" in third.stdout
+    assert "manual_modification (1): inspect the repo mirror below the generated sentinel" in third.stdout
     assert "Manual edit below sentinel" in note.read_text(encoding="utf-8")
 
 
@@ -1045,6 +1047,38 @@ def test_office_sync_marks_missing_manifest_sources(tmp_path: Path) -> None:
     assert missing == 1
     assert manifest["records"][0]["source_id"] == source_id
     assert manifest["records"][0]["lifecycle_state"] == "source_missing"
+
+
+def test_office_lifecycle_guidance_explains_review_states() -> None:
+    sync = load_office_sync_module()
+
+    lines = sync.lifecycle_guidance_lines({
+        "clean": 3,
+        "manual_modification": 1,
+        "source_missing": 2,
+        "source_moved": 1,
+    })
+
+    assert any("manual_modification (1): inspect the mirror below the generated sentinel" in line for line in lines)
+    assert any("source_missing (2): do not delete the retained mirror automatically" in line for line in lines)
+    assert any("source_moved (1): confirm the source move is intentional" in line for line in lines)
+    assert not any(line.startswith("clean") for line in lines)
+
+
+def test_repo_lifecycle_guidance_explains_review_states() -> None:
+    sync = load_sync_module()
+
+    lines = sync.lifecycle_guidance_lines({
+        "clean": 1,
+        "manual_modification": 1,
+        "repo_changed": 2,
+        "unreachable": 1,
+    })
+
+    assert any("manual_modification (1): inspect the repo mirror below the generated sentinel" in line for line in lines)
+    assert any("repo_changed (2): run sync to refresh README/docs/metadata" in line for line in lines)
+    assert any("unreachable (1): check repo spelling, network access, and GitHub auth" in line for line in lines)
+    assert not any(line.startswith("clean") for line in lines)
 
 
 def test_office_sync_detects_moved_source_by_manifest_hash(tmp_path: Path) -> None:
