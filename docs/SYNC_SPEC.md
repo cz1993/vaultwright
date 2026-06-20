@@ -119,7 +119,7 @@ region must produce no content diff.
 The append-only `_meta/sync-audit.jsonl` log may receive new events; idempotency assertions should
 compare stable generated mirrors, repo notes, and manifests separately from the audit log.
 
-Idempotency tests must cover:
+Current idempotency regression coverage includes:
 
 - Office mirrors;
 - the Office source manifest;

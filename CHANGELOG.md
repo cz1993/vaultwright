@@ -60,6 +60,8 @@ Initial scaffold extracted and generalized from a real small-business vault.
 - GitHub repo sync now supports non-mutating `--plan` and manifest-backed `--status` reporting,
   and writes `_meta/repo-manifest.json` with stable repo IDs, configured/resolved repo, note path,
   local-tree or remote-HEAD hash, lifecycle state, warnings, and last successful sync.
+- Added regression coverage for documented sync idempotency edge cases: empty repo configs,
+  unsupported Office sources, Office lock-file skips, and alias-to-canonical mirror routing.
 - Office and repo syncs now append machine-readable events to `_meta/sync-audit.jsonl`.
 - Office and repo sync audit events now include generated artifact paths plus structured lifecycle
   warnings/errors for recovery diagnostics without embedding source content.

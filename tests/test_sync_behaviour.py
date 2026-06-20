@@ -429,6 +429,42 @@ def test_github_sync_skips_missing_default_config(tmp_path: Path) -> None:
     assert "no repos.yml found" in result.stdout
 
 
+def test_github_sync_empty_repo_config_is_idempotent(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    tools = vault / "tools"
+    tools.mkdir(parents=True)
+    shutil.copy(ROOT / "template/tools/sync_github_repos.py", tools / "sync_github_repos.py")
+    (tools / "repos.yml").write_text(
+        "settings:\n"
+        "  notes_dir: 80_sources/repos\n"
+        "repos: []\n",
+        encoding="utf-8",
+    )
+
+    first = subprocess.run(
+        [sys.executable, str(tools / "sync_github_repos.py"), "--quiet"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+    second = subprocess.run(
+        [sys.executable, str(tools / "sync_github_repos.py"), "--quiet"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert first.returncode == 0, first.stderr or first.stdout
+    assert second.returncode == 0, second.stderr or second.stdout
+    assert "0 created, 0 updated, 0 unchanged, 0 stub, 0 skipped, 0 error" in first.stdout
+    assert "0 created, 0 updated, 0 unchanged, 0 stub, 0 skipped, 0 error" in second.stdout
+    assert "[manifest updated]" not in first.stdout
+    assert "[manifest updated]" not in second.stdout
+    assert not (vault / "_meta" / "repo-manifest.json").exists()
+    assert not (vault / "_meta" / "sync-audit.jsonl").exists()
+    assert not (vault / "80_sources" / "repos").exists()
+
+
 def test_github_sync_fails_explicit_missing_config(tmp_path: Path) -> None:
     script = ROOT / "template/tools/sync_github_repos.py"
     missing = tmp_path / "missing.yml"
@@ -1025,6 +1061,41 @@ def test_office_sync_routes_domain_aliases_to_canonical_mirror_folder(tmp_path: 
     assert fm["source"] == "clients/acme/brief.docx"
 
 
+def test_office_sync_alias_to_canonical_mirror_is_idempotent(tmp_path: Path) -> None:
+    sync = load_office_sync_module()
+    vault = tmp_path / "vault"
+    (vault / "_meta").mkdir(parents=True)
+    shutil.copy(ROOT / "template/_meta/domain-map.yml", vault / "_meta" / "domain-map.yml")
+    source = vault / "clients" / "acme" / "brief.docx"
+    source.parent.mkdir(parents=True)
+    source.write_bytes(b"fixture")
+    config = sync.load_mirror_config(vault)
+    routing = sync.load_domain_routing(vault)
+    manifest = sync.empty_manifest()
+
+    first_status = sync.sync_one(
+        source, vault, FakeConverter(), False, False, config, routing, manifest, "markitdown", "test"
+    )
+    assert sync.write_source_manifest(vault, manifest) is True
+    mirror = vault / "_mirrors" / "30_customers" / "acme" / "brief.md"
+    manifest_path = vault / "_meta" / "source-manifest.json"
+    first_mirror = mirror.read_text(encoding="utf-8")
+    first_manifest = manifest_path.read_text(encoding="utf-8")
+
+    loaded = sync.load_source_manifest(vault)
+    second_status = sync.sync_one(
+        source, vault, FakeConverter(), False, False, config, routing, loaded, "markitdown", "test"
+    )
+    wrote = sync.write_source_manifest(vault, loaded)
+
+    assert first_status == "created"
+    assert second_status == "unchanged"
+    assert wrote is False
+    assert mirror.read_text(encoding="utf-8") == first_mirror
+    assert manifest_path.read_text(encoding="utf-8") == first_manifest
+    assert not (vault / "_mirrors" / "clients" / "acme" / "brief.md").exists()
+
+
 def test_office_sync_supports_legacy_sibling_mode(tmp_path: Path) -> None:
     sync = load_office_sync_module()
     vault = tmp_path / "vault"
@@ -1092,6 +1163,43 @@ def test_office_sync_discover_skips_office_lock_files(tmp_path: Path) -> None:
 
     assert source in discovered
     assert lock not in discovered
+
+
+def test_office_sync_lock_file_skip_is_idempotent(tmp_path: Path) -> None:
+    sync = load_office_sync_module()
+    vault = tmp_path / "vault"
+    source = vault / "30_customers" / "brief.docx"
+    lock = vault / "30_customers" / "~$brief.docx"
+    source.parent.mkdir(parents=True)
+    source.write_bytes(b"fixture")
+    lock.write_bytes(b"temporary office lock")
+    config = sync.load_mirror_config(vault)
+    manifest = sync.empty_manifest()
+
+    assert sync.discover(vault, sync.DEFAULT_EXTS, config) == [source]
+    first_status = sync.sync_one(
+        source, vault, FakeConverter(), False, False, config, {}, manifest, "markitdown", "test"
+    )
+    assert sync.write_source_manifest(vault, manifest) is True
+    mirror = vault / "_mirrors" / "30_customers" / "brief.md"
+    manifest_path = vault / "_meta" / "source-manifest.json"
+    first_mirror = mirror.read_text(encoding="utf-8")
+    first_manifest = manifest_path.read_text(encoding="utf-8")
+
+    loaded = sync.load_source_manifest(vault)
+    assert sync.discover(vault, sync.DEFAULT_EXTS, config) == [source]
+    second_status = sync.sync_one(
+        source, vault, FakeConverter(), False, False, config, {}, loaded, "markitdown", "test"
+    )
+    wrote = sync.write_source_manifest(vault, loaded)
+
+    assert first_status == "created"
+    assert second_status == "unchanged"
+    assert wrote is False
+    assert mirror.read_text(encoding="utf-8") == first_mirror
+    assert manifest_path.read_text(encoding="utf-8") == first_manifest
+    assert lock.read_bytes() == b"temporary office lock"
+    assert not (vault / "_mirrors" / "30_customers" / "~$brief.md").exists()
 
 
 def test_office_sync_rejects_symlinked_source_files(tmp_path: Path) -> None:
@@ -1268,6 +1376,63 @@ def test_office_sync_second_run_is_manifest_stable(tmp_path: Path) -> None:
     assert status == "unchanged"
     assert wrote is False
     assert mirror.read_text(encoding="utf-8") == first_mirror
+    assert (vault / "_meta" / "source-manifest.json").read_text(encoding="utf-8") == first_manifest
+
+
+def test_office_sync_unsupported_source_is_idempotent(tmp_path: Path) -> None:
+    class UnsupportedFormatError(Exception):
+        pass
+
+    class UnsupportedConverter:
+        def convert(self, _path: str) -> FakeConversion:
+            raise UnsupportedFormatError("legacy container")
+
+    sync = load_office_sync_module()
+    vault = tmp_path / "vault"
+    source = vault / "40_delivery" / "legacy-container.docx"
+    source.parent.mkdir(parents=True)
+    source.write_bytes(b"legacy bytes")
+    config = sync.load_mirror_config(vault)
+    manifest = sync.empty_manifest()
+
+    first_status = sync.sync_one(
+        source,
+        vault,
+        UnsupportedConverter(),
+        False,
+        False,
+        config,
+        {},
+        manifest,
+        "markitdown",
+        "test",
+    )
+    assert sync.write_source_manifest(vault, manifest) is True
+    first_manifest = (vault / "_meta" / "source-manifest.json").read_text(encoding="utf-8")
+
+    loaded = sync.load_source_manifest(vault)
+    second_status = sync.sync_one(
+        source,
+        vault,
+        UnsupportedConverter(),
+        False,
+        False,
+        config,
+        {},
+        loaded,
+        "markitdown",
+        "test",
+    )
+    wrote = sync.write_source_manifest(vault, loaded)
+    saved = sync.load_source_manifest(vault)["records"][0]
+
+    assert first_status == "skipped:unsupported-format (legacy/no converter)"
+    assert second_status == "skipped:unsupported-format (legacy/no converter)"
+    assert wrote is False
+    assert saved["lifecycle_state"] == "unsupported"
+    assert "Converter reported unsupported format." in saved["warnings"]
+    assert source.read_bytes() == b"legacy bytes"
+    assert not (vault / "_mirrors" / "40_delivery" / "legacy-container.md").exists()
     assert (vault / "_meta" / "source-manifest.json").read_text(encoding="utf-8") == first_manifest
 
 
