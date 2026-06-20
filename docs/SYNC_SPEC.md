@@ -46,7 +46,9 @@ Current implementation status:
   remote HEAD hash, lifecycle state, warnings/errors, non-mutating plan/status reports, and
   generated-region manual-edit detection, plus lifecycle next-action guidance in plan/status
   output, plus repo stub-to-populated tests that preserve curated notes/frontmatter, plus repo-note
-  write-failure recovery tests that preserve the previous note and allow later clean regeneration;
+  write-failure recovery tests that preserve the previous note and allow later clean regeneration,
+  plus blocking lint checks for generated repo mirrors whose manifest lifecycle state is no longer
+  current, whose frontmatter commit drifts from the manifest, or whose local source tree changed;
 - partially implemented: move detection by unique hash match when the old manifest path is absent;
 - not complete: full rename/move UX, rollback automation, quantitative conversion-quality scoring
   beyond checklist-based spot checks, and exhaustive conflict-resolution flows.

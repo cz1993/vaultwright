@@ -884,6 +884,107 @@ def test_template_linter_blocks_repo_mirror_without_generated_contract_under_rep
     assert "repo-mirror requires generated sentinel and manifest metadata" in result.stdout
 
 
+def test_template_linter_blocks_repo_mirror_with_noncurrent_manifest_state(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    repo_note = vault / "80_sources" / "repos" / "fixture.md"
+    repo_note.parent.mkdir(parents=True, exist_ok=True)
+    repo_note.write_text(
+        "---\n"
+        "title: Fixture Repo\n"
+        "type: repo-mirror\n"
+        "status: active\n"
+        "domain: sources\n"
+        f"{repo_mirror_fields()}"
+        "last_commit: abc123\n"
+        "created: 2026-01-01\n"
+        "updated: 2026-01-01\n"
+        "---\n"
+        f"# Fixture Repo\n\n{SENTINEL}\n\n## Repository\n",
+        encoding="utf-8",
+    )
+    (vault / "_meta" / "repo-manifest.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "records": [
+                    {
+                        "repo_id": "repo-test",
+                        "note_path": "80_sources/repos/fixture.md",
+                        "last_commit": "abc123",
+                        "lifecycle_state": "repo_changed",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "lint_vault.py")],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 1
+    assert "Stale repo mirrors: 1" in result.stdout
+    assert "repo-manifest lifecycle_state=repo_changed; run vaultwright sync/status before relying on mirror" in result.stdout
+
+
+def test_template_linter_blocks_local_repo_mirror_when_tree_changed(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    fixture = vault / "_fixtures" / "repos" / "fixture"
+    fixture.mkdir(parents=True)
+    (fixture / "README.md").write_text("# Changed fixture\n", encoding="utf-8")
+    repo_note = vault / "80_sources" / "repos" / "fixture.md"
+    repo_note.parent.mkdir(parents=True, exist_ok=True)
+    repo_note.write_text(
+        "---\n"
+        "title: Fixture Repo\n"
+        "type: repo-mirror\n"
+        "status: active\n"
+        "domain: sources\n"
+        f"{repo_mirror_fields()}"
+        "last_commit: local-old\n"
+        "created: 2026-01-01\n"
+        "updated: 2026-01-01\n"
+        "---\n"
+        f"# Fixture Repo\n\n{SENTINEL}\n\n## Repository\n",
+        encoding="utf-8",
+    )
+    (vault / "_meta" / "repo-manifest.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "records": [
+                    {
+                        "repo_id": "repo-test",
+                        "note_path": "80_sources/repos/fixture.md",
+                        "source_type": "local",
+                        "source_ref": "_fixtures/repos/fixture",
+                        "last_commit": "local-old",
+                        "lifecycle_state": "clean",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "lint_vault.py")],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 1
+    assert "Stale repo mirrors: 1" in result.stdout
+    assert "80_sources/repos/fixture.md  [local repo tree changed; run vaultwright sync before relying on mirror]" in result.stdout
+
+
 def test_template_linter_reports_overlap_candidates_as_warning_only(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     shutil.copytree(ROOT / "template", vault)

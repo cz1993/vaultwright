@@ -89,6 +89,9 @@ Initial scaffold extracted and generalized from a real small-business vault.
   without changing linter code.
 - Lint now blocks stale generated Office mirrors when source bytes changed or the source manifest
   lifecycle state is no longer current, so operators rerun sync before relying on old mirrors.
+- Lint now also blocks stale generated repo mirrors when repo manifest lifecycle state is no longer
+  current, repo frontmatter commit metadata drifts from the manifest, or a local repo fixture tree
+  changed.
 - Recovery reports now attach the latest matching sync-audit status, lifecycle state, warnings, and
   errors for each manifest item that needs operator action.
 - Recovery reports now flag stale atomic temp files left by interrupted writes, without deleting
