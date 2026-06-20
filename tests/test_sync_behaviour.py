@@ -75,6 +75,7 @@ def test_vaultwright_cli_doctor_passes_on_template() -> None:
     assert "info: recovery: no action items" in result.stdout
     assert "GitHub auth:" in result.stdout
     assert (ROOT / "template/tools/benchmark_tasks.py").exists()
+    assert (ROOT / "template/tools/migration_report.py").exists()
     assert (ROOT / "template/tools/recovery_report.py").exists()
 
 
@@ -175,6 +176,17 @@ def test_packaged_vaultwright_cli_delegates_to_target_vault(tmp_path: Path) -> N
     assert benchmark.returncode == 0, benchmark.stderr or benchmark.stdout
     assert "benchmark validation skipped" in benchmark.stdout
 
+    migration = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "migration"],
+        cwd=ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert migration.returncode == 0, migration.stderr or migration.stdout
+    assert "migration: no legacy or unknown top-level folders found" in migration.stdout
+
     recovery = subprocess.run(
         [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "recovery"],
         cwd=ROOT,
@@ -233,6 +245,7 @@ def test_packaged_vaultwright_cli_init_from_packaged_template(tmp_path: Path) ->
     assert result.returncode == 0, result.stderr or result.stdout
     assert (target / "CLAUDE.md").exists()
     assert (target / ".gitignore").exists()
+    assert (target / "tools" / "migration_report.py").exists()
     assert (target / "tools" / "recovery_report.py").exists()
     assert (target / "tools" / "vaultwright.py").exists()
 
@@ -241,6 +254,75 @@ def test_repos_example_has_no_active_placeholder_repo() -> None:
     cfg = yaml.safe_load((ROOT / "template/tools/repos.example.yml").read_text(encoding="utf-8"))
 
     assert cfg["repos"] == []
+
+
+def test_vaultwright_migration_reports_legacy_and_unknown_folders(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    marketing = vault / "marketing"
+    custom = vault / "client_uploads"
+    underscored = vault / "_client_uploads"
+    hidden = vault / ".imports"
+    marketing.mkdir()
+    custom.mkdir()
+    underscored.mkdir()
+    hidden.mkdir()
+    (marketing / "campaign.md").write_text("# Campaign\n", encoding="utf-8")
+    (custom / "brief.docx").write_bytes(b"office bytes")
+    (underscored / "legacy.md").write_text("# Legacy\n", encoding="utf-8")
+    (hidden / "import.pdf").write_bytes(b"pdf bytes")
+
+    result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "vaultwright.py"), "migration"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+    json_result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "vaultwright.py"), "migration", "--json"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+    assert "migration: dry-run only; no files were moved" in result.stdout
+    assert "warning: .imports: non-reserved hidden/underscore folder reported for review" in result.stdout
+    assert "warning: _client_uploads: non-reserved hidden/underscore folder reported for review" in result.stdout
+    assert "migration: 4 top-level folders need review (alias=1, unknown=3)" in result.stdout
+    assert "[alias_folder  ] marketing -> 20_market" in result.stdout
+    assert "domain: market" in result.stdout
+    assert "[unknown_folder] .imports -> manual classification" in result.stdout
+    assert "[unknown_folder] _client_uploads -> manual classification" in result.stdout
+    assert "[unknown_folder] client_uploads -> manual classification" in result.stdout
+    assert "[unknown_folder] _meta -> manual classification" not in result.stdout
+    assert marketing.exists()
+    assert custom.exists()
+    assert underscored.exists()
+    assert hidden.exists()
+    assert (marketing / "campaign.md").exists()
+    assert (custom / "brief.docx").exists()
+    assert (underscored / "legacy.md").exists()
+    assert (hidden / "import.pdf").exists()
+
+    assert json_result.returncode == 0, json_result.stderr or json_result.stdout
+    report = json.loads(json_result.stdout)
+    assert report["warnings"] == [
+        ".imports: non-reserved hidden/underscore folder reported for review",
+        "_client_uploads: non-reserved hidden/underscore folder reported for review",
+    ]
+    assert report["summary"] == {"alias": 1, "total": 4, "unknown": 3}
+    by_folder = {item["folder"]: item for item in report["items"]}
+    assert by_folder["marketing"]["recommended_folder"] == "20_market"
+    assert by_folder["marketing"]["domain"] == "market"
+    assert by_folder["marketing"]["counts"]["markdown"] == 1
+    assert by_folder[".imports"]["kind"] == "unknown_folder"
+    assert by_folder[".imports"]["counts"]["office"] == 1
+    assert by_folder["_client_uploads"]["kind"] == "unknown_folder"
+    assert by_folder["_client_uploads"]["counts"]["markdown"] == 1
+    assert by_folder["client_uploads"]["kind"] == "unknown_folder"
+    assert by_folder["client_uploads"]["counts"]["office"] == 1
+    assert "_meta" not in by_folder
 
 
 def test_vaultwright_recovery_reports_manifest_actions(tmp_path: Path) -> None:

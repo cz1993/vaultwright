@@ -25,5 +25,6 @@ def test_packaged_template_matches_repository_template() -> None:
 
     assert package_files == source_files
     assert ".gitignore" in package_files
+    assert "tools/migration_report.py" in package_files
     assert "tools/recovery_report.py" in package_files
     assert "80_sources/repos/.gitkeep" in package_files

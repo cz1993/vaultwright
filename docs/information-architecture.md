@@ -62,6 +62,10 @@ Use subfolders and templates to adapt the starter map:
 
 ## Migration From Department Folders
 
+Run `python3.11 tools/vaultwright.py migration` before moving folders. The report is read-only: it
+uses `_meta/domain-map.yml` aliases to identify old top-level folders and prints recommended
+canonical destinations, while unknown folders are flagged for human classification.
+
 | Old Starter Folder | New Function Domain |
 | --- | --- |
 | `company/` | `10_governance/` |

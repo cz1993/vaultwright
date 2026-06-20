@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Installable Vaultwright console entry point.
 
-The packaged command delegates plan/sync/status/lint/doctor to the target vault's local
-`tools/vaultwright.py` wrapper. That keeps the vault tools as the source of truth while allowing a
-single `vaultwright` command from editable or wheel installs.
+The packaged command delegates operator commands to the target vault's local `tools/vaultwright.py`
+wrapper. That keeps the vault tools as the source of truth while allowing a single `vaultwright`
+command from editable or wheel installs.
 """
 from __future__ import annotations
 
@@ -98,6 +98,12 @@ def build_parser() -> argparse.ArgumentParser:
     benchmark.set_defaults(
         func=command_delegate,
         delegate_args=lambda args: ["--require-generated"] if args.require_generated else [],
+    )
+    migration = sub.add_parser("migration", help="Print a read-only legacy folder migration report.")
+    migration.add_argument("--json", action="store_true", help="Print machine-readable migration JSON.")
+    migration.set_defaults(
+        func=command_delegate,
+        delegate_args=lambda args: ["--json"] if args.json else [],
     )
     recovery = sub.add_parser("recovery", help="Print a read-only manifest recovery checklist.")
     recovery.add_argument("--json", action="store_true", help="Print machine-readable recovery JSON.")

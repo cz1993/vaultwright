@@ -84,6 +84,14 @@ def command_benchmark(args: argparse.Namespace) -> int:
     return run(cmd, root)
 
 
+def command_migration(args: argparse.Namespace) -> int:
+    root = args.root.resolve()
+    cmd = python_cmd(root, "migration_report.py")
+    if args.json:
+        cmd.append("--json")
+    return run(cmd, root)
+
+
 def command_recovery(args: argparse.Namespace) -> int:
     root = args.root.resolve()
     cmd = python_cmd(root, "recovery_report.py")
@@ -207,7 +215,14 @@ def command_doctor(args: argparse.Namespace) -> int:
         info.append("Office mirror root: _mirrors")
     else:
         info.append("Office mirror root: _mirrors (will be created on first sync)")
-    for script in ("sync_office_md.py", "sync_github_repos.py", "lint_vault.py", "benchmark_tasks.py", "recovery_report.py"):
+    for script in (
+        "sync_office_md.py",
+        "sync_github_repos.py",
+        "lint_vault.py",
+        "benchmark_tasks.py",
+        "migration_report.py",
+        "recovery_report.py",
+    ):
         if not (root / "tools" / script).exists():
             errors.append(f"Missing tool: tools/{script}")
     for module in ("yaml", "markitdown"):
@@ -276,6 +291,9 @@ def build_parser() -> argparse.ArgumentParser:
     benchmark = sub.add_parser("benchmark", help="Validate the agent-readiness benchmark task pack.")
     benchmark.add_argument("--require-generated", action="store_true", help="Require generated mirror paths to exist.")
     benchmark.set_defaults(func=command_benchmark)
+    migration = sub.add_parser("migration", help="Print a read-only legacy folder migration report.")
+    migration.add_argument("--json", action="store_true", help="Print machine-readable migration JSON.")
+    migration.set_defaults(func=command_migration)
     recovery = sub.add_parser("recovery", help="Print a read-only manifest recovery checklist.")
     recovery.add_argument("--json", action="store_true", help="Print machine-readable recovery JSON.")
     recovery.set_defaults(func=command_recovery)
