@@ -40,7 +40,9 @@ Current implementation status:
   mirror and allow later clean regeneration;
 - implemented for repo mirrors: stable repo IDs, configured/resolved repo, note path, local-tree or
   remote HEAD hash, lifecycle state, warnings/errors, non-mutating plan/status reports, and
-  generated-region manual-edit detection, plus lifecycle next-action guidance in plan/status output;
+  generated-region manual-edit detection, plus lifecycle next-action guidance in plan/status
+  output, plus repo-note write-failure recovery tests that preserve the previous note and allow
+  later clean regeneration;
 - partially implemented: move detection by unique hash match when the old manifest path is absent;
 - not complete: full rename/move UX, rollback automation, quantitative conversion-quality scoring,
   and exhaustive conflict-resolution flows.

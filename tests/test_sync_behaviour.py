@@ -451,6 +451,65 @@ def test_github_sync_writes_manifest_audit_and_status_for_local_repo(tmp_path: P
     assert "clean=1" in status_result.stdout
 
 
+def test_github_sync_preserves_note_and_recovers_after_write_failure(tmp_path: Path, monkeypatch) -> None:
+    sync = load_sync_module()
+    vault = tmp_path / "vault"
+    monkeypatch.setattr(sync, "ROOT", vault)
+    fixture = vault / "_fixtures" / "repo"
+    fixture.mkdir(parents=True)
+    (fixture / "README.md").write_text("# Fixture v1\n", encoding="utf-8")
+    entry = {
+        "repo": "local/fixture",
+        "local_path": "_fixtures/repo",
+        "note": "fixture.md",
+    }
+    settings = {"notes_dir": "80_sources/repos"}
+    manifest = sync.empty_repo_manifest()
+
+    first_plan = sync.plan_one(entry, settings, None, manifest)
+    first_status = sync.sync_one(entry, settings, None, False, False, trusted_existing_baseline=True)
+    sync.update_manifest_after_sync(manifest, first_plan, first_status)
+    sync.write_repo_manifest(manifest, vault)
+    note = vault / "80_sources" / "repos" / "fixture.md"
+    first_note = note.read_text(encoding="utf-8")
+    first_record = sync.load_repo_manifest(vault)["records"][0]
+    original_write_text_atomic = sync.write_text_atomic
+
+    def failing_write(_path: Path, _content: str) -> None:
+        raise OSError("disk full")
+
+    (fixture / "README.md").write_text("# Fixture v2\n", encoding="utf-8")
+    loaded = sync.load_repo_manifest(vault)
+    failed_plan = sync.plan_one(entry, settings, None, loaded)
+    monkeypatch.setattr(sync, "write_text_atomic", failing_write)
+    failed_status = sync.sync_one(entry, settings, None, False, False, trusted_existing_baseline=True)
+    monkeypatch.setattr(sync, "write_text_atomic", original_write_text_atomic)
+    sync.update_manifest_after_sync(loaded, failed_plan, failed_status)
+    sync.write_repo_manifest(loaded, vault)
+    failed_record = sync.load_repo_manifest(vault)["records"][0]
+
+    assert failed_status == "error:repo-write:OSError: disk full"
+    assert note.read_text(encoding="utf-8") == first_note
+    assert failed_record["lifecycle_state"] == "error"
+    assert failed_record["last_successful_sync"] == first_record["last_successful_sync"]
+    assert failed_record["generated_region_sha256"] == first_record["generated_region_sha256"]
+    assert any("error:repo-write:OSError: disk full" in error for error in failed_record["errors"])
+
+    recoverable = sync.load_repo_manifest(vault)
+    recovery_plan = sync.plan_one(entry, settings, None, recoverable)
+    recovered_status = sync.sync_one(entry, settings, None, False, False, trusted_existing_baseline=True)
+    sync.update_manifest_after_sync(recoverable, recovery_plan, recovered_status)
+    sync.write_repo_manifest(recoverable, vault)
+    recovered_record = sync.load_repo_manifest(vault)["records"][0]
+
+    assert recovery_plan["action"] == "update"
+    assert recovered_status == "updated"
+    assert recovered_record["lifecycle_state"] == "clean"
+    assert recovered_record["errors"] == []
+    assert recovered_record["last_commit"] == sync.local_tree_sha(fixture)
+    assert note.read_text(encoding="utf-8") != first_note
+
+
 def test_github_sync_reports_manual_generated_region_modification(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     tools = vault / "tools"

@@ -523,6 +523,15 @@ def write_note(path: Path, fm, preserved_body, auto, dry):
         write_text_atomic(path, content)
 
 
+def write_note_error(path: Path, fm, preserved_body, auto, dry) -> str | None:
+    try:
+        write_note(path, fm, preserved_body, auto, dry)
+    except Exception as exc:
+        name = exc.__class__.__name__
+        return f"error:repo-write:{name}: {str(exc)[:120]}"
+    return None
+
+
 def build_auto(slug, meta, langs, release, docs, commits):
     desc = (meta or {}).get("description") or "_(no description)_"
     topics = ", ".join((meta or {}).get("topics", [])) or "—"
@@ -878,7 +887,9 @@ def sync_one(entry, settings, token, force, dry, trusted_existing_baseline=False
         fm["synced"] = now_iso()
         auto = build_auto(slug, meta, {}, None, docs, commits)
         status = "updated" if note_path.exists() else "created"
-        write_note(note_path, fm, preserved, auto, dry)
+        error = write_note_error(note_path, fm, preserved, auto, dry)
+        if error:
+            return error
         return status
 
     slug, sha = resolve_slug(entry, token)
@@ -889,7 +900,9 @@ def sync_one(entry, settings, token, force, dry, trusted_existing_baseline=False
         fm = base_fm(existing_fm, entry, entry["repo"], domain=domain)
         fm.setdefault("status", "draft")
         fm["synced"] = ""
-        write_note(note_path, fm, preserved, pending_auto(entry["repo"], "not reachable / auth not configured"), dry)
+        error = write_note_error(note_path, fm, preserved, pending_auto(entry["repo"], "not reachable / auth not configured"), dry)
+        if error:
+            return error
         return "stub"
 
     if existing_fm.get("last_commit") == sha and not force:
@@ -902,7 +915,9 @@ def sync_one(entry, settings, token, force, dry, trusted_existing_baseline=False
         fm = base_fm(existing_fm, entry, slug, domain=domain)
         fm.setdefault("status", "draft")
         fm["synced"] = ""
-        write_note(note_path, fm, preserved, pending_auto(slug, f"clone failed: {err}"), dry)
+        error = write_note_error(note_path, fm, preserved, pending_auto(slug, f"clone failed: {err}"), dry)
+        if error:
+            return error
         return "stub"
 
     try:
@@ -926,7 +941,9 @@ def sync_one(entry, settings, token, force, dry, trusted_existing_baseline=False
     fm["synced"] = now_iso()
     auto = build_auto(slug, meta, langs, release, docs, commits)
     status = "updated" if note_path.exists() else "created"
-    write_note(note_path, fm, preserved, auto, dry)
+    error = write_note_error(note_path, fm, preserved, auto, dry)
+    if error:
+        return error
     return status
 
 

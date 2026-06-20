@@ -111,6 +111,8 @@ machine-readable events to `_meta/sync-audit.jsonl`. These generated metadata fi
 changed, which source or repo identity was involved, and the lifecycle state after sync.
 Repo plan/status output also prints `next actions` for changed, unreachable, conflicted, manually
 modified, and errored repo mirrors.
+If writing a repo mirror note fails, sync records an `error` state and keeps the previous note; fix
+the filesystem issue and rerun sync to recover.
 
 ## Agent-readiness benchmark tasks
 
