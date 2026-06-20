@@ -57,6 +57,8 @@ Initial scaffold extracted and generalized from a real small-business vault.
   install-test the wheel, upload workflow artifacts, and create a draft prerelease for owner review
   without publishing to PyPI. The workflow keeps build/test read-only and refuses to clobber an
   existing release unless it is still both draft and prerelease.
+- Modernized Python package license metadata to use an SPDX expression plus explicit `LICENSE` and
+  `NOTICE` files, avoiding deprecated setuptools license-table and classifier warnings.
 - `vaultwright doctor` now reports manifest lifecycle counts, sync audit presence, recovery action
   counts, git backup posture, GitHub auth posture, optional Obsidian config/plugin posture, and
   `.gitignore` backup guard coverage as read-only preflight context.

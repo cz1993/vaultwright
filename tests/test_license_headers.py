@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
+import tomllib
 from pathlib import Path
 
 
@@ -37,3 +38,15 @@ def test_license_is_vendored_agpl_text() -> None:
     assert "GNU AFFERO GENERAL PUBLIC LICENSE" in license_text
     assert "Version 3, 19 November 2007" in license_text
     assert "VENDORING TODO" not in license_text
+
+
+def test_python_package_uses_modern_license_metadata() -> None:
+    pyproject = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    project = pyproject["project"]
+
+    assert project["license"] == "AGPL-3.0-or-later"
+    assert project["license-files"] == ["LICENSE", "NOTICE"]
+    assert "setuptools>=77" in pyproject["build-system"]["requires"]
+    assert not any(
+        classifier.startswith("License ::") for classifier in project.get("classifiers", [])
+    )

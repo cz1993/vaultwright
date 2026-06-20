@@ -65,6 +65,7 @@ Before publishing the draft GitHub Release:
 
 - verify the workflow conclusion is `success`;
 - download or inspect the uploaded wheel and source distribution names;
+- confirm package metadata reports `AGPL-3.0-or-later` and includes `LICENSE` plus `NOTICE`;
 - confirm `vaultwright init` works from the released wheel;
 - confirm any workflow rerun only updated an existing draft prerelease;
 - confirm generated release notes do not imply production readiness;

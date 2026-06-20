@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
+requires = ["setuptools>=77", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -8,10 +8,10 @@ version = "0.1.0a0"
 description = "Governed document-to-knowledge lifecycle tooling for local Vaultwright vaults."
 readme = "README.md"
 requires-python = ">=3.11"
-license = { file = "LICENSE" }
+license = "AGPL-3.0-or-later"
+license-files = ["LICENSE", "NOTICE"]
 authors = [{ name = "cz1993" }]
 classifiers = [
-  "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.11",
 ]
