@@ -115,6 +115,8 @@ file after backup review.
 
 A second sync with unchanged source bytes, unchanged converter/config version, and unchanged curated
 region must produce no content diff.
+The append-only `_meta/sync-audit.jsonl` log may receive new events; idempotency assertions should
+compare stable generated mirrors, repo notes, and manifests separately from the audit log.
 
 Idempotency tests must cover:
 
@@ -151,3 +153,5 @@ The release gate is byte-for-byte equality of source files before and after sync
 supported formats and skipped/unsupported files.
 Example-vault regeneration tests should snapshot representative source payloads before plan,
 dry-run, sync, status, and lint operations, then assert those payloads are unchanged.
+They should also run a second sync and assert stable generated mirrors, repo notes, and manifests
+remain byte-for-byte unchanged when inputs did not change.

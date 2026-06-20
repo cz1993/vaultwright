@@ -179,6 +179,7 @@ converter-failure, Office mirror-write-failure, and repo-note write-failure reco
 the prior generated file, interrupted-write temp detection, conversion-race aborts that preserve
 the prior mirror, `source_missing`, `manual_modification`, lint, and generated-text no-data scan
 checks on the Northwind example. Example regeneration tests also assert source bytes stay unchanged
-across plan, dry-run, sync, status, and lint operations.
+across plan, dry-run, sync, status, and lint operations, and that stable generated outputs remain
+unchanged across a second sync.
 Operator backup/restore drills and full copied-vault no-data scans on pilot vaults are still
 required before production use.

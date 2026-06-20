@@ -73,6 +73,22 @@ def assert_source_payloads_unchanged(vault: Path, before: dict[Path, bytes]) -> 
         assert after[rel] == payload, rel
 
 
+def stable_generated_payloads(vault: Path, generated_rels: list[Path]) -> dict[Path, bytes]:
+    payloads: dict[Path, bytes] = {}
+    for rel in generated_rels:
+        if rel.name == "sync-audit.jsonl":
+            continue
+        path = vault / rel
+        assert path.exists(), rel
+        payloads[rel] = path.read_bytes()
+    return payloads
+
+
+def assert_stable_generated_payloads_unchanged(vault: Path, before: dict[Path, bytes]) -> None:
+    for rel, payload in before.items():
+        assert (vault / rel).read_bytes() == payload, rel
+
+
 def assert_no_generated_residue(src: Path) -> None:
     mirror_files = [
         path.relative_to(src)
@@ -269,6 +285,18 @@ def run_example_regeneration(tmp_path: Path, name: str, generated_rels: list[Pat
         assert path.exists()
     for rel in raw_folder_rels:
         assert not (vault / rel).exists()
+    assert_source_payloads_unchanged(vault, original_sources)
+
+    stable_generated = stable_generated_payloads(vault, generated_rels)
+    second_sync = subprocess.run(
+        [sys.executable, str(vault / "tools" / "vaultwright.py"), "sync"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+    assert second_sync.returncode == 0, second_sync.stderr or second_sync.stdout
+    assert "unchanged" in second_sync.stdout
+    assert_stable_generated_payloads_unchanged(vault, stable_generated)
     assert_source_payloads_unchanged(vault, original_sources)
     return lint_output
 

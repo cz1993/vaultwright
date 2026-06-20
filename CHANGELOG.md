@@ -155,6 +155,8 @@ Initial scaffold extracted and generalized from a real small-business vault.
   preservation, `source_missing`, `manual_modification`, lint, and no-data scanning.
 - Example regeneration tests now snapshot representative source payloads and assert plan, dry-run,
   sync, status, and lint operations leave source bytes unchanged.
+- Example regeneration tests now assert a second sync leaves stable generated mirrors, repo notes,
+  and manifests unchanged while treating `_meta/sync-audit.jsonl` as append-only history.
 - Example generated-residue tests now use pattern checks for `_mirrors/`, manifests, audit logs,
   repo mirrors, sibling Office mirrors, and `.mirror.md` fallback files, not only hardcoded
   expected paths.
