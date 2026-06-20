@@ -10,6 +10,8 @@ All notable changes to Vaultwright are documented here. Format loosely follows
   agent-readiness results can be gated on declared source or generated-mirror evidence.
 - Repo sync/status now detects managed `repo` frontmatter identity drift as stale and normal sync
   rewrites the managed field from the configured/resolved repo identity.
+- Office sync/status now detects managed source frontmatter metadata drift as stale and normal
+  sync rewrites the managed fields from the manifest/source.
 - Lint now blocks explicit `tools/repos.yml` entries when the configured generated `repo-mirror`
   note is missing, unmanaged, pointed at an invalid output path, or tied to a different repo
   identity.

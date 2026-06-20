@@ -107,6 +107,9 @@ If writing the mirror fails, sync records an `error` state and keeps the previou
 filesystem issue and rerun sync to recover.
 If a source file changes while conversion is running, sync records an error and leaves the previous
 mirror untouched so generated markdown is not tied to stale source-hash metadata.
+If a managed source frontmatter field such as `source`, `source_manifest`, or `source_format`
+drifts from the manifest/source, plan/status reports `stale` and normal sync rewrites the managed
+field without requiring `--force`.
 If a source moves and the generated mirror path changes, sync reports `source_moved` while the
 previous generated mirror still exists. Preserve, move, archive, or remove the old mirror before
 generating the new path.

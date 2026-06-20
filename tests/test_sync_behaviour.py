@@ -2812,6 +2812,75 @@ def test_office_sync_update_preserves_frontmatter_and_curated_notes(tmp_path: Pa
     assert updated_record["lifecycle_state"] == "clean"
 
 
+def test_office_sync_repairs_managed_source_frontmatter_identity_drift(tmp_path: Path) -> None:
+    sync = load_office_sync_module()
+    vault = tmp_path / "vault"
+    source = vault / "40_delivery" / "registration.docx"
+    source.parent.mkdir(parents=True)
+    source.write_bytes(b"office bytes")
+    config = sync.load_mirror_config(vault)
+    manifest = sync.empty_manifest()
+    first_status = sync.sync_one(source, vault, FakeConverter(), False, False, config, {}, manifest, "markitdown", "test")
+    sync.write_source_manifest(vault, manifest)
+    mirror = vault / "_mirrors" / "40_delivery" / "registration.md"
+    first_text = mirror.read_text(encoding="utf-8")
+    first_fm, first_body = sync.split_frontmatter(first_text)
+
+    first_fm["source_id"] = ""
+    first_fm["source"] = "40_delivery/wrong.docx"
+    first_fm["source_format"] = "pdf"
+    first_fm["source_modified"] = "1900-01-01T00:00:00+00:00"
+    mirror.write_text(sync.dump_frontmatter(first_fm) + "\n" + first_body, encoding="utf-8")
+    loaded = sync.load_source_manifest(vault)
+    plan = sync.plan_one(source, vault, config, {}, loaded, "markitdown", "test")
+    repaired = sync.sync_one(source, vault, FakeConverter(), False, False, config, {}, loaded, "markitdown", "test")
+    sync.write_source_manifest(vault, loaded)
+    repaired_fm, _body = sync.split_frontmatter(mirror.read_text(encoding="utf-8"))
+    repaired_record = sync.load_source_manifest(vault)["records"][0]
+
+    assert first_status == "created"
+    assert sync.status_for_plan(plan) == "planned:update (stale)"
+    assert any("managed source metadata differs" in warning for warning in plan["record"]["warnings"])
+    assert repaired == "updated"
+    assert repaired_fm["source_id"] == repaired_record["source_id"]
+    assert repaired_fm["source"] == "40_delivery/registration.docx"
+    assert repaired_fm["source_format"] == "docx"
+    assert repaired_fm["source_modified"] == sync.file_mtime_iso(source)
+    assert repaired_fm["source_sha256"] == sync.sha256_of(source)
+    assert repaired_record["lifecycle_state"] == "clean"
+    assert repaired_record["warnings"] == []
+    assert repaired_record["errors"] == []
+
+
+def test_office_sync_repairs_source_modified_only_frontmatter_drift(tmp_path: Path) -> None:
+    sync = load_office_sync_module()
+    vault = tmp_path / "vault"
+    source = vault / "40_delivery" / "registration.docx"
+    source.parent.mkdir(parents=True)
+    source.write_bytes(b"office bytes")
+    config = sync.load_mirror_config(vault)
+    manifest = sync.empty_manifest()
+    sync.sync_one(source, vault, FakeConverter(), False, False, config, {}, manifest, "markitdown", "test")
+    sync.write_source_manifest(vault, manifest)
+    mirror = vault / "_mirrors" / "40_delivery" / "registration.md"
+    fm, body = sync.split_frontmatter(mirror.read_text(encoding="utf-8"))
+    fm["source_modified"] = "1900-01-01T00:00:00+00:00"
+    mirror.write_text(sync.dump_frontmatter(fm) + "\n" + body, encoding="utf-8")
+
+    loaded = sync.load_source_manifest(vault)
+    plan = sync.plan_one(source, vault, config, {}, loaded, "markitdown", "test")
+    repaired = sync.sync_one(source, vault, FakeConverter(), False, False, config, {}, loaded, "markitdown", "test")
+    sync.write_source_manifest(vault, loaded)
+    repaired_fm, _body = sync.split_frontmatter(mirror.read_text(encoding="utf-8"))
+    repaired_record = sync.load_source_manifest(vault)["records"][0]
+
+    assert sync.status_for_plan(plan) == "planned:update (stale)"
+    assert repaired == "updated"
+    assert repaired_fm["source_modified"] == sync.file_mtime_iso(source)
+    assert repaired_record["lifecycle_state"] == "clean"
+    assert repaired_record["warnings"] == []
+
+
 def test_office_sync_second_run_is_manifest_stable(tmp_path: Path) -> None:
     sync = load_office_sync_module()
     vault = tmp_path / "vault"

@@ -90,6 +90,10 @@ LIFECYCLE_GUIDANCE = {
     "conflict": "resolve the target mirror/source identity conflict before syncing.",
     "error": "fix the reported error, then rerun plan/status before syncing.",
 }
+MANAGED_SOURCE_FRONTMATTER_DRIFT_WARNING = (
+    "Mirror frontmatter managed source metadata differs from the manifest/source; "
+    "sync will rewrite managed frontmatter."
+)
 
 # Frontmatter keys the script owns and overwrites on every sync.
 MANAGED_KEYS = {
@@ -423,6 +427,31 @@ def generated_region_hash(markdown: str) -> str | None:
             return sha256_text(line + "".join(lines[index + 1:]))
     if body.rstrip("\r\n") == SENTINEL:
         return sha256_text(SENTINEL)
+    return None
+
+
+def source_frontmatter_metadata_issue(
+    existing_fm: dict | None,
+    *,
+    source_rel: str,
+    source_id: str,
+    source_modified: str | None,
+    source_sha256: str,
+    source_format: str,
+) -> str | None:
+    if not isinstance(existing_fm, dict) or not existing_fm:
+        return None
+    expected = {
+        "source_id": source_id,
+        "source": source_rel,
+        "source_manifest": MANIFEST_REL.as_posix(),
+        "source_format": source_format,
+        "source_modified": source_modified or "",
+        "source_sha256": source_sha256,
+    }
+    for key, value in expected.items():
+        if str(existing_fm.get(key, "") or "").strip() != value:
+            return MANAGED_SOURCE_FRONTMATTER_DRIFT_WARNING
     return None
 
 
@@ -783,6 +812,17 @@ def plan_one(
         elif existing_record and existing_record.get("source_sha256") != source_sha256:
             action = "update"
             lifecycle_state = "source_changed"
+        elif issue := source_frontmatter_metadata_issue(
+            existing_fm,
+            source_rel=source_rel,
+            source_id=source_id,
+            source_modified=source_mtime,
+            source_sha256=source_sha256,
+            source_format=src.suffix.lstrip(".").lower(),
+        ):
+            action = "update"
+            lifecycle_state = "stale"
+            warnings.append(issue)
         elif not mirror.exists():
             action = "create"
             lifecycle_state = "planned"
@@ -1015,7 +1055,11 @@ def sync_one(
         record["generated_region_sha256"] = sha256_text(generated)
         record["lifecycle_state"] = "clean"
         record["last_successful_sync"] = fm["synced"]
-        record["warnings"] = unique_list(record.get("warnings", []))
+        record["warnings"] = unique_list(
+            warning
+            for warning in record.get("warnings", [])
+            if warning != MANAGED_SOURCE_FRONTMATTER_DRIFT_WARNING
+        )
         record["errors"] = []
         if manifest is not None:
             upsert_manifest_record(manifest, record)
