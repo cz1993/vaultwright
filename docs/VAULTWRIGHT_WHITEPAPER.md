@@ -342,7 +342,7 @@ Professional-services use should begin with a conservative operating model:
 | Mirror storage | Office mirrors and optional text-based PDF mirrors live under `_mirrors/` | Fixes messy source-folder problem |
 | Office sync | Plan/sync/status, manifest, audit events, manual-edit detection, lifecycle next-action guidance | Useful alpha foundation |
 | Repo sync | Plan/sync/status, repo manifest, audit events, manual-edit detection, lifecycle next-action guidance | Useful for code/source repositories |
-| CLI | Vault-local wrapper and source-installable `vaultwright` entry point; CI now installs the built wheel and verifies packaged init, doctor, plan, benchmark, conversion, migration, pilot, redacted pilot worksheet output, and JSON recovery delegation; tag workflow builds artifacts under read-only permissions, verifies the released wheel, and creates draft prereleases for owner review while refusing to overwrite non-draft releases; doctor reports dependency, manifest, audit, recovery-action counts, git/GitHub backup posture, optional Obsidian config/plugin posture, and `.gitignore` backup guard coverage; benchmark validates task packs and optional aggregate result packs; conversion, migration, pilot, and recovery print read-only operator reports | Better operator ergonomics; no public tagged release has been published yet |
+| CLI | Vault-local wrapper and source-installable `vaultwright` entry point; CI now installs the built wheel and verifies packaged init, doctor, plan, benchmark, conversion, migration, pilot, redacted pilot worksheet output, and JSON recovery delegation; tag workflow builds artifacts under read-only permissions, verifies the released wheel, and creates draft prereleases for owner review while refusing to overwrite non-draft releases; doctor reports dependency, manifest, audit, recovery-action counts, git/GitHub backup posture, optional Obsidian config/plugin posture, and `.gitignore` backup guard coverage; benchmark validates task packs and optional aggregate result packs; conversion, migration, pilot, and recovery print read-only operator reports | Better operator ergonomics; first alpha draft release is intended for owner review, not stable distribution |
 | Examples | Government-services showcase plus Northwind regression fixture | Better demo plus stable tests |
 | Provenance | Public fixture ledger with source URLs, licence posture, and review date | Good discipline; must be maintained |
 | Safety | No-data scanner, pre-commit hook, CI checks | Strong for repository hygiene |
@@ -378,8 +378,8 @@ Known gaps:
   defines the required comparison protocol and `vaultwright benchmark --results` can validate
   aggregate result packs when private pilots produce them.
 - No independent security review has been completed.
-- No public tagged package release has been published yet; the release workflow now builds under
-  read-only permissions and creates verified draft prereleases for owner review.
+- The first alpha package artifact is a draft GitHub prerelease for owner review; it is not a
+  stable distribution channel or a production-readiness claim.
 - No formal support model, pricing, or consulting statement of work exists.
 
 ## 14. Risk Register

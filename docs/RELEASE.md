@@ -45,11 +45,11 @@ git diff --check
 
 ## Tagging
 
-Use a SemVer prerelease tag while Vaultwright is alpha:
+Use a PEP 440-compatible alpha tag that matches the package version while Vaultwright is alpha:
 
 ```bash
-git tag -a v0.1.0-alpha.1 -m "v0.1.0-alpha.1"
-git push origin v0.1.0-alpha.1
+git tag -a v0.1.0a1 -m "v0.1.0a1"
+git push origin v0.1.0a1
 ```
 
 Then watch the release workflow:

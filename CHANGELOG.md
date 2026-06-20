@@ -1,9 +1,15 @@
 # Changelog
 
 All notable changes to Vaultwright are documented here. Format loosely follows
-[Keep a Changelog](https://keepachangelog.com/); versions follow [SemVer](https://semver.org/).
+[Keep a Changelog](https://keepachangelog.com/); Python package prereleases use PEP 440.
 
-## [0.1.0] — unreleased
+## [Unreleased]
+
+### Known TODO before stable release hardening
+- Decide CLA vs DCO; secure the "Vaultwright" name; draft the commercial agreement.
+- Calibrate near-duplicate/overlap thresholds with design-partner corpora.
+
+## [0.1.0a1] — 2026-06-20
 
 Initial scaffold extracted and generalized from a real small-business vault.
 
@@ -223,8 +229,3 @@ Initial scaffold extracted and generalized from a real small-business vault.
   the generated-audit exemption is limited to explicit temp-path validation scans.
 - No-data scanning now blocks force-staged Python packaging artifacts such as `*.egg-info/`,
   `build/`, and `dist/`.
-
-### Known TODO before release hardening
-- Decide CLA vs DCO; secure the "Vaultwright" name; draft the commercial agreement.
-- Finalize tagged release artifact publishing and install verification from a published artifact.
-- Calibrate near-duplicate/overlap thresholds with design-partner corpora.

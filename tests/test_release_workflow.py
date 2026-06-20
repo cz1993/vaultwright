@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
+import tomllib
 from pathlib import Path
 
 
@@ -6,6 +7,7 @@ ROOT = Path(__file__).resolve().parents[1]
 CI_WORKFLOW = ROOT / ".github" / "workflows" / "ci.yml"
 RELEASE_WORKFLOW = ROOT / ".github" / "workflows" / "release.yml"
 RELEASE_DOC = ROOT / "docs" / "RELEASE.md"
+PYPROJECT = ROOT / "pyproject.toml"
 
 
 def test_release_workflow_is_tag_only_and_draft_prerelease() -> None:
@@ -17,6 +19,18 @@ def test_release_workflow_is_tag_only_and_draft_prerelease() -> None:
     assert "gh release create" in text
     assert "--draft" in text
     assert "--prerelease" in text
+
+
+def test_release_checklist_tag_matches_package_version() -> None:
+    pyproject = tomllib.loads(PYPROJECT.read_text(encoding="utf-8"))
+    version = pyproject["project"]["version"]
+    init_text = (ROOT / "src" / "vaultwright" / "__init__.py").read_text(encoding="utf-8")
+    text = RELEASE_DOC.read_text(encoding="utf-8")
+
+    assert version == "0.1.0a1"
+    assert f'__version__ = "{version}"' in init_text
+    assert f"git tag -a v{version} -m \"v{version}\"" in text
+    assert f"git push origin v{version}" in text
 
 
 def test_workflows_use_current_action_majors() -> None:
