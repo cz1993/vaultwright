@@ -7,7 +7,7 @@ These keep your knowledge base current and healthy. See `../CLAUDE.md` §6 for t
 | `sync_office_md.py` | markdown **mirror** under `_mirrors/` for every `.docx/.pptx/.xlsx` (Microsoft markitdown), refreshed on content change |
 | `sync_github_repos.py` | markdown **mirror** under `80_sources/repos/` for each repo in `repos.yml` (README + docs + metadata), refreshed on HEAD change |
 | `vaultwright.py` | thin operator wrapper: `plan`, `sync`, `status`, `conversion`, `migration`, `pilot`, `recovery`, `lint`, `benchmark`, `doctor`, and repo-root `init` |
-| `lint_vault.py` | health check — frontmatter, broken wikilinks, orphans, overlap warnings, mirror gaps |
+| `lint_vault.py` | health check — frontmatter, broken wikilinks, orphans, overlap warnings, mirror gaps, stale Office mirrors |
 | `benchmark_tasks.py` | validates `_meta/agent-readiness-tasks.yml` task packs and optional aggregate result packs |
 | `conversion_report.py` | prints a read-only conversion spot-check report from the source manifest |
 | `migration_report.py` | prints a read-only migration report for legacy or unknown top-level folders |

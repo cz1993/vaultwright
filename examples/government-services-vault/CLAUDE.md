@@ -114,8 +114,8 @@ This is a first-class rule, not a preference:
 3. **Archive, don't accrete.** Superseded material moves to `_archive/` per `RETENTION.md`.
 4. **Human-gated promotion.** Agent-drafted notes start `status: draft`; a human promotes to
    `active`. Don't let the vault fill with unverified notes.
-5. **The linter helps.** `tools/lint_vault.py` flags orphans, mirror gaps, and likely duplicate/
-   overlap candidates for human review.
+5. **The linter helps.** `tools/lint_vault.py` flags orphans, mirror gaps, stale Office mirrors,
+   and likely duplicate/overlap candidates for human review.
 
 ---
 
@@ -163,8 +163,8 @@ summary; wikilink the mirror or source-ref from its MOC and entity pages; append
 paths**; file reusable answers back as notes so work compounds.
 
 **Lint** — periodically check missing/invalid frontmatter, broken wikilinks, orphans, overlap
-candidates, mirror gaps, and status vocabulary; fix mechanically where safe, flag judgment calls.
-Stale-mirror checks are planned.
+candidates, mirror gaps, stale Office mirrors, and status vocabulary; fix mechanically where safe,
+flag judgment calls.
 
 **Log** — `log.md` is append-only and greppable: `## [YYYY-MM-DD] <op> | <what>`.
 

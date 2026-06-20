@@ -39,7 +39,9 @@ Current implementation status:
   exists, plus update-path frontmatter/curated-note preservation tests, plus converter-failure and
   mirror-write-failure recovery tests that preserve the previous mirror and allow later clean
   regeneration, plus a read-only conversion spot-check report that turns manifest warnings,
-  errors, lifecycle states, formats, and source/mirror existence into an operator review list;
+  errors, lifecycle states, formats, and source/mirror existence into an operator review list, plus
+  blocking lint checks for generated Office mirrors whose source bytes changed or whose manifest
+  lifecycle state is no longer current;
 - implemented for repo mirrors: stable repo IDs, configured/resolved repo, note path, local-tree or
   remote HEAD hash, lifecycle state, warnings/errors, non-mutating plan/status reports, and
   generated-region manual-edit detection, plus lifecycle next-action guidance in plan/status

@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
+import hashlib
 import json
 from pathlib import Path
 import shutil
@@ -11,12 +12,21 @@ SENTINEL = "%% AUTO-GENERATED BELOW — DO NOT EDIT %%"
 TEST_SHA = "0" * 64
 
 
-def source_mirror_fields(source: str, source_id: str = "src-test") -> str:
+def sha256_bytes(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def source_sha_for(vault: Path, source: str) -> str:
+    path = vault / source
+    return sha256_bytes(path.read_bytes()) if path.exists() else TEST_SHA
+
+
+def source_mirror_fields(source: str, source_id: str = "src-test", source_sha256: str = TEST_SHA) -> str:
     return (
         f"source: {source}\n"
         f"source_id: {source_id}\n"
         "source_manifest: _meta/source-manifest.json\n"
-        f"source_sha256: \"{TEST_SHA}\"\n"
+        f"source_sha256: \"{source_sha256}\"\n"
     )
 
 
@@ -30,18 +40,19 @@ def repo_mirror_fields(repo: str = "local/fixture", repo_id: str = "repo-test") 
 
 def write_source_manifest(
     vault: Path,
-    *records: tuple[str, str, str],
+    *records: tuple[str, str, str] | tuple[str, str, str, str],
 ) -> None:
     payload = {
         "schema_version": 1,
         "records": [
             {
-                "source_id": source_id,
-                "current_source_path": source,
-                "mirror_path": mirror,
-                "source_sha256": TEST_SHA,
+                "source_id": record[0],
+                "current_source_path": record[1],
+                "mirror_path": record[2],
+                "source_sha256": record[3] if len(record) > 3 else source_sha_for(vault, record[1]),
+                "lifecycle_state": "clean",
             }
-            for source_id, source, mirror in records
+            for record in records
         ],
     }
     (vault / "_meta" / "source-manifest.json").write_text(json.dumps(payload), encoding="utf-8")
@@ -347,7 +358,7 @@ def test_template_linter_accepts_dedicated_office_mirror_layout(tmp_path: Path) 
         "type: source-mirror\n"
         "status: active\n"
         "domain: customers\n"
-        f"{source_mirror_fields('30_customers/acme/brief.docx')}"
+        f"{source_mirror_fields('30_customers/acme/brief.docx', source_sha256=source_sha_for(vault, '30_customers/acme/brief.docx'))}"
         "created: 2026-01-01\n"
         "updated: 2026-01-01\n"
         "---\n"
@@ -385,7 +396,7 @@ def test_template_linter_accepts_alias_source_with_canonical_mirror_layout(tmp_p
         "type: source-mirror\n"
         "status: active\n"
         "domain: customers\n"
-        f"{source_mirror_fields('clients/acme/brief.docx')}"
+        f"{source_mirror_fields('clients/acme/brief.docx', source_sha256=source_sha_for(vault, 'clients/acme/brief.docx'))}"
         "created: 2026-01-01\n"
         "updated: 2026-01-01\n"
         "---\n"
@@ -420,7 +431,7 @@ def test_template_linter_blocks_sibling_office_mirror_by_default(tmp_path: Path)
         "type: source-mirror\n"
         "status: active\n"
         "domain: customers\n"
-        f"{source_mirror_fields('30_customers/brief.docx')}"
+        f"{source_mirror_fields('30_customers/brief.docx', source_sha256=source_sha_for(vault, '30_customers/brief.docx'))}"
         "created: 2026-01-01\n"
         "updated: 2026-01-01\n"
         "---\n"
@@ -494,7 +505,7 @@ def test_template_linter_accepts_sibling_office_mirror_in_legacy_mode(tmp_path: 
         "type: source-mirror\n"
         "status: active\n"
         "domain: customers\n"
-        f"{source_mirror_fields('30_customers/brief.docx')}"
+        f"{source_mirror_fields('30_customers/brief.docx', source_sha256=source_sha_for(vault, '30_customers/brief.docx'))}"
         "created: 2026-01-01\n"
         "updated: 2026-01-01\n"
         "---\n"
@@ -532,7 +543,7 @@ def test_template_linter_accepts_alias_source_with_sibling_mirror_in_legacy_mode
         "type: source-mirror\n"
         "status: active\n"
         "domain: customers\n"
-        f"{source_mirror_fields('clients/acme/brief.docx')}"
+        f"{source_mirror_fields('clients/acme/brief.docx', source_sha256=source_sha_for(vault, 'clients/acme/brief.docx'))}"
         "created: 2026-01-01\n"
         "updated: 2026-01-01\n"
         "---\n"
@@ -575,7 +586,7 @@ def test_template_linter_blocks_sibling_mirror_from_unmapped_source_root(tmp_pat
         "type: source-mirror\n"
         "status: active\n"
         "domain: customers\n"
-        f"{source_mirror_fields('random_folder/acme/brief.docx')}"
+        f"{source_mirror_fields('random_folder/acme/brief.docx', source_sha256=source_sha_for(vault, 'random_folder/acme/brief.docx'))}"
         "created: 2026-01-01\n"
         "updated: 2026-01-01\n"
         "---\n"
@@ -733,6 +744,83 @@ def test_template_linter_blocks_source_mirror_without_generated_contract_under_m
     assert result.returncode == 1
     assert "Mirror layout errors: 1" in result.stdout
     assert "source-mirror requires generated sentinel, manifest metadata, and source-derived path" in result.stdout
+
+
+def test_template_linter_blocks_stale_source_mirror_when_source_hash_changed(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    source_rel = "40_delivery/brief.docx"
+    source = vault / source_rel
+    source.write_bytes(b"original source bytes")
+    original_sha = source_sha_for(vault, source_rel)
+    mirror = vault / "_mirrors" / "40_delivery" / "brief.md"
+    mirror.parent.mkdir(parents=True)
+    mirror.write_text(
+        "---\n"
+        "title: Brief\n"
+        "type: source-mirror\n"
+        "status: active\n"
+        "domain: delivery\n"
+        f"{source_mirror_fields(source_rel, source_sha256=original_sha)}"
+        "created: 2026-01-01\n"
+        "updated: 2026-01-01\n"
+        "---\n"
+        f"# Brief\n\n{SENTINEL}\n\n## Extracted content\n",
+        encoding="utf-8",
+    )
+    write_source_manifest(vault, ("src-test", source_rel, "_mirrors/40_delivery/brief.md", original_sha))
+    source.write_bytes(b"updated source bytes")
+
+    result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "lint_vault.py")],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 1
+    assert "Stale Office mirrors: 1" in result.stdout
+    assert "_mirrors/40_delivery/brief.md  [source hash changed; run vaultwright sync before relying on mirror]" in result.stdout
+
+
+def test_template_linter_blocks_source_mirror_with_noncurrent_manifest_state(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    source_rel = "40_delivery/brief.docx"
+    source = vault / source_rel
+    source.write_bytes(b"source bytes")
+    source_sha = source_sha_for(vault, source_rel)
+    mirror = vault / "_mirrors" / "40_delivery" / "brief.md"
+    mirror.parent.mkdir(parents=True)
+    mirror.write_text(
+        "---\n"
+        "title: Brief\n"
+        "type: source-mirror\n"
+        "status: active\n"
+        "domain: delivery\n"
+        f"{source_mirror_fields(source_rel, source_sha256=source_sha)}"
+        "created: 2026-01-01\n"
+        "updated: 2026-01-01\n"
+        "---\n"
+        f"# Brief\n\n{SENTINEL}\n\n## Extracted content\n",
+        encoding="utf-8",
+    )
+    write_source_manifest(vault, ("src-test", source_rel, "_mirrors/40_delivery/brief.md", source_sha))
+    manifest_path = vault / "_meta" / "source-manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["records"][0]["lifecycle_state"] = "source_changed"
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "lint_vault.py")],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 1
+    assert "Stale Office mirrors: 1" in result.stdout
+    assert "source-manifest lifecycle_state=source_changed; run vaultwright sync/status before relying on mirror" in result.stdout
 
 
 def test_template_linter_blocks_repo_mirror_type_outside_repo_mirror_root(tmp_path: Path) -> None:
@@ -922,6 +1010,9 @@ def test_template_linter_skips_generated_mirrors_for_overlap_and_orphan_candidat
         "reporting cadence compliance risks review notes approval path and follow-up actions.\n"
     )
     for name in ("first", "second"):
+        source_rel = f"40_delivery/{name}.docx"
+        source = vault / source_rel
+        source.write_bytes(f"{name} source bytes".encode("utf-8"))
         mirror = vault / "_mirrors" / "40_delivery" / f"{name}.md"
         mirror.parent.mkdir(parents=True, exist_ok=True)
         mirror.write_text(
@@ -930,7 +1021,7 @@ def test_template_linter_skips_generated_mirrors_for_overlap_and_orphan_candidat
             "type: source-mirror\n"
             "status: active\n"
             "domain: delivery\n"
-            f"{source_mirror_fields(f'40_delivery/{name}.docx', f'src-{name}')}"
+            f"{source_mirror_fields(source_rel, f'src-{name}', source_sha_for(vault, source_rel))}"
             "created: 2026-01-01\n"
             "updated: 2026-01-01\n"
             "---\n"

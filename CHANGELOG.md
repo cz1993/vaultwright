@@ -87,6 +87,8 @@ Initial scaffold extracted and generalized from a real small-business vault.
   that reports aggregate counts and review queues without source paths or document content.
 - Added `_meta/lint-config.yml` so overlap-warning thresholds can be tuned in copied pilot vaults
   without changing linter code.
+- Lint now blocks stale generated Office mirrors when source bytes changed or the source manifest
+  lifecycle state is no longer current, so operators rerun sync before relying on old mirrors.
 - Recovery reports now attach the latest matching sync-audit status, lifecycle state, warnings, and
   errors for each manifest item that needs operator action.
 - Recovery reports now flag stale atomic temp files left by interrupted writes, without deleting

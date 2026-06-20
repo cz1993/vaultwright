@@ -4,13 +4,13 @@
 lint_vault.py — health check for a Vaultwright knowledge base.
 
 Reports (does not fix): notes missing required frontmatter, invalid type/status values,
-unresolved wikilinks, orphan notes (no inbound links), potential note overlap, and Office-mirror
-gaps.
+unresolved wikilinks, orphan notes (no inbound links), potential note overlap, Office-mirror
+gaps, and stale Office mirrors.
 
 Usage:  python3.11 tools/lint_vault.py
 """
 from __future__ import annotations
-import itertools, json, re, sys
+import hashlib, itertools, json, re, sys
 from pathlib import Path
 try:
     import yaml
@@ -39,6 +39,7 @@ MIRROR_MODES = {"dedicated", "sibling"}
 OVERLAP_MIN_TOKENS = 18
 OVERLAP_CONTENT_THRESHOLD = 0.72
 OVERLAP_TITLE_THRESHOLD = 0.82
+CURRENT_SOURCE_STATES = {"clean", "reviewed", "regenerated"}
 STOPWORDS = {
     "about", "after", "again", "against", "also", "because", "before", "being", "between",
     "could", "during", "each", "from", "have", "into", "more", "must", "need", "only",
@@ -208,6 +209,13 @@ def jaccard(a: set[str], b: set[str]) -> float:
         return 0.0
     return len(a & b) / len(a | b)
 
+def sha256_of(p: Path) -> str:
+    h = hashlib.sha256()
+    with p.open("rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
 # inventory
 all_files = sorted(
     (p for p in ROOT.rglob("*") if p.is_file() and not excluded(p.relative_to(ROOT).parent)),
@@ -247,6 +255,7 @@ overlap_content_threshold = float(LINT_CONFIG["overlap_content_threshold"])
 overlap_title_threshold = float(LINT_CONFIG["overlap_title_threshold"])
 DOMAINS = set(DOMAIN_FOLDERS)
 missing_fm, bad_type, bad_status, bad_domain, bad_domain_folder, bad_account_client, bad_mirror_layout, unresolved = [], [], [], [], [], [], [], []
+stale_mirrors: list[tuple[str, str]] = []
 overlap_inputs: list[dict[str, object]] = []
 note_types: dict[Path, str] = {}
 source_paths: dict[Path, str] = {}
@@ -323,6 +332,30 @@ def is_managed_generated_mirror(rel: Path, note_type: str, fm: dict, has_sentine
         return has_sentinel and repo_mirror_metadata_ok(rel, fm) and is_repo_mirror_path(rel)
     return False
 
+def source_mirror_freshness_issue(rel: Path, fm: dict) -> str | None:
+    source_rel = str(fm.get("source", "")).strip()
+    source_id = str(fm.get("source_id", "")).strip()
+    record = SOURCE_MANIFEST_RECORDS.get(source_id, {})
+    source_path = Path(source_rel)
+    if not source_rel or source_path.is_absolute() or ".." in source_path.parts:
+        return "source path is invalid"
+    actual = ROOT / source_path
+    if not actual.exists():
+        return f"source missing: {source_rel}"
+    if not actual.is_file():
+        return f"source is not a file: {source_rel}"
+    state = str(record.get("lifecycle_state", "clean") or "clean")
+    if state not in CURRENT_SOURCE_STATES:
+        return f"source-manifest lifecycle_state={state}; run vaultwright sync/status before relying on mirror"
+    try:
+        current_sha = sha256_of(actual)
+    except OSError as exc:
+        return f"source unreadable: {exc.__class__.__name__}"
+    expected_sha = str(record.get("source_sha256") or fm.get("source_sha256") or "").strip()
+    if expected_sha and current_sha != expected_sha:
+        return "source hash changed; run vaultwright sync before relying on mirror"
+    return None
+
 def canonical_source_rel(src: Path) -> Path:
     rel = src.relative_to(ROOT)
     if not rel.parts:
@@ -356,6 +389,10 @@ for p in md_notes:
         source_paths[p] = source_rel
         if managed_generated_mirror:
             managed_generated_mirrors.add(p)
+            if note_type == "source-mirror":
+                freshness_issue = source_mirror_freshness_issue(rel, fm)
+                if freshness_issue:
+                    stale_mirrors.append((rels, freshness_issue))
         miss = [k for k in REQUIRED if k not in fm or fm.get(k) in (None, "")]
         if miss:
             missing_fm.append((rels, "missing: " + ",".join(miss)))
@@ -495,6 +532,7 @@ section("Manifest errors", manifest_errors)
 section("Domain/folder mismatch", bad_domain_folder)
 section("Account/client mismatch", bad_account_client)
 section("Mirror layout errors", bad_mirror_layout)
+section("Stale Office mirrors", stale_mirrors)
 section("Non-lowercase markdown extension", markdown_case)
 section("Unresolved wikilinks", unresolved)
 section("Orphan notes (no inbound links)", orphans)
@@ -504,6 +542,7 @@ blocking = (
     missing_fm or bad_type or bad_status or bad_domain or domain_map_errors or mirror_config_errors
     or lint_config_errors
     or manifest_errors or bad_domain_folder or bad_account_client or bad_mirror_layout
+    or stale_mirrors
     or markdown_case or mirror_gap
 )
 print("\nOK" if not blocking else "\nISSUES FOUND (unresolved links, orphans & overlap candidates are warnings)")

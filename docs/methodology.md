@@ -72,10 +72,11 @@ So Vaultwright optimizes for *fewer, better-connected, current* notes:
 4. **Human-gated promotion.** Agent-drafted notes start as `draft`; a human promotes them to
    `active`. (LLMs hallucinate; the vault must not silently fill with unverified notes.)
 5. **The linter enforces the basics.** `lint_vault.py` blocks missing required frontmatter, invalid
-   type/status values, and missing Office mirrors. It reports unresolved links, orphans, and likely
-   note overlap as warnings. `_meta/lint-config.yml` exposes overlap thresholds for pilot
-   calibration; defaults are conservative until real corpora prove better values. Stale-mirror
-   checks are a roadmap item.
+   type/status values, missing Office mirrors, and stale Office mirrors whose source bytes or
+   manifest lifecycle state prove the generated mirror is unsafe to rely on. It reports unresolved
+   links, orphans, and likely note overlap as warnings. `_meta/lint-config.yml` exposes overlap
+   thresholds for pilot calibration; defaults are conservative until real corpora prove better
+   values.
 
 Most agent-wiki projects happily spawn notes. Disciplined restraint is a deliberate edge.
 
@@ -85,9 +86,9 @@ Most agent-wiki projects happily spawn notes. Disciplined restraint is a deliber
   wikilink the mirror or source-ref from its MOC and entity pages; log one line.
 - **Query** — read `INDEX.md` / the relevant MOC first, follow links, answer with citations to note
   paths; file reusable answers back as notes so work compounds.
-- **Lint** — periodically check frontmatter, links, orphans, overlap candidates, and mirror gaps;
-  fix mechanically where safe, flag judgment calls. Tune overlap sensitivity in copied pilot vaults
-  through `_meta/lint-config.yml`; stale-mirror checks are planned.
+- **Lint** — periodically check frontmatter, links, orphans, overlap candidates, mirror gaps, and
+  stale Office mirrors; fix mechanically where safe, flag judgment calls. Tune overlap sensitivity
+  in copied pilot vaults through `_meta/lint-config.yml`.
 - **Log** — append one greppable line per change to `log.md`.
 
 ## 6. Governance (because this is business data)
