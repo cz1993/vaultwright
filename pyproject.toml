@@ -25,3 +25,10 @@ vaultwright = "vaultwright.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+vaultwright = [
+  "template/**/*",
+  "template/.gitignore",
+  "template/**/.gitkeep",
+]

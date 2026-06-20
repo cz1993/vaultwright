@@ -1,0 +1,25 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+SOURCE_TEMPLATE = ROOT / "template"
+PACKAGE_TEMPLATE = ROOT / "src" / "vaultwright" / "template"
+
+
+def template_files(root: Path) -> dict[str, bytes]:
+    return {
+        path.relative_to(root).as_posix(): path.read_bytes()
+        for path in sorted(root.rglob("*"))
+        if path.is_file()
+    }
+
+
+def test_packaged_template_matches_repository_template() -> None:
+    source_files = template_files(SOURCE_TEMPLATE)
+    package_files = template_files(PACKAGE_TEMPLATE)
+
+    assert package_files == source_files
+    assert ".gitignore" in package_files
+    assert "tools/recovery_report.py" in package_files
+    assert "80_sources/repos/.gitkeep" in package_files

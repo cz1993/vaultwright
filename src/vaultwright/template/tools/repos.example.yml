@@ -1,0 +1,26 @@
+# Copy to repos.yml and edit. tools/sync_github_repos.py reads repos.yml and writes one markdown
+# mirror per repo under `80_sources/repos/`. Edit repos at the source; never hand-edit a mirror's auto body.
+#
+# Per-repo keys:
+#   repo     (required)  owner/name on github.com
+#   note     (required)  mirror filename, written under settings.notes_dir
+#   aliases  (optional)  other owner/name to try if `repo` 404s (e.g. after a rename)
+#   local_path (optional) local repo fixture path relative to the vault root
+#   tags / related / account / program  (optional)  curated frontmatter seeded on first sync
+#   client is accepted as a legacy alias and is copied to account when account is absent
+
+settings:
+  notes_dir: 80_sources/repos # where mirror notes are written (relative to vault root)
+  max_doc_bytes: 60000       # per-file cap on mirrored doc text
+  max_total_bytes: 300000    # per-repo cap on total mirrored doc text
+  recent_commits: 10         # how many recent commits to list
+
+repos: []
+
+  # Uncomment only after confirming the repo is yours or has suitable public
+  # licensing/provenance for your use.
+  #
+  # - repo: octocat/Hello-World
+  #   note: hello-world.md
+  #   tags: [repo]
+  #   related: ["[[Repositories]]"]

@@ -188,6 +188,26 @@ def test_packaged_vaultwright_cli_init_from_source_checkout(tmp_path: Path) -> N
     assert (target / "tools" / "vaultwright.py").exists()
 
 
+def test_packaged_vaultwright_cli_init_from_packaged_template(tmp_path: Path) -> None:
+    target = tmp_path / "packaged-vault"
+    env = {**os.environ, "PYTHONPATH": str(ROOT / "src")}
+    env.pop("VAULTWRIGHT_REPO", None)
+
+    result = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "init", str(target)],
+        cwd=tmp_path,
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+    assert (target / "CLAUDE.md").exists()
+    assert (target / ".gitignore").exists()
+    assert (target / "tools" / "recovery_report.py").exists()
+    assert (target / "tools" / "vaultwright.py").exists()
+
+
 def test_repos_example_has_no_active_placeholder_repo() -> None:
     cfg = yaml.safe_load((ROOT / "template/tools/repos.example.yml").read_text(encoding="utf-8"))
 

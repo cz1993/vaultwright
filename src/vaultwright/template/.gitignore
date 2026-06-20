@@ -1,0 +1,23 @@
+# Scratch
+_tmp/
+data/
+secrets/
+private/
+
+# Obsidian per-machine UI state (keep the rest of .obsidian if you version your config)
+.obsidian/workspace*.json
+
+# OS
+.DS_Store
+*.log
+
+# Secrets must never be committed (they should never be in the vault at all)
+.env
+.env.*
+*.pem
+*.p12
+*.pfx
+*.token
+*.key
+id_rsa
+id_ed25519

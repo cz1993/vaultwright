@@ -45,6 +45,10 @@ Initial scaffold extracted and generalized from a real small-business vault.
   `doctor`, plus repo-root `init`.
 - Added `pyproject.toml` and the source-installable `vaultwright` console entry point, which
   delegates to vault-local tools instead of forking sync/lint behavior.
+- Packaged the starter vault template under `src/vaultwright/template`, so `vaultwright init` can
+  scaffold from an installed wheel without a source checkout or `VAULTWRIGHT_REPO`.
+- CI now builds and installs a wheel without dependencies and smoke-tests `vaultwright init` from
+  the packaged template.
 - `vaultwright doctor` now reports manifest lifecycle counts, sync audit presence, git backup
   posture, and GitHub auth posture as read-only preflight context.
 - Added `tools/recovery_report.py` and `vaultwright recovery`, a read-only recovery checklist for

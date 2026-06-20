@@ -30,8 +30,8 @@ vaultwright --root ~/client-vault recovery
 vaultwright init ~/new-vault
 ```
 
-`vaultwright init` currently requires a source/editable install or `VAULTWRIGHT_REPO` pointing at a
-Vaultwright checkout so it can copy the template.
+`vaultwright init` copies the packaged template. Set `VAULTWRIGHT_REPO` only when you intentionally
+want to scaffold from a specific source checkout template instead.
 
 Design notes:
 - Keep it dependency-light (Python stdlib + PyYAML + markitdown).

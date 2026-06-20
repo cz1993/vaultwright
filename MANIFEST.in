@@ -1,0 +1,3 @@
+recursive-include src/vaultwright/template *
+include src/vaultwright/template/.gitignore
+recursive-include src/vaultwright/template *.gitkeep

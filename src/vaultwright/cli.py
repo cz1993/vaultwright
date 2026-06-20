@@ -3,7 +3,7 @@
 
 The packaged command delegates plan/sync/status/lint/doctor to the target vault's local
 `tools/vaultwright.py` wrapper. That keeps the vault tools as the source of truth while allowing a
-single `vaultwright` command during source/editable installs.
+single `vaultwright` command from editable or wheel installs.
 """
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ import sys
 from pathlib import Path
 
 
-def source_repo_root() -> Path | None:
+def template_source() -> Path | None:
     env_root = os.environ.get("VAULTWRIGHT_REPO")
     candidates = []
     if env_root:
@@ -23,8 +23,9 @@ def source_repo_root() -> Path | None:
     here = Path(__file__).resolve()
     candidates.extend(here.parents)
     for candidate in candidates:
-        if (candidate / "template" / "CLAUDE.md").exists():
-            return candidate
+        template = candidate / "template"
+        if (template / "CLAUDE.md").exists():
+            return template
     return None
 
 
@@ -45,11 +46,11 @@ def vault_wrapper(root: Path) -> Path:
 
 
 def command_init(args: argparse.Namespace) -> int:
-    repo_root = source_repo_root()
-    if not repo_root:
+    template = template_source()
+    if not template:
         print(
-            "vaultwright init currently requires a source/editable install or VAULTWRIGHT_REPO "
-            "pointing at a Vaultwright checkout.",
+            "vaultwright init cannot find a packaged template. Reinstall Vaultwright or set "
+            "VAULTWRIGHT_REPO to a source checkout.",
             file=sys.stderr,
         )
         return 1
@@ -60,7 +61,7 @@ def command_init(args: argparse.Namespace) -> int:
         print(str(exc), file=sys.stderr)
         return 1
     target.mkdir(parents=True, exist_ok=True)
-    shutil.copytree(repo_root / "template", target, dirs_exist_ok=True)
+    shutil.copytree(template, target, dirs_exist_ok=True)
     print(f"Vaultwright vault created at: {target}")
     print("Next: python3.11 tools/vaultwright.py doctor && python3.11 tools/vaultwright.py plan")
     return 0

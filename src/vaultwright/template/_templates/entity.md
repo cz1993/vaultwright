@@ -1,6 +1,6 @@
 ---
 title: {{title}}
-type: guide
+type: entity
 status: active
 domain:
 created: {{date}}
@@ -12,10 +12,13 @@ related: []
 
 # {{title}}
 
-## Purpose
+- **What:** person · account · vendor · program · product
+- **Status:**
+
+## Summary
 
 
-## Steps
+## Facts
 
 
-## References
+## Appears in
