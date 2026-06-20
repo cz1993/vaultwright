@@ -1467,6 +1467,145 @@ def test_vaultwright_recovery_reports_manifest_actions(tmp_path: Path) -> None:
     assert by_id["repo-conflict"]["latest_audit"]["errors"] == ["Target note belongs to another repo_id."]
 
 
+def test_vaultwright_recovery_reports_refresh_and_planned_states(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    refresh_source = vault / "40_delivery" / "refresh.docx"
+    converter_source = vault / "40_delivery" / "converter.docx"
+    planned_source = vault / "40_delivery" / "planned.docx"
+    refresh_mirror = vault / "_mirrors" / "40_delivery" / "refresh.md"
+    converter_mirror = vault / "_mirrors" / "40_delivery" / "converter.md"
+    for path in (refresh_source, converter_source, planned_source, refresh_mirror, converter_mirror):
+        path.parent.mkdir(parents=True, exist_ok=True)
+    refresh_source.write_bytes(b"refresh source")
+    converter_source.write_bytes(b"converter source")
+    planned_source.write_bytes(b"planned source")
+    refresh_mirror.write_text("Refresh mirror\n", encoding="utf-8")
+    converter_mirror.write_text("Converter mirror\n", encoding="utf-8")
+
+    repo_changed = vault / "80_sources" / "repos" / "changed.md"
+    repo_unreachable = vault / "80_sources" / "repos" / "unreachable.md"
+    repo_stale = vault / "80_sources" / "repos" / "stale.md"
+    for note in (repo_changed, repo_unreachable, repo_stale):
+        note.parent.mkdir(parents=True, exist_ok=True)
+        note.write_text("Repo mirror\n", encoding="utf-8")
+
+    (vault / "_meta" / "source-manifest.json").write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "records": [
+                    {
+                        "source_id": "src-changed",
+                        "current_source_path": "40_delivery/refresh.docx",
+                        "mirror_path": "_mirrors/40_delivery/refresh.md",
+                        "lifecycle_state": "source_changed",
+                    },
+                    {
+                        "source_id": "src-stale",
+                        "current_source_path": "40_delivery/refresh.docx",
+                        "mirror_path": "_mirrors/40_delivery/refresh.md",
+                        "lifecycle_state": "stale",
+                    },
+                    {
+                        "source_id": "src-converter",
+                        "current_source_path": "40_delivery/converter.docx",
+                        "mirror_path": "_mirrors/40_delivery/converter.md",
+                        "lifecycle_state": "converter_changed",
+                    },
+                    {
+                        "source_id": "src-planned",
+                        "current_source_path": "40_delivery/planned.docx",
+                        "mirror_path": "_mirrors/40_delivery/planned.md",
+                        "lifecycle_state": "planned",
+                    },
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (vault / "_meta" / "repo-manifest.json").write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "records": [
+                    {
+                        "repo_id": "repo-changed",
+                        "configured_repo": "local/changed",
+                        "note_path": "80_sources/repos/changed.md",
+                        "lifecycle_state": "repo_changed",
+                    },
+                    {
+                        "repo_id": "repo-unreachable",
+                        "configured_repo": "local/unreachable",
+                        "note_path": "80_sources/repos/unreachable.md",
+                        "lifecycle_state": "unreachable",
+                    },
+                    {
+                        "repo_id": "repo-stale",
+                        "configured_repo": "local/stale",
+                        "note_path": "80_sources/repos/stale.md",
+                        "lifecycle_state": "stale",
+                    },
+                    {
+                        "repo_id": "repo-planned",
+                        "configured_repo": "local/planned",
+                        "note_path": "80_sources/repos/planned.md",
+                        "lifecycle_state": "planned",
+                    },
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "vaultwright.py"), "recovery"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+    assert "recovery: 8 items need operator action (office=4, repo=4, temp=0)" in result.stdout
+    assert "[office:source_changed" in result.stdout
+    assert "Run sync to refresh the generated region" in result.stdout
+    assert "[office:stale" in result.stdout
+    assert "Run sync before relying on the mirror; the source or configuration is newer." in result.stdout
+    assert "[office:converter_changed" in result.stdout
+    assert "Review conversion quality" in result.stdout
+    assert "[office:planned" in result.stdout
+    assert "Run plan review, then sync to create the generated mirror." in result.stdout
+    assert "[repo:repo_changed" in result.stdout
+    assert "Run sync to refresh README/docs/metadata" in result.stdout
+    assert "[repo:unreachable" in result.stdout
+    assert "Check repo spelling, network access, and GitHub auth" in result.stdout
+    assert "[repo:stale" in result.stdout
+    assert "Run sync before relying on the mirror; the repo or configuration is newer." in result.stdout
+    assert "[repo:planned" in result.stdout
+    assert "Run plan review, then sync to create the repo mirror." in result.stdout
+
+    json_result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "vaultwright.py"), "recovery", "--json"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert json_result.returncode == 0, json_result.stderr or json_result.stdout
+    report = json.loads(json_result.stdout)
+    assert report["summary"] == {"office": 4, "repo": 4, "temp": 0, "total": 8}
+    states = {(item["kind"], item["id"]): item["state"] for item in report["items"]}
+    assert states[("office", "src-changed")] == "source_changed"
+    assert states[("office", "src-stale")] == "stale"
+    assert states[("office", "src-converter")] == "converter_changed"
+    assert states[("office", "src-planned")] == "planned"
+    assert states[("repo", "repo-changed")] == "repo_changed"
+    assert states[("repo", "repo-unreachable")] == "unreachable"
+    assert states[("repo", "repo-stale")] == "stale"
+    assert states[("repo", "repo-planned")] == "planned"
+
+
 def test_vaultwright_recovery_reports_stale_atomic_temp_files(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     shutil.copytree(ROOT / "template", vault)

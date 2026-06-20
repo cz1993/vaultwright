@@ -99,6 +99,8 @@ Initial scaffold extracted and generalized from a real small-business vault.
 - Recovery JSON output now includes compact total/office/repo/temp summary counts for automation.
 - Recovery reports now surface previous generated mirror paths for source-move and mirror-root
   conflict records, so operators can see which retained mirror needs review before regeneration.
+- Recovery guidance and regression coverage now include refresh/planned lifecycle states such as
+  `source_changed`, `stale`, `converter_changed`, `planned`, `repo_changed`, and `unreachable`.
 - GitHub repo sync now supports non-mutating `--plan` and manifest-backed `--status` reporting,
   and writes `_meta/repo-manifest.json` with stable repo IDs, configured/resolved repo, note path,
   local-tree or remote-HEAD hash, lifecycle state, warnings, and last successful sync.

@@ -79,10 +79,12 @@ The report reads `_meta/source-manifest.json`, `_meta/repo-manifest.json`, and t
 events in `_meta/sync-audit.jsonl`, then lists only records that need operator action. It does not
 move, delete, regenerate, or archive anything. Treat it as a triage checklist for:
 
-- `source_missing`, `source_moved`, `manual_modification`, `conflict`, and `error` Office records;
+- `planned`, `source_changed`, `source_moved`, `stale`, `converter_changed`, `unsupported`,
+  `source_missing`, `manual_modification`, `conflict`, and `error` Office records;
 - missing generated mirror paths;
-- `unreachable`, `repo_changed`, `manual_modification`, `conflict`, and `error` repo records;
-- missing repo mirror notes.
+- `planned`, `repo_changed`, `stale`, `unreachable`, `manual_modification`, `conflict`, and
+  `error` repo records;
+- missing repo mirror notes;
 - stale atomic temp files left by interrupted writes.
 
 The JSON form includes `summary.total`, `summary.office`, `summary.repo`, and `summary.temp`
@@ -172,6 +174,11 @@ Before public release, recovery must be tested on a copied vault:
 - force a repo-note write failure and verify the previous repo note is preserved, then fix the
   filesystem issue and verify sync returns the record to `clean`;
 - remove one source and verify `source_missing`;
+- change one source and verify `source_changed`, change mirror configuration and verify `stale`,
+  and change converter metadata or version and verify `converter_changed`;
+- configure one new source/repo and verify `planned`;
+- change one repo fixture or HEAD and verify `repo_changed`, then make a configured repo
+  unreachable and verify `unreachable`;
 - edit a generated region and verify `manual_modification`;
 - move one source and verify `source_moved` blocks new mirror generation while the previous mirror
   exists, then remove or move the previous mirror and verify the new mirror can be generated;
