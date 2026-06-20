@@ -223,6 +223,7 @@ def repo_config() -> tuple[list[dict[str, str | Path]], list[tuple[str, str]]]:
 
     notes_dir = str(settings.get("notes_dir", DEFAULT_REPO_NOTES_DIR))
     configured: list[dict[str, str | Path]] = []
+    seen_note_paths: dict[str, str] = {}
     for index, entry in enumerate(repos):
         label = f"{REPO_CONFIG_REL}:repos[{index}]"
         if not isinstance(entry, dict):
@@ -240,6 +241,13 @@ def repo_config() -> tuple[list[dict[str, str | Path]], list[tuple[str, str]]]:
         except ValueError as exc:
             errors.append((f"{label}.note", str(exc)))
             continue
+        note_rel = note_path.relative_to(ROOT).as_posix()
+        note_key = note_rel.casefold()
+        previous = seen_note_paths.get(note_key)
+        if previous:
+            errors.append((f"{label}.note", f"duplicates output path {note_rel} from {previous}"))
+            continue
+        seen_note_paths[note_key] = label
         if isinstance(repo, str) and repo.strip():
             configured.append({
                 "repo": repo.strip(),

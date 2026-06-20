@@ -1064,6 +1064,64 @@ def test_template_linter_blocks_invalid_repo_mirror_config_path(tmp_path: Path) 
     assert "tools/repos.yml:repos[0].note  [notes_dir contains a reserved path component]" in result.stdout
 
 
+def test_template_linter_blocks_duplicate_repo_mirror_config_target(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    (vault / "tools" / "repos.yml").write_text(
+        "settings:\n"
+        "  notes_dir: 80_sources/repos\n"
+        "repos:\n"
+        "  - repo: local/first\n"
+        "    note: shared.md\n"
+        "  - repo: local/second\n"
+        "    note: shared.md\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "lint_vault.py")],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 1
+    assert "Repo config errors: 1" in result.stdout
+    assert (
+        "tools/repos.yml:repos[1].note  [duplicates output path 80_sources/repos/shared.md from tools/repos.yml:repos[0]]"
+        in result.stdout
+    )
+
+
+def test_template_linter_blocks_case_only_duplicate_repo_mirror_config_target(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    (vault / "tools" / "repos.yml").write_text(
+        "settings:\n"
+        "  notes_dir: 80_sources/repos\n"
+        "repos:\n"
+        "  - repo: local/first\n"
+        "    note: Shared.md\n"
+        "  - repo: local/second\n"
+        "    note: shared.md\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "lint_vault.py")],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 1
+    assert "Repo config errors: 1" in result.stdout
+    assert (
+        "tools/repos.yml:repos[1].note  [duplicates output path 80_sources/repos/shared.md from tools/repos.yml:repos[0]]"
+        in result.stdout
+    )
+
+
 def test_template_linter_blocks_repo_mirror_with_noncurrent_manifest_state(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     shutil.copytree(ROOT / "template", vault)

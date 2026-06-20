@@ -47,7 +47,8 @@ Current implementation status:
   generated-region manual-edit detection, plus lifecycle next-action guidance in plan/status
   output, plus repo stub-to-populated tests that preserve curated notes/frontmatter, plus repo-note
   write-failure recovery tests that preserve the previous note and allow later clean regeneration,
-  plus blocking lint checks for configured repo entries whose expected generated note is missing or
+  plus config validation and blocking lint checks for duplicate configured repo note targets, plus
+  blocking lint checks for configured repo entries whose expected generated note is missing or
   unmanaged, and for generated repo mirrors whose manifest lifecycle state is no longer current,
   whose frontmatter commit drifts from the manifest, or whose local source tree changed;
 - partially implemented: move detection by unique hash match when the old manifest path is absent;

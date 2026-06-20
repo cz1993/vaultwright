@@ -605,6 +605,8 @@ def validate_config(data) -> tuple[dict, list[dict], list[str]]:
     if not isinstance(repos, list):
         errors.append("repos must be a list")
         repos = []
+    notes_dir = settings.get("notes_dir", "80_sources/repos")
+    seen_note_paths: dict[str, str] = {}
     valid_repos: list[dict] = []
     for i, entry in enumerate(repos):
         label = f"repos[{i}]"
@@ -621,6 +623,18 @@ def validate_config(data) -> tuple[dict, list[dict], list[str]]:
         if aliases is not None and (not isinstance(aliases, list) or any(not isinstance(a, str) for a in aliases)):
             errors.append(f"{label}.aliases must be a list of strings")
         if not any(error.startswith(label) for error in errors):
+            try:
+                note_path = note_output_path(str(notes_dir), str(note))
+            except ValueError:
+                note_path = None
+            if note_path:
+                note_rel = str(note_path.relative_to(ROOT))
+                note_key = note_rel.casefold()
+                previous = seen_note_paths.get(note_key)
+                if previous:
+                    errors.append(f"{label}.note duplicates output path {note_rel} from {previous}")
+                    continue
+                seen_note_paths[note_key] = label
             valid_repos.append(entry)
     return settings, valid_repos, errors
 

@@ -9,6 +9,8 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 - Lint now blocks explicit `tools/repos.yml` entries when the configured generated `repo-mirror`
   note is missing, unmanaged, pointed at an invalid output path, or tied to a different repo
   identity.
+- GitHub repo sync and lint now reject duplicate `tools/repos.yml` entries that resolve to the
+  same generated repo-mirror note path, preventing partial syncs and source-identity conflicts.
 
 ### Known TODO before stable release hardening
 - Decide CLA vs DCO; secure the "Vaultwright" name; draft the commercial agreement.

@@ -142,6 +142,9 @@ If `tools/repos.yml` is missing, the sync skips cleanly; copy `tools/repos.examp
 you are ready to list repos.
 For deterministic examples or tests, a repo entry may use `local_path:` to mirror a local fixture
 directory instead of calling GitHub.
+Each configured repo must resolve to a unique generated note path. Duplicate `note:` values under
+the same `settings.notes_dir` are rejected before sync writes anything, because one generated note
+cannot safely represent two repo identities.
 
 Successful repo syncs maintain `_meta/repo-manifest.json`. Office and repo syncs append
 machine-readable events to `_meta/sync-audit.jsonl`. These generated metadata files explain what

@@ -1742,6 +1742,76 @@ def test_github_sync_fails_malformed_config_without_traceback(tmp_path: Path) ->
     assert "Traceback" not in result.stderr
 
 
+def test_github_sync_rejects_duplicate_repo_mirror_targets_before_writes(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    tools = vault / "tools"
+    fixture = vault / "_fixtures" / "repo"
+    tools.mkdir(parents=True)
+    fixture.mkdir(parents=True)
+    (fixture / "README.md").write_text("# Fixture\n", encoding="utf-8")
+    shutil.copy(ROOT / "template/tools/sync_github_repos.py", tools / "sync_github_repos.py")
+    (tools / "repos.yml").write_text(
+        "settings:\n"
+        "  notes_dir: 80_sources/repos\n"
+        "repos:\n"
+        "  - repo: local/first\n"
+        "    local_path: _fixtures/repo\n"
+        "    note: shared.md\n"
+        "  - repo: local/second\n"
+        "    local_path: _fixtures/repo\n"
+        "    note: shared.md\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(tools / "sync_github_repos.py")],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 1
+    assert "invalid config" in result.stderr
+    assert "repos[1].note duplicates output path 80_sources/repos/shared.md from repos[0]" in result.stderr
+    assert not (vault / "80_sources" / "repos" / "shared.md").exists()
+    assert not (vault / "_meta" / "repo-manifest.json").exists()
+
+
+def test_github_sync_rejects_case_only_duplicate_repo_mirror_targets(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    tools = vault / "tools"
+    fixture = vault / "_fixtures" / "repo"
+    tools.mkdir(parents=True)
+    fixture.mkdir(parents=True)
+    (fixture / "README.md").write_text("# Fixture\n", encoding="utf-8")
+    shutil.copy(ROOT / "template/tools/sync_github_repos.py", tools / "sync_github_repos.py")
+    (tools / "repos.yml").write_text(
+        "settings:\n"
+        "  notes_dir: 80_sources/repos\n"
+        "repos:\n"
+        "  - repo: local/first\n"
+        "    local_path: _fixtures/repo\n"
+        "    note: Shared.md\n"
+        "  - repo: local/second\n"
+        "    local_path: _fixtures/repo\n"
+        "    note: shared.md\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(tools / "sync_github_repos.py")],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 1
+    assert "invalid config" in result.stderr
+    assert "repos[1].note duplicates output path 80_sources/repos/shared.md from repos[0]" in result.stderr
+    assert not (vault / "80_sources" / "repos" / "Shared.md").exists()
+    assert not (vault / "80_sources" / "repos" / "shared.md").exists()
+
+
 def test_github_sync_plan_is_non_mutating_for_local_repo(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     tools = vault / "tools"

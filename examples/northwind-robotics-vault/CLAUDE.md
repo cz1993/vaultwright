@@ -135,7 +135,8 @@ when the original changes.
   under `80_sources/repos/` by default
   (`type: repo-mirror`) with the README, `/docs`, top-level markdown, and metadata — refreshed when
   the repo's HEAD changes. Repo lifecycle state lives in `_meta/repo-manifest.json`, and lint
-  blocks configured repo entries whose expected generated mirror note is missing or unmanaged.
+  blocks configured repo entries whose expected generated mirror note is missing, unmanaged, or
+  duplicated by another configured repo target.
 - **PDFs** embed natively in Obsidian (`![[file.pdf#page=2]]`); use a light `source-ref` companion
   when useful, or run `sync_office_md.py --include-pdf` to create a text mirror under `_mirrors/`.
 - **Rules:** edit the original, never a mirror's auto region. Curate only above the sentinel.
