@@ -36,8 +36,9 @@ Current implementation status:
   output, and post-conversion source hash checks that abort mirror writes if the source changes
   while conversion is running, plus mirror-root-change conflict detection when the old generated
   mirror still exists, plus moved-source review blocking while the previous generated mirror still
-  exists, plus converter-failure and mirror-write-failure recovery tests that preserve the previous
-  mirror and allow later clean regeneration;
+  exists, plus update-path frontmatter/curated-note preservation tests, plus converter-failure and
+  mirror-write-failure recovery tests that preserve the previous mirror and allow later clean
+  regeneration;
 - implemented for repo mirrors: stable repo IDs, configured/resolved repo, note path, local-tree or
   remote HEAD hash, lifecycle state, warnings/errors, non-mutating plan/status reports, and
   generated-region manual-edit detection, plus lifecycle next-action guidance in plan/status

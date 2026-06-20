@@ -1194,6 +1194,58 @@ def test_office_sync_writes_manifest_and_preserves_source_bytes(tmp_path: Path) 
     assert saved["records"][0]["source_id"].startswith("src_")
 
 
+def test_office_sync_update_preserves_frontmatter_and_curated_notes(tmp_path: Path) -> None:
+    sync = load_office_sync_module()
+    vault = tmp_path / "vault"
+    source = vault / "40_delivery" / "registration.docx"
+    source.parent.mkdir(parents=True)
+    source.write_bytes(b"office bytes v1")
+    config = sync.load_mirror_config(vault)
+    manifest = sync.empty_manifest()
+    first_status = sync.sync_one(source, vault, FakeConverter(), False, False, config, {}, manifest, "markitdown", "test")
+    sync.write_source_manifest(vault, manifest)
+    mirror = vault / "_mirrors" / "40_delivery" / "registration.md"
+    first_text = mirror.read_text(encoding="utf-8")
+    first_fm, first_body = sync.split_frontmatter(first_text)
+    source_id = first_fm["source_id"]
+    first_source_sha = first_fm["source_sha256"]
+    first_record = sync.load_source_manifest(vault)["records"][0]
+
+    first_fm["status"] = "reviewed"
+    first_fm["owner"] = "operations"
+    first_fm["tags"] = ["delivery", "mirror"]
+    first_fm["related"] = ["[[CRA Business Registration Hub]]"]
+    first_fm["reviewed_by"] = "cz1993"
+    curated_body = first_body.replace("## Notes\n\n\n", "## Notes\n\nCurated delivery note.\n\n", 1)
+    mirror.write_text(sync.dump_frontmatter(first_fm) + "\n" + curated_body, encoding="utf-8")
+
+    source.write_bytes(b"office bytes v2")
+    loaded = sync.load_source_manifest(vault)
+    plan = sync.plan_one(source, vault, config, {}, loaded, "markitdown", "test")
+    second_status = sync.sync_one(source, vault, FakeConverter(), False, False, config, {}, loaded, "markitdown", "test")
+    sync.write_source_manifest(vault, loaded)
+    updated_text = mirror.read_text(encoding="utf-8")
+    updated_fm, _updated_body = sync.split_frontmatter(updated_text)
+    updated_record = sync.load_source_manifest(vault)["records"][0]
+
+    assert first_status == "created"
+    assert plan["action"] == "update"
+    assert second_status == "updated"
+    assert "Curated delivery note." in updated_text
+    assert updated_fm["status"] == "reviewed"
+    assert updated_fm["owner"] == "operations"
+    assert updated_fm["tags"] == ["delivery", "mirror"]
+    assert updated_fm["related"] == ["[[CRA Business Registration Hub]]"]
+    assert updated_fm["reviewed_by"] == "cz1993"
+    assert updated_fm["type"] == "source-mirror"
+    assert updated_fm["source_id"] == source_id
+    assert updated_fm["source"] == "40_delivery/registration.docx"
+    assert updated_fm["source_sha256"] == sync.sha256_of(source)
+    assert updated_fm["source_sha256"] != first_source_sha
+    assert updated_record["source_id"] == first_record["source_id"]
+    assert updated_record["lifecycle_state"] == "clean"
+
+
 def test_office_sync_second_run_is_manifest_stable(tmp_path: Path) -> None:
     sync = load_office_sync_module()
     vault = tmp_path / "vault"
