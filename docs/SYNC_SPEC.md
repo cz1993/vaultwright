@@ -36,8 +36,8 @@ Current implementation status:
   output, and post-conversion source hash checks that abort mirror writes if the source changes
   while conversion is running, plus mirror-root-change conflict detection when the old generated
   mirror still exists, plus moved-source review blocking while the previous generated mirror still
-  exists, plus converter-failure recovery tests that preserve the previous mirror and allow later
-  clean regeneration;
+  exists, plus converter-failure and mirror-write-failure recovery tests that preserve the previous
+  mirror and allow later clean regeneration;
 - implemented for repo mirrors: stable repo IDs, configured/resolved repo, note path, local-tree or
   remote HEAD hash, lifecycle state, warnings/errors, non-mutating plan/status reports, and
   generated-region manual-edit detection, plus lifecycle next-action guidance in plan/status output;
@@ -100,6 +100,7 @@ Mirror writes are atomic in the current Office and repo sync tools:
 - fsync or equivalent where practical;
 - replace the prior mirror only after successful conversion and frontmatter generation;
 - preserve previous mirror when conversion fails.
+- preserve previous mirror when the mirror write fails before replacement.
 - preserve previous mirror when the source bytes change during conversion, because the extracted
   text can no longer be tied safely to the planned source hash.
 

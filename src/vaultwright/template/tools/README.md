@@ -66,6 +66,8 @@ manual-modification states. Plan/status output also prints `next actions` for li
 need review, sync, source recovery, or conflict resolution.
 If conversion fails, sync records an `error` state and leaves the previous mirror untouched; fix the
 converter/source issue and rerun sync to recover.
+If writing the mirror fails, sync records an `error` state and keeps the previous mirror; fix the
+filesystem issue and rerun sync to recover.
 If a source file changes while conversion is running, sync records an error and leaves the previous
 mirror untouched so generated markdown is not tied to stale source-hash metadata.
 If a source moves and the generated mirror path changes, sync reports `source_moved` while the

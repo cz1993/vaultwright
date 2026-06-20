@@ -976,7 +976,17 @@ def sync_one(
     if plan["collision"] and status == "created":
         status = "created(.mirror.md — preferred mirror path was hand-authored)"
     if not dry:
-        write_text_atomic(mirror, content)
+        try:
+            write_text_atomic(mirror, content)
+        except Exception as e:
+            name = e.__class__.__name__
+            record["lifecycle_state"] = "error"
+            record["errors"] = unique_list(record.get("errors", []) + [
+                f"Mirror write failed: {name}: {str(e)[:120]}"
+            ])
+            if manifest is not None:
+                upsert_manifest_record(manifest, record)
+            return f"error:mirror-write:{name}: {str(e)[:120]}"
         record["normalized_content_sha256"] = sha256_text(extracted.strip())
         record["generated_region_sha256"] = sha256_text(generated)
         record["lifecycle_state"] = "clean"

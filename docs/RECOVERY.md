@@ -105,6 +105,10 @@ If conversion fails before writing, Vaultwright records an `error` lifecycle sta
 previous mirror untouched. Fix the converter/source issue, rerun `tools/vaultwright.py sync`, then
 confirm `tools/vaultwright.py status` returns the source to `clean`.
 
+If writing the mirror fails, Vaultwright records an `error` lifecycle state and leaves the previous
+mirror untouched. Fix the filesystem, permission, disk-space, or cloud-sync issue, rerun
+`tools/vaultwright.py sync`, then confirm the source returns to `clean`.
+
 ## Recover Curated Notes
 
 Curated notes are human-maintained records. Restore them from Git or filesystem backup, not from
@@ -138,6 +142,8 @@ Before public release, recovery must be tested on a copied vault:
 - interrupt sync and rerun;
 - force a converter failure and verify the previous mirror is preserved, then fix the converter and
   verify sync returns the record to `clean`;
+- force a mirror-write failure and verify the previous mirror is preserved, then fix the filesystem
+  issue and verify sync returns the record to `clean`;
 - remove one source and verify `source_missing`;
 - edit a generated region and verify `manual_modification`;
 - move one source and verify `source_moved` blocks new mirror generation while the previous mirror
@@ -149,7 +155,8 @@ Before public release, recovery must be tested on a copied vault:
 - run no-data scan and lint after recovery.
 
 The test suite now exercises the copied-vault regeneration path, source-byte preservation,
-converter-failure recovery that preserves the prior mirror, conversion-race aborts that preserve
-the prior mirror, `source_missing`, `manual_modification`, lint, and generated-text no-data scan
-checks on the Northwind example. Operator backup/restore drills and full copied-vault no-data scans
-on pilot vaults are still required before production use.
+converter-failure and mirror-write-failure recovery that preserve the prior mirror,
+conversion-race aborts that preserve the prior mirror, `source_missing`, `manual_modification`,
+lint, and generated-text no-data scan checks on the Northwind example. Operator backup/restore
+drills and full copied-vault no-data scans on pilot vaults are still required before production
+use.

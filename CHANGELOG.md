@@ -90,6 +90,8 @@ Initial scaffold extracted and generalized from a real small-business vault.
   new generated path.
 - Added regression coverage for converter failures: the previous mirror is preserved, the manifest
   records `error`, and a later successful sync returns the record to `clean`.
+- Office mirror write failures now return a recoverable `error` lifecycle state instead of
+  bubbling out of sync, preserving the previous mirror and allowing a later clean regeneration.
 - GitHub repo sync now skips cleanly when the default `tools/repos.yml` is absent, while explicit
   missing configs fail.
 - `repos.example.yml` no longer contains an active placeholder that could resolve to a real
