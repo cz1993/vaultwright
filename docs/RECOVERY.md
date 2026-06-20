@@ -74,14 +74,18 @@ python3.11 tools/vaultwright.py recovery
 python3.11 tools/vaultwright.py recovery --json
 ```
 
-The report reads `_meta/source-manifest.json` and `_meta/repo-manifest.json`, then lists only records
-that need operator action. It does not move, delete, regenerate, or archive anything. Treat it as a
-triage checklist for:
+The report reads `_meta/source-manifest.json`, `_meta/repo-manifest.json`, and the latest matching
+events in `_meta/sync-audit.jsonl`, then lists only records that need operator action. It does not
+move, delete, regenerate, or archive anything. Treat it as a triage checklist for:
 
 - `source_missing`, `source_moved`, `manual_modification`, `conflict`, and `error` Office records;
 - missing generated mirror paths;
 - `unreachable`, `repo_changed`, `manual_modification`, `conflict`, and `error` repo records;
 - missing repo mirror notes.
+
+For each item with audit history, the report includes the latest audit timestamp, status, lifecycle
+state, and structured warnings/errors. This is diagnostic metadata only; it should not contain raw
+document text or repo documentation bodies.
 
 For Office `conflict` records caused by a mirror-root or mirror-mode change, archive or remove the
 previous generated mirror after review. Vaultwright will not write the new mirror path while the

@@ -81,7 +81,7 @@ FORBIDDEN_MIRROR_PARTS = {
 LIFECYCLE_GUIDANCE = {
     "planned": "review the plan, then run sync to create the generated mirror.",
     "source_changed": "run sync to refresh the generated region, then review linked curated notes.",
-    "source_moved": "confirm the source move is intentional, then run sync to update the mirror path.",
+    "source_moved": "confirm the source move is intentional, preserve/archive any old mirror, then run sync to update the mirror path.",
     "stale": "run sync before relying on the mirror; the source or configuration is newer.",
     "converter_changed": "review conversion quality, then run sync if the new converter output is acceptable.",
     "unsupported": "keep the original as source of truth; convert the file manually or use a supported format.",
@@ -174,6 +174,30 @@ def append_audit(root: Path, event: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a", encoding="utf-8") as f:
         f.write(json.dumps(payload, sort_keys=True) + "\n")
+
+
+def sync_audit_event(root: Path, plan: dict, manifest: dict, status: str) -> dict:
+    planned_record = plan["record"]
+    record = (
+        manifest_record_for_source(
+            manifest,
+            root,
+            planned_record.get("current_source_path", ""),
+            planned_record.get("source_sha256", ""),
+            int(planned_record.get("source_size") or 0),
+        )[0]
+        or planned_record
+    )
+    return {
+        "tool": "sync_office_md",
+        "source_id": planned_record.get("source_id"),
+        "source_path": planned_record.get("current_source_path"),
+        "mirror_path": planned_record.get("mirror_path"),
+        "status": status,
+        "lifecycle_state": record.get("lifecycle_state"),
+        "warnings": unique_list(record.get("warnings", [])),
+        "errors": unique_list(record.get("errors", [])),
+    }
 
 
 def is_excluded(rel: Path, mirror_root: Path | None = None) -> bool:
@@ -638,6 +662,35 @@ def plan_one(
     mirror_rel = as_posix_rel(mirror.relative_to(root)) if mirror.is_relative_to(root) else str(mirror)
     mirror_mode = str(mirror_config["mode"])
     mirror_root = mirror_config["root"].as_posix() if isinstance(mirror_config["root"], Path) else str(mirror_config["root"])
+    previous_mirror_rel = None
+    for candidate in (
+        (existing_record or {}).get("mirror_path"),
+        (existing_record or {}).get("previous_mirror_path"),
+    ):
+        if not isinstance(candidate, str) or not candidate or candidate == mirror_rel:
+            continue
+        previous_path = Path(candidate)
+        if previous_path.is_absolute() or ".." in previous_path.parts:
+            continue
+        if (root / previous_path).exists():
+            previous_mirror_rel = candidate
+            break
+    previous_mirror_reason = (existing_record or {}).get("previous_mirror_reason")
+    previous_mirror_is_source_move = (
+        previous_mirror_reason == "source_moved"
+        or (existing_record or {}).get("lifecycle_state") == "source_moved"
+    )
+    mirror_location_changed = bool(
+        existing_record
+        and previous_mirror_rel
+        and not previous_mirror_is_source_move
+        and (
+            existing_record.get("mirror_mode") != mirror_mode
+            or existing_record.get("mirror_root") != mirror_root
+            or existing_record.get("previous_mirror_path")
+        )
+    )
+    moved_source_has_previous_mirror = bool(previous_mirror_rel and (moved_from or previous_mirror_is_source_move))
     existing_fm = None
     existing_generated_hash = None
     if mirror.exists():
@@ -661,7 +714,23 @@ def plan_one(
     warnings = unique_list(warnings + source_risk_warnings(src.relative_to(root), source_size))
 
     if not errors and action != "skip":
-        if moved_from:
+        if mirror_location_changed:
+            action = "review"
+            lifecycle_state = "conflict"
+            errors.append(
+                "Configured mirror location changed while the previous generated mirror still exists."
+            )
+            warnings.append(
+                "Archive or remove the previous mirror before syncing the new mirror path."
+            )
+        elif moved_source_has_previous_mirror:
+            action = "review"
+            lifecycle_state = "source_moved"
+            warnings.append(
+                "Source path changed while the previous generated mirror still exists; preserve, "
+                "move, archive, or remove the old mirror before syncing the new mirror path."
+            )
+        elif moved_from:
             action = "update"
             lifecycle_state = "source_moved"
             warnings.append("Source path changed; stable source ID was reused from the manifest.")
@@ -729,6 +798,12 @@ def plan_one(
         "current_source_path": source_rel,
         "previous_source_paths": previous_paths,
         "mirror_path": mirror_rel,
+        "previous_mirror_path": previous_mirror_rel if (mirror_location_changed or moved_source_has_previous_mirror) else None,
+        "previous_mirror_reason": (
+            "mirror_location_changed" if mirror_location_changed
+            else "source_moved" if moved_source_has_previous_mirror
+            else None
+        ),
         "source_format": src.suffix.lstrip(".").lower(),
         "source_size": source_size,
         "source_modified": source_mtime,
@@ -753,6 +828,9 @@ def plan_one(
         "warnings": unique_list(warnings),
         "errors": unique_list(errors),
     }
+    if not record.get("previous_mirror_path"):
+        record.pop("previous_mirror_path", None)
+        record.pop("previous_mirror_reason", None)
     return {
         "source": src,
         "mirror": mirror,
@@ -802,6 +880,8 @@ def print_lifecycle_guidance(state_counts: dict[str, int]) -> None:
 
 def review_blocks_force(record: dict) -> bool:
     if record.get("lifecycle_state") == "conflict":
+        return True
+    if record.get("lifecycle_state") == "source_moved" and record.get("previous_mirror_path"):
         return True
     if record.get("lifecycle_state") != "manual_modification":
         return False
@@ -874,6 +954,26 @@ def sync_one(
             upsert_manifest_record(manifest, record)
         return f"error:{name}: {str(e)[:120]}"
 
+    try:
+        post_convert_sha = sha256_of(src)
+    except Exception as e:
+        name = e.__class__.__name__
+        record["lifecycle_state"] = "error"
+        record["errors"] = unique_list(record.get("errors", []) + [
+            f"Source became unreadable during conversion: {name}: {str(e)[:120]}"
+        ])
+        if manifest is not None and not dry:
+            upsert_manifest_record(manifest, record)
+        return f"error:source-unreadable-after-conversion:{name}"
+    if post_convert_sha != sha:
+        record["lifecycle_state"] = "error"
+        record["errors"] = unique_list(record.get("errors", []) + [
+            "Source bytes changed during conversion; mirror was not written.",
+        ])
+        if manifest is not None and not dry:
+            upsert_manifest_record(manifest, record)
+        return "error:source-changed-during-conversion"
+
     # preserve the curated region (above the sentinel) if the mirror already exists
     preserved_prefix, sentinel_found = split_body_at_sentinel(existing_body)
     if existing_body and sentinel_found:
@@ -900,7 +1000,17 @@ def sync_one(
     if plan["collision"] and status == "created":
         status = "created(.mirror.md — preferred mirror path was hand-authored)"
     if not dry:
-        write_text_atomic(mirror, content)
+        try:
+            write_text_atomic(mirror, content)
+        except Exception as e:
+            name = e.__class__.__name__
+            record["lifecycle_state"] = "error"
+            record["errors"] = unique_list(record.get("errors", []) + [
+                f"Mirror write failed: {name}: {str(e)[:120]}"
+            ])
+            if manifest is not None:
+                upsert_manifest_record(manifest, record)
+            return f"error:mirror-write:{name}: {str(e)[:120]}"
         record["normalized_content_sha256"] = sha256_text(extracted.strip())
         record["generated_region_sha256"] = sha256_text(generated)
         record["lifecycle_state"] = "clean"
@@ -1086,20 +1196,7 @@ def main():
         if status.startswith(("created", "updated")):
             changed.append(src.relative_to(root))
         if not args.dry_run:
-            append_audit(root, {
-                "tool": "sync_office_md",
-                "source_id": plan["record"].get("source_id"),
-                "source_path": plan["record"].get("current_source_path"),
-                "mirror_path": plan["record"].get("mirror_path"),
-                "status": status,
-                "lifecycle_state": (manifest_record_for_source(
-                    manifest,
-                    root,
-                    plan["record"].get("current_source_path", ""),
-                    plan["record"].get("source_sha256", ""),
-                    int(plan["record"].get("source_size") or 0),
-                )[0] or plan["record"]).get("lifecycle_state"),
-            })
+            append_audit(root, sync_audit_event(root, plan, manifest, status))
 
     missing = 0
     manifest_changed = False

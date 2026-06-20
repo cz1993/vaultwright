@@ -53,6 +53,8 @@ Initial scaffold extracted and generalized from a real small-business vault.
   posture, and GitHub auth posture as read-only preflight context.
 - Added `tools/recovery_report.py` and `vaultwright recovery`, a read-only recovery checklist for
   non-clean source/repo manifest records and missing generated paths.
+- Recovery reports now attach the latest matching sync-audit status, lifecycle state, warnings, and
+  errors for each manifest item that needs operator action.
 - GitHub repo sync now supports non-mutating `--plan` and manifest-backed `--status` reporting,
   and writes `_meta/repo-manifest.json` with stable repo IDs, configured/resolved repo, note path,
   local-tree or remote-HEAD hash, lifecycle state, warnings, and last successful sync.

@@ -38,9 +38,10 @@ manifest lifecycle counts, sync audit presence, git backup posture, and GitHub a
 vault may warn that manifests, audit logs, or repo config are not generated yet; those warnings are
 preflight context, not sync failures.
 
-`recovery` is also read-only. It reads `_meta/source-manifest.json` and `_meta/repo-manifest.json`
-and prints only records that need operator action, such as missing sources, manual generated-region
-edits, conflicts, unreachable repos, missing mirrors, or error states.
+`recovery` is also read-only. It reads `_meta/source-manifest.json`, `_meta/repo-manifest.json`, and
+the latest matching `_meta/sync-audit.jsonl` events, then prints only records that need operator
+action, such as missing sources, manual generated-region edits, conflicts, unreachable repos,
+missing mirrors, or error states.
 
 ```bash
 python3.11 tools/sync_office_md.py              # sync the whole vault
@@ -64,6 +65,20 @@ successful sync time. `--plan` never writes mirrors or the manifest; `--status` 
 and current source tree to surface clean, planned, unsupported, missing, stale, conflicted, and
 manual-modification states. Plan/status output also prints `next actions` for lifecycle states that
 need review, sync, source recovery, or conflict resolution.
+Each sync attempt also appends `_meta/sync-audit.jsonl` with the source ID, generated mirror path,
+status, lifecycle state, and structured warnings/errors. The audit log is diagnostic metadata only;
+it does not embed original document text.
+If conversion fails, sync records an `error` state and leaves the previous mirror untouched; fix the
+converter/source issue and rerun sync to recover.
+If writing the mirror fails, sync records an `error` state and keeps the previous mirror; fix the
+filesystem issue and rerun sync to recover.
+If a source file changes while conversion is running, sync records an error and leaves the previous
+mirror untouched so generated markdown is not tied to stale source-hash metadata.
+If a source moves and the generated mirror path changes, sync reports `source_moved` while the
+previous generated mirror still exists. Preserve, move, archive, or remove the old mirror before
+generating the new path.
+If the configured mirror root or mode changes, sync reports `conflict` while the previous generated
+mirror still exists. Review and archive/remove the old mirror before generating the new path.
 
 The Office plan also reports warning counts for:
 
@@ -97,9 +112,12 @@ directory instead of calling GitHub.
 
 Successful repo syncs maintain `_meta/repo-manifest.json`. Office and repo syncs append
 machine-readable events to `_meta/sync-audit.jsonl`. These generated metadata files explain what
-changed, which source or repo identity was involved, and the lifecycle state after sync.
+changed, which source or repo identity was involved, the generated note path, the lifecycle state
+after sync, and structured warnings/errors. They do not embed README or documentation bodies.
 Repo plan/status output also prints `next actions` for changed, unreachable, conflicted, manually
 modified, and errored repo mirrors.
+If writing a repo mirror note fails, sync records an `error` state and keeps the previous note; fix
+the filesystem issue and rerun sync to recover.
 
 ## Agent-readiness benchmark tasks
 

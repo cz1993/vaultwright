@@ -298,6 +298,42 @@ def test_vaultwright_recovery_reports_manifest_actions(tmp_path: Path) -> None:
         ),
         encoding="utf-8",
     )
+    audit_events = [
+        {
+            "timestamp": "2026-06-20T00:00:00Z",
+            "tool": "sync_office_md",
+            "source_id": "src-manual",
+            "mirror_path": "_mirrors/40_delivery/registration.md",
+            "status": "updated",
+            "lifecycle_state": "clean",
+            "warnings": [],
+            "errors": [],
+        },
+        {
+            "timestamp": "2026-06-20T00:01:00Z",
+            "tool": "sync_office_md",
+            "source_id": "src-manual",
+            "mirror_path": "_mirrors/40_delivery/registration.md",
+            "status": "skipped:manual_modification",
+            "lifecycle_state": "manual_modification",
+            "warnings": ["Generated region hash changed."],
+            "errors": [],
+        },
+        {
+            "timestamp": "2026-06-20T00:02:00Z",
+            "tool": "sync_github_repos",
+            "repo_id": "repo-conflict",
+            "note_path": "80_sources/repos/fixture.md",
+            "status": "skipped:conflict",
+            "lifecycle_state": "conflict",
+            "warnings": [],
+            "errors": ["Target note belongs to another repo_id."],
+        },
+    ]
+    (vault / "_meta" / "sync-audit.jsonl").write_text(
+        "\n".join(json.dumps(event) for event in audit_events) + "\n",
+        encoding="utf-8",
+    )
 
     result = subprocess.run(
         [sys.executable, str(vault / "tools" / "vaultwright.py"), "recovery"],
@@ -316,6 +352,24 @@ def test_vaultwright_recovery_reports_manifest_actions(tmp_path: Path) -> None:
     assert "preserve/archive any old mirror" in result.stdout
     assert "[repo:conflict" in result.stdout
     assert "Resolve the target note/repo identity conflict" in result.stdout
+    assert "latest audit: 2026-06-20T00:01:00Z status=skipped:manual_modification" in result.stdout
+    assert "audit warning: Generated region hash changed." in result.stdout
+    assert "latest audit: 2026-06-20T00:02:00Z status=skipped:conflict" in result.stdout
+    assert "audit error: Target note belongs to another repo_id." in result.stdout
+
+    json_result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "vaultwright.py"), "recovery", "--json"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert json_result.returncode == 0, json_result.stderr or json_result.stdout
+    report = json.loads(json_result.stdout)
+    by_id = {item["id"]: item for item in report["items"]}
+    assert by_id["src-manual"]["latest_audit"]["timestamp"] == "2026-06-20T00:01:00Z"
+    assert by_id["src-manual"]["latest_audit"]["status"] == "skipped:manual_modification"
+    assert by_id["repo-conflict"]["latest_audit"]["errors"] == ["Target note belongs to another repo_id."]
 
 
 def test_github_sync_skips_missing_default_config(tmp_path: Path) -> None:

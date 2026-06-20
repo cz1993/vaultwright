@@ -38,9 +38,10 @@ manifest lifecycle counts, sync audit presence, git backup posture, and GitHub a
 vault may warn that manifests, audit logs, or repo config are not generated yet; those warnings are
 preflight context, not sync failures.
 
-`recovery` is also read-only. It reads `_meta/source-manifest.json` and `_meta/repo-manifest.json`
-and prints only records that need operator action, such as missing sources, manual generated-region
-edits, conflicts, unreachable repos, missing mirrors, or error states.
+`recovery` is also read-only. It reads `_meta/source-manifest.json`, `_meta/repo-manifest.json`, and
+the latest matching `_meta/sync-audit.jsonl` events, then prints only records that need operator
+action, such as missing sources, manual generated-region edits, conflicts, unreachable repos,
+missing mirrors, or error states.
 
 ```bash
 python3.11 tools/sync_office_md.py              # sync the whole vault

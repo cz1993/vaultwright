@@ -466,6 +466,21 @@ def append_audit(event: dict, root: Path = ROOT) -> None:
         f.write(json.dumps(payload, sort_keys=True) + "\n")
 
 
+def sync_audit_event(plan: dict, manifest: dict, status: str, entry: dict) -> dict:
+    planned_record = plan["record"]
+    record = repo_record_by_id(manifest, planned_record.get("repo_id")) or planned_record
+    return {
+        "tool": "sync_github_repos",
+        "repo_id": planned_record.get("repo_id"),
+        "repo": entry.get("repo"),
+        "note_path": planned_record.get("note_path"),
+        "status": status,
+        "lifecycle_state": record.get("lifecycle_state"),
+        "warnings": unique_list(record.get("warnings", [])),
+        "errors": unique_list(record.get("errors", [])),
+    }
+
+
 def dump_fm(data):
     ordered = {k: data[k] for k in KEY_ORDER if k in data}
     for k, v in data.items():
@@ -521,6 +536,15 @@ def write_note(path: Path, fm, preserved_body, auto, dry):
     content = dump_fm(fm) + "\n" + preserved_body.rstrip() + "\n\n" + SENTINEL + "\n\n" + auto.rstrip() + "\n"
     if not dry:
         write_text_atomic(path, content)
+
+
+def write_note_error(path: Path, fm, preserved_body, auto, dry) -> str | None:
+    try:
+        write_note(path, fm, preserved_body, auto, dry)
+    except Exception as exc:
+        name = exc.__class__.__name__
+        return f"error:repo-write:{name}: {str(exc)[:120]}"
+    return None
 
 
 def build_auto(slug, meta, langs, release, docs, commits):
@@ -878,7 +902,9 @@ def sync_one(entry, settings, token, force, dry, trusted_existing_baseline=False
         fm["synced"] = now_iso()
         auto = build_auto(slug, meta, {}, None, docs, commits)
         status = "updated" if note_path.exists() else "created"
-        write_note(note_path, fm, preserved, auto, dry)
+        error = write_note_error(note_path, fm, preserved, auto, dry)
+        if error:
+            return error
         return status
 
     slug, sha = resolve_slug(entry, token)
@@ -889,7 +915,9 @@ def sync_one(entry, settings, token, force, dry, trusted_existing_baseline=False
         fm = base_fm(existing_fm, entry, entry["repo"], domain=domain)
         fm.setdefault("status", "draft")
         fm["synced"] = ""
-        write_note(note_path, fm, preserved, pending_auto(entry["repo"], "not reachable / auth not configured"), dry)
+        error = write_note_error(note_path, fm, preserved, pending_auto(entry["repo"], "not reachable / auth not configured"), dry)
+        if error:
+            return error
         return "stub"
 
     if existing_fm.get("last_commit") == sha and not force:
@@ -902,7 +930,9 @@ def sync_one(entry, settings, token, force, dry, trusted_existing_baseline=False
         fm = base_fm(existing_fm, entry, slug, domain=domain)
         fm.setdefault("status", "draft")
         fm["synced"] = ""
-        write_note(note_path, fm, preserved, pending_auto(slug, f"clone failed: {err}"), dry)
+        error = write_note_error(note_path, fm, preserved, pending_auto(slug, f"clone failed: {err}"), dry)
+        if error:
+            return error
         return "stub"
 
     try:
@@ -926,7 +956,9 @@ def sync_one(entry, settings, token, force, dry, trusted_existing_baseline=False
     fm["synced"] = now_iso()
     auto = build_auto(slug, meta, langs, release, docs, commits)
     status = "updated" if note_path.exists() else "created"
-    write_note(note_path, fm, preserved, auto, dry)
+    error = write_note_error(note_path, fm, preserved, auto, dry)
+    if error:
+        return error
     return status
 
 
@@ -1002,14 +1034,7 @@ def main():
             changed.append(entry.get("note", ""))
         if not args.dry_run:
             update_manifest_after_sync(manifest, plan, status)
-            append_audit({
-                "tool": "sync_github_repos",
-                "repo_id": plan["record"].get("repo_id"),
-                "repo": entry.get("repo"),
-                "note_path": plan["record"].get("note_path"),
-                "status": status,
-                "lifecycle_state": (repo_record_by_id(manifest, plan["record"].get("repo_id")) or {}).get("lifecycle_state"),
-            }, ROOT)
+            append_audit(sync_audit_event(plan, manifest, status, entry), ROOT)
 
     manifest_changed = False
     if not args.dry_run:

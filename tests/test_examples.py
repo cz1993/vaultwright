@@ -39,6 +39,18 @@ GOVERNMENT_RAW_FOLDER_MIRRORS = [
 GOVERNMENT_BENCHMARK = Path("_meta/agent-readiness-tasks.yml")
 OFFICE_SOURCE_EXTS = {".docx", ".pptx", ".xlsx", ".pdf"}
 BENCHMARK_FAMILIES = {"answer", "reconcile", "update", "audit", "consolidate"}
+COPIED_TOOL_FILES = [
+    "README.md",
+    "benchmark_tasks.py",
+    "lint_vault.py",
+    "recovery_report.py",
+    "repos.example.yml",
+    "requirements.txt",
+    "sync_all.sh",
+    "sync_github_repos.py",
+    "sync_office_md.py",
+    "vaultwright.py",
+]
 
 
 def assert_no_generated_residue(src: Path) -> None:
@@ -95,6 +107,16 @@ def test_government_services_example_source_tree_has_no_generated_residue() -> N
         assert not (src / rel).exists()
     log = (src / "log.md").read_text(encoding="utf-8")
     assert "sync |" not in log
+
+
+def test_example_vault_tool_copies_match_template() -> None:
+    for example in ("northwind-robotics-vault", "government-services-vault"):
+        tools = ROOT / "examples" / example / "tools"
+        for filename in COPIED_TOOL_FILES:
+            assert (tools / filename).read_bytes() == (ROOT / "template" / "tools" / filename).read_bytes(), (
+                example,
+                filename,
+            )
 
 
 def load_government_benchmark(vault: Path) -> dict:

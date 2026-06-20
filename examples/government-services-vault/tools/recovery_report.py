@@ -12,6 +12,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE_MANIFEST = Path("_meta/source-manifest.json")
 REPO_MANIFEST = Path("_meta/repo-manifest.json")
+AUDIT_LOG = Path("_meta/sync-audit.jsonl")
 CLEAN_STATES = {"clean", "reviewed"}
 SOURCE_EXTS = {".docx", ".pptx", ".xlsx", ".doc", ".pdf"}
 EXCLUDED_PARTS = {"_mirrors", "_templates", "_tmp", "tools", "node_modules", ".git"}
@@ -19,7 +20,7 @@ EXCLUDED_PARTS = {"_mirrors", "_templates", "_tmp", "tools", "node_modules", ".g
 OFFICE_ACTIONS = {
     "planned": "Run plan review, then sync to create the generated mirror.",
     "source_changed": "Run sync to refresh the generated region, then review linked curated notes.",
-    "source_moved": "Confirm the move is intentional, then run sync to update the mirror path.",
+    "source_moved": "Confirm the move is intentional, preserve/archive any old mirror, then run sync to update the mirror path.",
     "stale": "Run sync before relying on the mirror; the source or configuration is newer.",
     "converter_changed": "Review conversion quality, then sync if the new converter output is acceptable.",
     "unsupported": "Keep the original as source of truth; convert manually or use a supported format.",
@@ -63,6 +64,52 @@ def load_manifest(root: Path, rel: Path) -> tuple[list[dict], list[str]]:
     bad = sum(1 for record in records if not isinstance(record, dict))
     errors = [f"{rel.as_posix()}: {bad} records are not objects"] if bad else []
     return [record for record in records if isinstance(record, dict)], errors
+
+
+def compact_audit_event(event: dict) -> dict:
+    compact: dict = {}
+    for key in ("timestamp", "tool", "status", "lifecycle_state", "source_path", "mirror_path", "note_path"):
+        value = event.get(key)
+        if isinstance(value, str) and value.strip():
+            compact[key] = value
+    for key in ("warnings", "errors"):
+        value = event.get(key)
+        if isinstance(value, list):
+            compact[key] = [str(item) for item in value if str(item).strip()]
+        else:
+            compact[key] = []
+    return compact
+
+
+def load_latest_audit_events(root: Path) -> tuple[dict[str, dict], list[str]]:
+    path = root / AUDIT_LOG
+    if not path.exists():
+        return {}, []
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except UnicodeDecodeError:
+        return {}, [f"{AUDIT_LOG.as_posix()}: unreadable text; latest audit context unavailable."]
+
+    latest: dict[str, dict] = {}
+    warnings: list[str] = []
+    for line_number, line in enumerate(lines, start=1):
+        if not line.strip():
+            continue
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            warnings.append(f"{AUDIT_LOG.as_posix()}: line {line_number} invalid JSON; skipped.")
+            continue
+        if not isinstance(event, dict):
+            warnings.append(f"{AUDIT_LOG.as_posix()}: line {line_number} is not an object; skipped.")
+            continue
+        source_id = event.get("source_id")
+        if isinstance(source_id, str) and source_id.strip():
+            latest[f"office:{source_id}"] = compact_audit_event(event)
+        repo_id = event.get("repo_id")
+        if isinstance(repo_id, str) and repo_id.strip():
+            latest[f"repo:{repo_id}"] = compact_audit_event(event)
+    return latest, warnings
 
 
 def has_source_evidence(root: Path) -> bool:
@@ -156,8 +203,10 @@ def build_report(root: Path) -> tuple[list[dict], list[str], list[str]]:
     items: list[dict] = []
     source_records, source_errors = load_manifest(root, SOURCE_MANIFEST)
     repo_records, repo_errors = load_manifest(root, REPO_MANIFEST)
+    latest_audit, audit_warnings = load_latest_audit_events(root)
     errors.extend(source_errors)
     errors.extend(repo_errors)
+    warnings.extend(audit_warnings)
     if not source_records and not (root / SOURCE_MANIFEST).exists() and has_source_evidence(root):
         warnings.append(f"{SOURCE_MANIFEST.as_posix()} not found; run sync/status or restore it from backup.")
     if not repo_records and not (root / REPO_MANIFEST).exists() and has_repo_evidence(root):
@@ -170,6 +219,8 @@ def build_report(root: Path) -> tuple[list[dict], list[str], list[str]]:
         item = repo_item(root, record)
         if item:
             items.append(item)
+    for item in items:
+        item["latest_audit"] = latest_audit.get(f"{item['kind']}:{item['id']}")
     return items, warnings, errors
 
 
@@ -196,6 +247,16 @@ def print_human(root: Path, items: list[dict], warnings: list[str], errors: list
             print(f"    warning: {warning}")
         for error in item["errors"][:3]:
             print(f"    error: {error}")
+        audit = item.get("latest_audit")
+        if isinstance(audit, dict):
+            timestamp = audit.get("timestamp", "unknown-time")
+            status = audit.get("status", "unknown-status")
+            lifecycle = audit.get("lifecycle_state", "unknown-state")
+            print(f"    latest audit: {timestamp} status={status} lifecycle={lifecycle}")
+            for warning in audit.get("warnings", [])[:3]:
+                print(f"    audit warning: {warning}")
+            for error in audit.get("errors", [])[:3]:
+                print(f"    audit error: {error}")
 
 
 def build_parser() -> argparse.ArgumentParser:
