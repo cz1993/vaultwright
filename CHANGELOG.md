@@ -51,7 +51,8 @@ Initial scaffold extracted and generalized from a real small-business vault.
   `vaultwright init`, `doctor`, `plan`, `benchmark`, `conversion`, `migration`, `pilot`, and JSON
   `recovery` delegation.
 - `vaultwright doctor` now reports manifest lifecycle counts, sync audit presence, recovery action
-  counts, git backup posture, and GitHub auth posture as read-only preflight context.
+  counts, git backup posture, GitHub auth posture, optional Obsidian config/plugin posture, and
+  `.gitignore` backup guard coverage as read-only preflight context.
 - Added `tools/recovery_report.py` and `vaultwright recovery`, a read-only recovery checklist for
   non-clean source/repo manifest records and missing generated paths.
 - Added `tools/conversion_report.py` and `vaultwright conversion`, a read-only conversion

@@ -342,7 +342,7 @@ Professional-services use should begin with a conservative operating model:
 | Mirror storage | Office mirrors and optional text-based PDF mirrors live under `_mirrors/` | Fixes messy source-folder problem |
 | Office sync | Plan/sync/status, manifest, audit events, manual-edit detection, lifecycle next-action guidance | Useful alpha foundation |
 | Repo sync | Plan/sync/status, repo manifest, audit events, manual-edit detection, lifecycle next-action guidance | Useful for code/source repositories |
-| CLI | Vault-local wrapper and source-installable `vaultwright` entry point; CI now installs the built wheel and verifies packaged init, doctor, plan, benchmark, conversion, migration, pilot, and JSON recovery delegation; doctor reports dependency, manifest, audit, recovery-action counts, git, and GitHub-auth posture; conversion, migration, pilot, and recovery print read-only operator reports | Better operator ergonomics; tagged release publishing still needs hardening |
+| CLI | Vault-local wrapper and source-installable `vaultwright` entry point; CI now installs the built wheel and verifies packaged init, doctor, plan, benchmark, conversion, migration, pilot, and JSON recovery delegation; doctor reports dependency, manifest, audit, recovery-action counts, git/GitHub backup posture, optional Obsidian config/plugin posture, and `.gitignore` backup guard coverage; conversion, migration, pilot, and recovery print read-only operator reports | Better operator ergonomics; tagged release publishing still needs hardening |
 | Examples | Government-services showcase plus Northwind regression fixture | Better demo plus stable tests |
 | Provenance | Public fixture ledger with source URLs, licence posture, and review date | Good discipline; must be maintained |
 | Safety | No-data scanner, pre-commit hook, CI checks | Strong for repository hygiene |
@@ -443,7 +443,7 @@ Goal: make one trained operator able to run Vaultwright on a permission-cleared 
 Deliverables:
 
 - tagged release publishing and published-artifact install verification;
-- continued `doctor` expansion for Obsidian/plugin checks and deeper backup posture;
+- continued `doctor` expansion beyond the current Obsidian/plugin checks and backup posture;
 - deeper lifecycle recovery UX beyond current read-only recovery checklist;
 - pilot-calibrated migration runbooks for legacy folder layouts;
 - conversion spot-check report plus operator guide;

@@ -41,8 +41,9 @@ python3.11 tools/vaultwright.py doctor
 
 `doctor` is read-only. It checks required files and copied tools, Python dependencies, source/repo
 manifest lifecycle counts, sync audit presence, recovery action counts, git backup posture, and
-GitHub auth posture. A fresh vault may warn that manifests, audit logs, or repo config are not
-generated yet; those warnings are preflight context, not sync failures.
+GitHub auth posture. It also reports optional Obsidian config/plugin posture and `.gitignore` backup
+guard coverage. A fresh vault may warn that manifests, audit logs, repo config, git history, or
+Obsidian UI config are not generated yet; those warnings are preflight context, not sync failures.
 
 `conversion` is read-only. It reads `_meta/source-manifest.json` and turns lifecycle states,
 format risks, warnings, errors, and source/mirror existence into a prioritized spot-check list. It

@@ -74,6 +74,8 @@ content says" from "system instruction says" and should avoid executing embedded
 ## Plugin and Connector Policy
 
 - Obsidian community plugins are outside Vaultwright's trust boundary.
+- `vaultwright doctor` reports whether optional Obsidian config and community plugins are present,
+  but operators still own plugin review and local application hardening.
 - GitHub tokens must come from environment, `gh`, or OS credential storage, not files in the vault.
 - Connectors should use read-only permissions where possible.
 - Logs must redact tokens and avoid writing private content snippets.

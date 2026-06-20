@@ -73,6 +73,9 @@ def test_vaultwright_cli_doctor_passes_on_template() -> None:
     assert "info: repo-manifest.json: not generated yet" in result.stdout
     assert "info: sync-audit.jsonl: not generated yet" in result.stdout
     assert "info: recovery: no action items" in result.stdout
+    assert "info: Obsidian Bases index: Documents.base present" in result.stdout
+    assert "info: Obsidian: .obsidian not present" in result.stdout
+    assert "backup guard: .gitignore covers high-risk local data patterns" in result.stdout
     assert "GitHub auth:" in result.stdout
     assert (ROOT / "template/tools/benchmark_tasks.py").exists()
     assert (ROOT / "template/tools/conversion_report.py").exists()
@@ -119,6 +122,114 @@ def test_vaultwright_cli_doctor_reports_manifest_lifecycle_counts(tmp_path: Path
     assert "sync-audit.jsonl: 2 events" in result.stdout
     assert "warning: recovery: 1 item needs operator action (office=1, repo=0, temp=0)" in result.stdout
     assert "vaultwright doctor: OK" in result.stdout
+
+
+def test_vaultwright_cli_doctor_reports_obsidian_and_backup_posture(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    obsidian = vault / ".obsidian"
+    plugins = obsidian / "plugins" / "sample-plugin"
+    plugins.mkdir(parents=True)
+    (obsidian / "app.json").write_text("{bad json", encoding="utf-8")
+    (obsidian / "core-plugins.json").write_text(
+        json.dumps({"file-explorer": True, "graph": False, "backlink": True}),
+        encoding="utf-8",
+    )
+    (obsidian / "community-plugins.json").write_text(
+        json.dumps(["sample-plugin", "another-plugin"]),
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "vaultwright.py"), "doctor"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+    assert "info: Obsidian Bases index: Documents.base present" in result.stdout
+    assert "info: Obsidian: .obsidian present" in result.stdout
+    assert "info: Obsidian core plugins: 2 enabled" in result.stdout
+    assert "warning: Obsidian app.json: invalid JSON (JSONDecodeError)" in result.stdout
+    assert "warning: Obsidian community plugins: 2 enabled; review plugin trust boundary before pilots." in result.stdout
+    assert "warning: Obsidian installed plugin directories: 1 found; review local plugin code before pilots." in result.stdout
+    assert "info: backup guard: .gitignore covers high-risk local data patterns" in result.stdout
+    assert "warning: Vault root is not inside a git work tree; back up curated notes before production sync." in result.stdout
+
+
+def test_vaultwright_cli_doctor_does_not_trust_commented_gitignore_patterns(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    (vault / ".gitignore").write_text(
+        "# data/\n"
+        "# secrets/\n"
+        "metadata/\n"
+        "private/\n"
+        ".env\n"
+        "*.pem\n"
+        ".obsidian/workspace*.json\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "vaultwright.py"), "doctor"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+    assert "backup guard: .gitignore covers high-risk local data patterns" not in result.stdout
+    assert "warning: backup guard: .gitignore unsafe; missing effective ignores: data/, secrets/" in result.stdout
+
+
+def test_vaultwright_cli_doctor_flags_negated_gitignore_patterns(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    (vault / ".gitignore").write_text(
+        "data/\n"
+        "secrets/\n"
+        "private/\n"
+        ".env\n"
+        "*.pem\n"
+        ".obsidian/workspace*.json\n"
+        "!data/\n"
+        "!data/leak.md\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "vaultwright.py"), "doctor"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+    assert "backup guard: .gitignore covers high-risk local data patterns" not in result.stdout
+    assert "warning: backup guard: .gitignore unsafe;" in result.stdout
+    assert "missing effective ignores: data/" in result.stdout
+    assert "negated high-risk paths: data/" in result.stdout
+
+
+def test_vaultwright_cli_doctor_handles_unreadable_obsidian_json(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    obsidian = vault / ".obsidian"
+    obsidian.mkdir()
+    (obsidian / "app.json").write_bytes(b"\xff\xfe\x00")
+
+    result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "vaultwright.py"), "doctor"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+    assert "info: Obsidian: .obsidian present" in result.stdout
+    assert "warning: Obsidian app.json: unreadable text" in result.stdout
 
 
 def test_vaultwright_cli_root_uses_target_vault_tools(tmp_path: Path) -> None:
