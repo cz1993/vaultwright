@@ -244,6 +244,7 @@ def validate_result_pack(
     task_path: Path,
     *,
     require_complete: bool = False,
+    require_citations: bool = False,
 ) -> tuple[dict, list[str], list[str]]:
     task_data, task_errors = load_tasks(task_path)
     result_data, result_errors = load_tasks(path)
@@ -284,6 +285,9 @@ def validate_result_pack(
             "violations": 0,
             "timed_results": 0,
             "elapsed_seconds": 0.0,
+            "source_citations": 0,
+            "generated_mirror_citations": 0,
+            "uncited_scored_results": 0,
         }
         for mode in sorted(REQUIRED_MODES)
     }
@@ -327,18 +331,29 @@ def validate_result_pack(
         else:
             correction_count = int(corrections)
 
-        citation_count = 0
+        source_citation_count = 0
+        generated_citation_count = 0
         for field in ("cited_source_paths", "cited_generated_mirror_paths"):
             if field in result:
-                citation_count += validate_result_paths(
+                valid_paths = validate_result_paths(
                     task_id or label,
                     field,
                     result[field],
                     errors,
                     allowed_paths=task_refs.get(task_id, {}).get(field),
                 )
-        if score_value > 0 and citation_count == 0:
-            warnings.append(f"{task_id or label}: scored result has no cited source or mirror paths")
+                if field == "cited_source_paths":
+                    source_citation_count += valid_paths
+                else:
+                    generated_citation_count += valid_paths
+        citation_count = source_citation_count + generated_citation_count
+        uncited_scored_result = score_value > 0 and citation_count == 0
+        if uncited_scored_result:
+            message = f"{task_id or label}: scored result has no valid cited source or mirror paths"
+            if require_citations:
+                errors.append(message)
+            else:
+                warnings.append(message)
 
         violation = result.get("privacy_or_provenance_violation", False)
         if not isinstance(violation, bool):
@@ -367,6 +382,13 @@ def validate_result_pack(
             summary["max_score"] = int(summary["max_score"]) + 2
             summary["reviewer_corrections"] = int(summary["reviewer_corrections"]) + correction_count
             summary["violations"] = int(summary["violations"]) + (1 if violation else 0)
+            summary["source_citations"] = int(summary["source_citations"]) + source_citation_count
+            summary["generated_mirror_citations"] = (
+                int(summary["generated_mirror_citations"]) + generated_citation_count
+            )
+            summary["uncited_scored_results"] = int(summary["uncited_scored_results"]) + (
+                1 if uncited_scored_result else 0
+            )
             if has_elapsed:
                 summary["timed_results"] = int(summary["timed_results"]) + 1
                 summary["elapsed_seconds"] = float(summary["elapsed_seconds"]) + elapsed_value
@@ -404,6 +426,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--results", type=Path, help="Optional benchmark results path relative to the vault root.")
     parser.add_argument("--require-generated", action="store_true", help="Require generated mirror paths to exist.")
     parser.add_argument("--require-results", action="store_true", help="Require benchmark results for every task/mode pair.")
+    parser.add_argument(
+        "--require-citations",
+        action="store_true",
+        help="Fail scored benchmark results that do not cite a declared source or generated mirror path.",
+    )
     parser.add_argument("--json", action="store_true", help="Print machine-readable summary JSON.")
     return parser
 
@@ -431,6 +458,7 @@ def main() -> int:
                 result_path,
                 task_path,
                 require_complete=args.require_results,
+                require_citations=args.require_citations,
             )
             errors.extend(result_errors)
             warnings.extend(result_warnings)
@@ -463,7 +491,9 @@ def main() -> int:
                     f"score={mode_info['score']}/{mode_info['max_score']} "
                     f"avg={mode_info['average_score']:.2f} "
                     f"corrections={mode_info['reviewer_corrections']} "
-                    f"violations={mode_info['violations']}"
+                    f"violations={mode_info['violations']} "
+                    f"citations={mode_info['source_citations']}+{mode_info['generated_mirror_citations']} "
+                    f"uncited_scored={mode_info['uncited_scored_results']}"
                 )
         for warning in warnings:
             print(f"  warning: {warning}")

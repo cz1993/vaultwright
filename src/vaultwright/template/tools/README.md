@@ -180,14 +180,17 @@ aggregate results with:
 ```bash
 python3.11 tools/vaultwright.py benchmark --results _meta/agent-readiness-results.yml
 python3.11 tools/vaultwright.py benchmark --results _meta/agent-readiness-results.yml --require-results
+python3.11 tools/vaultwright.py benchmark --results _meta/agent-readiness-results.yml --require-citations
 python3.11 tools/vaultwright.py benchmark --results _meta/agent-readiness-results.yml --json
 ```
 
 Result packs score each task across `raw_source_folder`, `document_chat_transcript`, and
-`vaultwright_markdown`. The report prints per-mode scores, correction counts, and privacy/
-provenance violation counts, but it does not print answer text or reviewer notes. Result packs are
-ignored and scanner-blocked in the public repository by default; keep them in private pilot
-workspaces unless an anonymized aggregate has been reviewed separately.
+`vaultwright_markdown`. The report prints per-mode scores, correction counts, privacy/provenance
+violation counts, citation counts, and uncited scored-result counts, but it does not print answer
+text or reviewer notes. Use `--require-citations` when scored pilot results must cite at least one
+declared source or generated mirror path. Result packs are ignored and scanner-blocked in the
+public repository by default; keep them in private pilot workspaces unless an anonymized aggregate
+has been reviewed separately.
 
 ## Keep it fresh (unattended)
 

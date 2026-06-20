@@ -6,6 +6,8 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 ## [Unreleased]
 
 ### Added
+- `vaultwright benchmark` now reports citation counts and supports `--require-citations` so scored
+  agent-readiness results can be gated on declared source or generated-mirror evidence.
 - Lint now blocks explicit `tools/repos.yml` entries when the configured generated `repo-mirror`
   note is missing, unmanaged, pointed at an invalid output path, or tied to a different repo
   identity.

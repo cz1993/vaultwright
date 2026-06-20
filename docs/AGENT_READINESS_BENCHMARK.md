@@ -123,6 +123,8 @@ Rules enforced by the validator:
 - cited paths must be declared on the referenced task;
 - source citations must not point into `_mirrors/`;
 - generated mirror citations must point into `_mirrors/`;
+- scored results without at least one valid declared source or mirror citation are warnings by
+  default and fail when `--require-citations` is used;
 - unsupported top-level or per-result fields are rejected so answer text and reviewer notes are not
   stored in result packs;
 - `--require-results` fails unless every task has a score for every comparison mode.
@@ -132,12 +134,13 @@ Validate and summarize results with:
 ```bash
 python3.11 tools/vaultwright.py benchmark --results _meta/agent-readiness-results.yml
 python3.11 tools/vaultwright.py benchmark --results _meta/agent-readiness-results.yml --require-results
+python3.11 tools/vaultwright.py benchmark --results _meta/agent-readiness-results.yml --require-citations
 python3.11 tools/vaultwright.py benchmark --results _meta/agent-readiness-results.yml --json
 ```
 
-The human-readable report prints aggregate per-mode scores, correction counts, and privacy/
-provenance violation counts. It does not print answer text, reviewer notes, source text, mirror
-text, or document bodies.
+The human-readable report prints aggregate per-mode scores, correction counts, privacy/provenance
+violation counts, citation counts, and uncited scored-result counts. It does not print answer text,
+reviewer notes, source text, mirror text, or document bodies.
 
 ## Example Task Pack
 

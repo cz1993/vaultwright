@@ -455,10 +455,101 @@ def test_vaultwright_benchmark_reports_result_scores_without_answer_content(tmp_
     assert result.returncode == 0, result.stderr or result.stdout
     assert "benchmark_tasks: 5 tasks" in result.stdout
     assert "benchmark_results: 3 results" in result.stdout
-    assert "vaultwright_markdown: results=1 score=2/2 avg=2.00 corrections=0 violations=0" in result.stdout
-    assert "raw_source_folder: results=1 score=1/2 avg=1.00 corrections=1 violations=0" in result.stdout
-    assert "document_chat_transcript: results=1 score=0/2 avg=0.00 corrections=2 violations=1" in result.stdout
+    assert (
+        "vaultwright_markdown: results=1 score=2/2 avg=2.00 corrections=0 violations=0 "
+        "citations=1+1 uncited_scored=0"
+    ) in result.stdout
+    assert (
+        "raw_source_folder: results=1 score=1/2 avg=1.00 corrections=1 violations=0 "
+        "citations=1+0 uncited_scored=0"
+    ) in result.stdout
+    assert (
+        "document_chat_transcript: results=1 score=0/2 avg=0.00 corrections=2 violations=1 "
+        "citations=0+0 uncited_scored=0"
+    ) in result.stdout
     assert "warning: benchmark results incomplete: missing 12 task/mode scores" in result.stdout
+
+
+def test_vaultwright_benchmark_warns_on_uncited_scored_result(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    write_agent_benchmark_fixture(vault)
+    (vault / "_meta" / "agent-readiness-results.yml").write_text(
+        yaml.safe_dump(
+            {
+                "schema_version": 1,
+                "corpus": "fixture",
+                "results": [
+                    {
+                        "task_id": "answer-1",
+                        "mode": "vaultwright_markdown",
+                        "score": 1,
+                        "reviewer_corrections": 0,
+                    }
+                ],
+            },
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(vault / "tools" / "vaultwright.py"),
+            "benchmark",
+            "--results",
+            "_meta/agent-readiness-results.yml",
+        ],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+    assert "citations=0+0 uncited_scored=1" in result.stdout
+    assert "warning: answer-1: scored result has no valid cited source or mirror paths" in result.stdout
+
+
+def test_vaultwright_benchmark_require_citations_fails_on_uncited_scored_result(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    write_agent_benchmark_fixture(vault)
+    (vault / "_meta" / "agent-readiness-results.yml").write_text(
+        yaml.safe_dump(
+            {
+                "schema_version": 1,
+                "corpus": "fixture",
+                "results": [
+                    {
+                        "task_id": "answer-1",
+                        "mode": "vaultwright_markdown",
+                        "score": 2,
+                        "reviewer_corrections": 0,
+                    }
+                ],
+            },
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(vault / "tools" / "vaultwright.py"),
+            "benchmark",
+            "--results",
+            "_meta/agent-readiness-results.yml",
+            "--require-citations",
+        ],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 1
+    assert "answer-1: scored result has no valid cited source or mirror paths" in result.stderr
 
 
 def test_vaultwright_benchmark_require_results_fails_on_incomplete_scores(tmp_path: Path) -> None:
@@ -713,6 +804,7 @@ def test_packaged_vaultwright_cli_delegates_benchmark_result_args(tmp_path: Path
             "benchmark",
             "--results",
             "_meta/agent-readiness-results.yml",
+            "--require-citations",
             "--json",
         ],
         cwd=ROOT,
@@ -726,6 +818,8 @@ def test_packaged_vaultwright_cli_delegates_benchmark_result_args(tmp_path: Path
     assert payload["summary"]["tasks"] == 5
     assert payload["result_summary"]["results"] == 3
     assert payload["result_summary"]["modes"]["vaultwright_markdown"]["score"] == 2
+    assert payload["result_summary"]["modes"]["vaultwright_markdown"]["source_citations"] == 1
+    assert payload["result_summary"]["modes"]["vaultwright_markdown"]["generated_mirror_citations"] == 1
 
 
 def test_packaged_vaultwright_cli_init_from_source_checkout(tmp_path: Path) -> None:

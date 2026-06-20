@@ -98,6 +98,11 @@ def build_parser() -> argparse.ArgumentParser:
     benchmark.add_argument("--results", type=Path, help="Optional benchmark results path relative to the vault root.")
     benchmark.add_argument("--require-generated", action="store_true", help="Require generated mirror paths to exist.")
     benchmark.add_argument("--require-results", action="store_true", help="Require benchmark results for every task/mode pair.")
+    benchmark.add_argument(
+        "--require-citations",
+        action="store_true",
+        help="Fail scored benchmark results that do not cite a declared source or generated mirror path.",
+    )
     benchmark.add_argument("--json", action="store_true", help="Print machine-readable benchmark JSON.")
     benchmark.set_defaults(
         func=command_delegate,
@@ -106,6 +111,7 @@ def build_parser() -> argparse.ArgumentParser:
             + (["--results", str(args.results)] if args.results else [])
             + (["--require-generated"] if args.require_generated else [])
             + (["--require-results"] if args.require_results else [])
+            + (["--require-citations"] if args.require_citations else [])
             + (["--json"] if args.json else [])
         ),
     )
