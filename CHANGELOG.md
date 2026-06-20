@@ -55,6 +55,8 @@ Initial scaffold extracted and generalized from a real small-business vault.
   non-clean source/repo manifest records and missing generated paths.
 - Recovery reports now attach the latest matching sync-audit status, lifecycle state, warnings, and
   errors for each manifest item that needs operator action.
+- Recovery reports now flag stale atomic temp files left by interrupted writes, without deleting
+  them automatically.
 - GitHub repo sync now supports non-mutating `--plan` and manifest-backed `--status` reporting,
   and writes `_meta/repo-manifest.json` with stable repo IDs, configured/resolved repo, note path,
   local-tree or remote-HEAD hash, lifecycle state, warnings, and last successful sync.

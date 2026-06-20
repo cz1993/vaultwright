@@ -107,6 +107,9 @@ Mirror writes are atomic in the current Office and repo sync tools:
   text can no longer be tied safely to the planned source hash.
 
 Sync should never leave half-written mirrors as successful output.
+If an OS/process interruption leaves a hidden atomic temp file behind, `vaultwright recovery` must
+surface it as `temp:interrupted_write` so the operator can rerun status/sync and remove the temp
+file after backup review.
 
 ## Idempotency
 

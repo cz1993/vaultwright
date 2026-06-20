@@ -343,7 +343,7 @@ def test_vaultwright_recovery_reports_manifest_actions(tmp_path: Path) -> None:
     )
 
     assert result.returncode == 0, result.stderr or result.stdout
-    assert "recovery: 4 items need operator action (office=3, repo=1)" in result.stdout
+    assert "recovery: 4 items need operator action (office=3, repo=1, temp=0)" in result.stdout
     assert "[office:source_missing" in result.stdout
     assert "Locate, restore, or intentionally archive the source" in result.stdout
     assert "[office:manual_modification" in result.stdout
@@ -370,6 +370,46 @@ def test_vaultwright_recovery_reports_manifest_actions(tmp_path: Path) -> None:
     assert by_id["src-manual"]["latest_audit"]["timestamp"] == "2026-06-20T00:01:00Z"
     assert by_id["src-manual"]["latest_audit"]["status"] == "skipped:manual_modification"
     assert by_id["repo-conflict"]["latest_audit"]["errors"] == ["Target note belongs to another repo_id."]
+
+
+def test_vaultwright_recovery_reports_stale_atomic_temp_files(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    mirror = vault / "_mirrors" / "40_delivery" / "registration.md"
+    temp = mirror.with_name(f".{mirror.name}.12345.tmp")
+    mirror.parent.mkdir(parents=True, exist_ok=True)
+    mirror.write_text("Complete generated mirror\n", encoding="utf-8")
+    temp.write_text("Interrupted write body\n", encoding="utf-8")
+
+    result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "vaultwright.py"), "recovery"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+    assert "recovery: 1 items need operator action (office=0, repo=0, temp=1)" in result.stdout
+    assert "[temp:interrupted_write" in result.stdout
+    assert "_mirrors/40_delivery/.registration.md.12345.tmp" in result.stdout
+    assert "Rerun status/sync to confirm the canonical generated file is complete" in result.stdout
+
+    json_result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "vaultwright.py"), "recovery", "--json"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert json_result.returncode == 0, json_result.stderr or json_result.stdout
+    report = json.loads(json_result.stdout)
+    assert len(report["items"]) == 1
+    item = report["items"][0]
+    assert item["kind"] == "temp"
+    assert item["state"] == "interrupted_write"
+    assert item["target"] == "_mirrors/40_delivery/.registration.md.12345.tmp"
+    assert item["expected_target"] == "_mirrors/40_delivery/registration.md"
+    assert item["expected_target_exists"] is True
 
 
 def test_github_sync_skips_missing_default_config(tmp_path: Path) -> None:

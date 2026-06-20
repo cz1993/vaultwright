@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -16,6 +17,8 @@ AUDIT_LOG = Path("_meta/sync-audit.jsonl")
 CLEAN_STATES = {"clean", "reviewed"}
 SOURCE_EXTS = {".docx", ".pptx", ".xlsx", ".doc", ".pdf"}
 EXCLUDED_PARTS = {"_mirrors", "_templates", "_tmp", "tools", "node_modules", ".git"}
+TEMP_EXCLUDED_PARTS = {"_templates", "_tmp", "tools", "node_modules", ".git"}
+ATOMIC_TEMP_RE = re.compile(r"^\..+\.\d+\.tmp$")
 
 OFFICE_ACTIONS = {
     "planned": "Run plan review, then sync to create the generated mirror.",
@@ -39,6 +42,11 @@ REPO_ACTIONS = {
     "conflict": "Resolve the target note/repo identity conflict before syncing.",
     "error": "Fix the reported error, then rerun plan/status before syncing.",
 }
+
+TEMP_ACTION = (
+    "Rerun status/sync to confirm the canonical generated file is complete, then remove the stale "
+    "temp file after backup review."
+)
 
 
 def rel_exists(root: Path, value: object) -> bool | None:
@@ -141,6 +149,43 @@ def has_repo_evidence(root: Path) -> bool:
     return False
 
 
+def stale_atomic_temp_items(root: Path) -> list[dict]:
+    items: list[dict] = []
+    for path in sorted(root.rglob("*")):
+        if not path.is_file() or path.is_symlink():
+            continue
+        try:
+            rel = path.relative_to(root)
+        except ValueError:
+            continue
+        if any(part in TEMP_EXCLUDED_PARTS for part in rel.parts):
+            continue
+        if not ATOMIC_TEMP_RE.match(path.name):
+            continue
+        target_name = path.name.rsplit(".", 2)[0].lstrip(".")
+        target = path.with_name(target_name)
+        try:
+            target_rel = target.relative_to(root).as_posix()
+        except ValueError:
+            target_rel = ""
+        items.append({
+            "kind": "temp",
+            "id": "",
+            "state": "interrupted_write",
+            "source": "",
+            "target": rel.as_posix(),
+            "expected_target": target_rel,
+            "source_exists": None,
+            "target_exists": True,
+            "expected_target_exists": target.exists(),
+            "reasons": ["stale atomic temp file"],
+            "action": TEMP_ACTION,
+            "warnings": [],
+            "errors": [],
+        })
+    return items
+
+
 def office_item(root: Path, record: dict) -> dict | None:
     state = str(record.get("lifecycle_state", "unknown"))
     source_path = record.get("current_source_path") or record.get("source_path") or record.get("source")
@@ -219,6 +264,7 @@ def build_report(root: Path) -> tuple[list[dict], list[str], list[str]]:
         item = repo_item(root, record)
         if item:
             items.append(item)
+    items.extend(stale_atomic_temp_items(root))
     for item in items:
         item["latest_audit"] = latest_audit.get(f"{item['kind']}:{item['id']}")
     return items, warnings, errors
@@ -237,7 +283,8 @@ def print_human(root: Path, items: list[dict], warnings: list[str], errors: list
         return
     office_count = sum(1 for item in items if item["kind"] == "office")
     repo_count = sum(1 for item in items if item["kind"] == "repo")
-    print(f"recovery: {len(items)} items need operator action (office={office_count}, repo={repo_count})")
+    temp_count = sum(1 for item in items if item["kind"] == "temp")
+    print(f"recovery: {len(items)} items need operator action (office={office_count}, repo={repo_count}, temp={temp_count})")
     for item in items:
         label = f"{item['kind']}:{item['state']}"
         print(f"  [{label:<28}] {item['source']} -> {item['target']}")

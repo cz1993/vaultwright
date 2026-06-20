@@ -40,7 +40,8 @@ sync conflicts.
 ## Recover From Interrupted Sync
 
 Mirror writes are atomic, so an interrupted sync should preserve either the prior complete mirror or
-the new complete mirror. After interruption:
+the new complete mirror. A hard interruption can also leave a hidden atomic temp file such as
+`.registration.md.12345.tmp` beside the target. After interruption:
 
 ```bash
 python3.11 tools/vaultwright.py status
@@ -82,10 +83,15 @@ move, delete, regenerate, or archive anything. Treat it as a triage checklist fo
 - missing generated mirror paths;
 - `unreachable`, `repo_changed`, `manual_modification`, `conflict`, and `error` repo records;
 - missing repo mirror notes.
+- stale atomic temp files left by interrupted writes.
 
 For each item with audit history, the report includes the latest audit timestamp, status, lifecycle
 state, and structured warnings/errors. This is diagnostic metadata only; it should not contain raw
 document text or repo documentation bodies.
+
+For `temp:interrupted_write` items, rerun status/sync first to confirm the canonical generated file
+or manifest is complete. Then remove the temp file after backup review; Vaultwright does not delete
+it automatically.
 
 For Office `conflict` records caused by a mirror-root or mirror-mode change, archive or remove the
 previous generated mirror after review. Vaultwright will not write the new mirror path while the
@@ -170,7 +176,8 @@ Before public release, recovery must be tested on a copied vault:
 
 The test suite now exercises the copied-vault regeneration path, source-byte preservation,
 converter-failure, Office mirror-write-failure, and repo-note write-failure recovery that preserve
-the prior generated file, conversion-race aborts that preserve the prior mirror, `source_missing`,
-`manual_modification`, lint, and generated-text no-data scan checks on the Northwind example.
+the prior generated file, interrupted-write temp detection, conversion-race aborts that preserve
+the prior mirror, `source_missing`, `manual_modification`, lint, and generated-text no-data scan
+checks on the Northwind example.
 Operator backup/restore drills and full copied-vault no-data scans on pilot vaults are still
 required before production use.

@@ -41,7 +41,7 @@ preflight context, not sync failures.
 `recovery` is also read-only. It reads `_meta/source-manifest.json`, `_meta/repo-manifest.json`, and
 the latest matching `_meta/sync-audit.jsonl` events, then prints only records that need operator
 action, such as missing sources, manual generated-region edits, conflicts, unreachable repos,
-missing mirrors, or error states.
+missing mirrors, stale atomic temp files from interrupted writes, or error states.
 
 ```bash
 python3.11 tools/sync_office_md.py              # sync the whole vault
