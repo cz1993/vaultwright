@@ -1,12 +1,12 @@
 # Vaultwright
 
-**Turn your AI coding agent into the maintainer of a connected markdown knowledge base for
-running your business.**
+**Turn an existing business document collection into a governed, inspectable knowledge workspace
+without modifying the original records.**
 
-Vaultwright is a methodology + a small toolkit. You bring an AI coding agent (Claude Code,
-OpenAI Codex, etc.), [Obsidian](https://obsidian.md), and your real business files. Vaultwright
-gives the agent a disciplined operating manual so it behaves like a **wiki maintainer**, not a
-chatbot — filing, linking, summarizing, and keeping everything current in plain markdown you own.
+Vaultwright is a pre-release methodology + small toolkit for consultants and operators who need to
+preserve source documents while making their contents usable by people and AI. You bring source
+files, a local vault, an AI coding agent (Claude Code, OpenAI Codex, etc.), and optionally
+[Obsidian](https://obsidian.md) as the reference UI.
 
 > Inspired by Andrej Karpathy's ["LLM wiki" pattern](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f).
 > Honest about the landscape — see [`docs/positioning.md`](docs/positioning.md).
@@ -27,32 +27,43 @@ parts nobody else ships:
 1. **The mirror layer.** Your Office files (`.docx/.pptx/.xlsx`, via Microsoft
    [markitdown](https://github.com/microsoft/markitdown)) and your **GitHub repos** get
    auto-generated markdown **mirrors** that refresh when the original changes (content-hashed,
-   idempotent). The original stays the source of truth; the mirror is searchable, linkable, and
-   visible in your graph. Your hand-written notes in each mirror are preserved across syncs.
+   idempotent). Office mirrors live under `_mirrors/` so raw source folders stay clean; text-based
+   PDF mirrors are available with `sync_office_md.py --include-pdf`. The original stays the source
+   of truth; the mirror is searchable, linkable, and visible in your graph. Your hand-written notes
+   in each mirror are preserved across syncs.
 2. **Linking-first retrieval.** Maps of Content, entity pages, backlinks, and a frontmatter-driven
-   index (Obsidian **Bases**) *are* the retrieval engine — no vector database needed at
-   small-business scale. Connections defeat the silos and build the index for free.
+   index (Obsidian **Bases**) are the initial retrieval engine. Vector or semantic indexes may
+   help later, but they are not the source of truth.
 3. **Anti-proliferation discipline.** The agent is told to **consolidate and update before
-   creating**, and a linter flags near-duplicate and stale notes. Restraint is a feature.
+   creating**, and the linter flags structural drift plus likely note overlap. Restraint is a
+   feature.
 4. **Governance for real business records.** PII isolation, a retention policy, and
-   secrets-stay-out-of-the-vault — because this holds finance, legal, and client data, not just
-   personal notes.
+   secrets-stay-out-of-the-vault — because this holds finance, governance, customer, people, and
+   operational records, not just personal notes.
 
 ## Who it's for
 
-Technical founders and small-business owners who already know git and can run a project, and who
-want their docs and projects organized and *kept* organized by an AI agent — without handing their
-data to a SaaS black box.
+Small consulting, advisory, implementation, and operations teams that receive messy client or
+engagement document collections and need to turn them into governed, source-linked operating
+knowledge. Owner-operators may benefit later, but the first release is scoped around teams that
+already understand provenance, engagement boundaries, and source preservation.
 
-## How it works (three layers)
+## How it works (four layers)
 
 | Layer | What | Who owns it |
 | --- | --- | --- |
 | **Raw sources** | the real artifacts — contracts, decks, statements, repos, the original Office files | you / external; never altered |
-| **Wiki** | markdown notes that summarize, link, and add metadata — MOCs, entity pages, and the auto-generated mirrors | the agent writes; you curate |
+| **Generated mirrors** | markdown mirrors under `_mirrors/` and repo mirrors under `80_sources/repos/` | the agent writes; you curate above the sentinel |
+| **Wiki** | markdown notes that summarize, link, and add metadata — MOCs, entity pages, decisions, guides | the agent writes; you curate |
 | **Schema** | `CLAUDE.md` — conventions + the ingest/query/lint workflows that make the agent disciplined | you + agent co-evolve |
 
+Product contract: [`docs/PRODUCT.md`](docs/PRODUCT.md). Sync contract:
+[`docs/SYNC_SPEC.md`](docs/SYNC_SPEC.md). Security model:
+[`docs/SECURITY_MODEL.md`](docs/SECURITY_MODEL.md). Recovery guide:
+[`docs/RECOVERY.md`](docs/RECOVERY.md). Design-partner protocol:
+[`docs/DESIGN_PARTNER_PROTOCOL.md`](docs/DESIGN_PARTNER_PROTOCOL.md).
 Full write-up: [`docs/methodology.md`](docs/methodology.md).
+Professional review brief: [`docs/VAULTWRIGHT_WHITEPAPER.md`](docs/VAULTWRIGHT_WHITEPAPER.md).
 
 ## Quick start
 
@@ -65,25 +76,37 @@ Then open the vault in Obsidian, point your agent at it (it reads `CLAUDE.md` fi
 
 ```bash
 cd ~/my-business-vault
-pip install -r tools/requirements.txt        # markitdown + pyyaml
-python3 tools/sync_office_md.py              # mirror your Office files
+python3.11 -m pip install -r tools/requirements.txt  # markitdown + pyyaml
+python3.11 tools/vaultwright.py plan                 # inspect proposed mirror actions first
+python3.11 tools/vaultwright.py sync                 # mirror Office files and configured repos
+python3.11 tools/vaultwright.py status               # review manifest-backed lifecycle state
 # edit tools/repos.yml, then:
-python3 tools/sync_github_repos.py           # mirror your GitHub repos
-python3 tools/lint_vault.py                  # health check
+python3.11 tools/sync_github_repos.py                # mirror your GitHub repos
+python3.11 tools/vaultwright.py lint                 # health check
+```
+
+From a source checkout, the pre-release console entry point is also available:
+
+```bash
+python3.11 -m pip install -e .
+vaultwright --root ~/my-business-vault plan
 ```
 
 Step-by-step: [`docs/quickstart.md`](docs/quickstart.md).
 
 ## Status
 
-**v0 — early.** The template vault, the schema, and the three tools work today. A CLI
-(`vaultwright init/sync/lint/doctor`) is on the roadmap ([`cli/README.md`](cli/README.md)).
+**v0 — technical alpha.** The template vault, schema, thin tool CLI, source-installable console
+entry point, sync/lint tools, examples, safety guards, Office/repo manifests, and audit logs work
+today. Product validation, full lifecycle semantics, and distribution-quality packaging remain open
+pre-release work.
 
 ## License
 
-AGPL-3.0 for the open core, with a separate **commercial license** for enterprise/closed use, and
-consulting available. See [`LICENSE`](LICENSE) and [`LICENSING.md`](LICENSING.md). "Vaultwright" is
-a trademark — see [`TRADEMARK.md`](TRADEMARK.md).
+Pre-release licensing intent is AGPL-3.0 for the open core, with a separate **commercial license**
+for enterprise/closed use, and consulting available. The full AGPL text and commercial terms still
+need to be finalized before public release; see [`LICENSE`](LICENSE) and [`LICENSING.md`](LICENSING.md).
+"Vaultwright" is a trademark — see [`TRADEMARK.md`](TRADEMARK.md).
 
 ## Credits
 

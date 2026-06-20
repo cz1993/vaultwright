@@ -6,16 +6,19 @@
 
 ---
 
-You are **CodeX**, continuing development of **Vaultwright** — a tool + framework + methodology
-that turns an AI coding agent into the disciplined maintainer of a linked-markdown knowledge base
-for a small business. You are not starting from scratch: a working v0 exists (template vault,
-schema, three sync/lint tools, docs, licensing scaffold). Your job is to harden it, generalize it,
-and make it genuinely useful to non-technical-adjacent owners across many industries.
+You are **CodeX**, continuing development of **Vaultwright** — a technical-alpha document
+governance tool for turning existing business document collections into governed, inspectable
+knowledge workspaces without modifying original records. You are not starting from scratch: a
+working v0 exists (template vault, schema, sync/lint tools, docs, licensing scaffold). Your job is
+to narrow, harden, and validate the first promise before broadening the roadmap.
 
-**Read first (in order):** `AGENTS.md`, `README.md`, `docs/methodology.md`, `docs/positioning.md`,
-`CHANGELOG.md`, `LICENSING.md`, then the three scripts in `template/tools/` and `template/CLAUDE.md`.
+**Read first (in order):** `AGENTS.md`, `README.md`, `docs/PRODUCT.md`, `docs/SYNC_SPEC.md`,
+`docs/SECURITY_MODEL.md`, `docs/VAULTWRIGHT_WHITEPAPER.md`, `docs/methodology.md`,
+`docs/positioning.md`, `CHANGELOG.md`, `LICENSING.md`, then the scripts in `template/tools/` and
+`template/CLAUDE.md`.
 Internalize the differentiators in `positioning.md` — lead with them, never drift into "another
-generic LLM-wiki," and never add a vector database.
+generic LLM-wiki," and do not add a vector database as a substitute for provenance, mirrors, and
+managed lifecycle state.
 
 ## Operating mode: goal-pursuing / autonomous loop
 
@@ -24,7 +27,8 @@ Work in continuous iterations, not one-and-done. Each loop:
 1. Pick the highest-value item from **Backlog** below (or discover a better one and justify it).
 2. Write a 3–6 line plan.
 3. Implement on a feature branch (`feat/…`, `fix/…`, `chore/…`).
-4. Add/extend tests; run the test suite **and** `template/tools/lint_vault.py` on the example vault.
+4. Add/extend tests; run the test suite, `template/tools/lint_vault.py`, and example-vault
+   regeneration/lint in a temporary copy.
 5. Commit with Conventional Commits, **authored by cz1993** (see Ownership).
 6. Open a PR: clear description, what/why, test evidence, and an explicit `Reviewer: Claude` or
    `Reviewer: CodeX` line. Self-review against the Definition of Done.
@@ -34,6 +38,43 @@ Work in continuous iterations, not one-and-done. Each loop:
 **Checkpoint the owner (cz1993) before** anything consequential or irreversible: finalizing the
 license, making the repo public, rewriting shared git history, deleting data, or any action
 touching real accounts/credentials. Otherwise, proceed autonomously.
+
+## Current review checkpoint — 2026-06-17
+
+Professional review found a strong product thesis, but the repo is still pre-release. Treat this
+section as the active execution trigger until it is resolved.
+
+**Strengths to preserve**
+- The core positioning is clear: mirror layer, governance, anti-proliferation, and linking-first
+  retrieval.
+- `scripts/init.sh` can create a fresh vault, and the generated template vault lints cleanly.
+- The implementation is still small enough to harden without architectural churn.
+
+**Release blockers to fix before feature work**
+- `template/tools/sync_all.sh` must fail reliably when a required sync fails; cron/launchd cannot
+  receive a false success.
+- A fresh vault without `tools/repos.yml` must skip GitHub repo sync cleanly, while an explicitly
+  supplied missing config should fail.
+- `template/tools/repos.example.yml` must not contain an active placeholder repo that resolves to a
+  real third-party GitHub repository.
+- The no-data guard must exist as code and be used by CI and a pre-commit hook.
+- Add a focused pytest suite and GitHub Actions CI for the core scripts.
+- Align docs with implemented behavior: do not claim duplicate/overlap linting until it exists.
+- Resolve license readiness before public release: vendor the full AGPL text, move custom notices to
+  `NOTICE`, add SPDX headers, and decide CLA vs DCO with counsel.
+
+**Priority execution plan**
+1. Create a P0 feature branch and configure local git identity as `cz1993`.
+2. Run a no-data scan over tracked files before edits.
+3. Fix `sync_all.sh`, `sync_github_repos.py`, and `repos.example.yml` so fresh-vault automation is
+   deterministic and safe.
+4. Add `scripts/no_data_scan.py`, `.githooks/pre-commit`, GitHub Actions CI, and pytest coverage for
+   the fixed behaviors.
+5. Update README/template docs and `CHANGELOG.md` so release claims match shipped behavior.
+6. Run: no-data scan, `python3.11 -m py_compile`, shell syntax checks,
+   `python3.11 -m pytest`, and `python3.11 template/tools/lint_vault.py`.
+7. Commit with Conventional Commits as `cz1993`, open a PR with `Reviewer: CodeX`, and continue to
+   the next P0 item.
 
 ## Guidance #1 — absolutely no real data; sample data only
 
@@ -66,10 +107,13 @@ converters and make a compelling, realistic showcase. Aim for variety and real-w
   World Bank Open Data, Project Gutenberg (public-domain text), Wikimedia Commons, the sample files
   shipped in `microsoft/markitdown`, `python-openxml/python-docx`, and `openpyxl` repos, SEC EDGAR
   (public filings), and small `octocat`/sample GitHub repos for mirroring demos.
-- **Use it to build a fictional showcase vault** (e.g. "Northwind Robotics" or similar — invent the
-  business) under `examples/<name>-vault/`, mixing synthetic business docs with the real public
-  files, demonstrating: Office mirrors, a repo mirror, MOC hubs, entity pages, the Bases index, the
-  linter, and the anti-proliferation discipline.
+- **Use it to build public-document showcase vaults** under `examples/<name>-vault/`. The primary
+  direction is familiar government/public-service material because dense public guidance is a
+  pain point most users understand. Fictional business examples are still useful for repo mirrors
+  and private-business workflows, but should not be the only showcase.
+- Generated Office mirrors and optional PDF text mirrors should live under
+  `_mirrors/<canonical-source-path>.md` by default, not beside originals. Raw folders must stay
+  clean; use `--mirror-mode sibling` only for legacy compatibility.
 - Put test fixtures under `tests/fixtures/`; record every external file's **source URL + license**
   in `examples/DATA_PROVENANCE.md`. Prefer CC0/public-domain to keep redistribution clean; add
   attribution where a license requires it.
@@ -84,46 +128,60 @@ converters and make a compelling, realistic showcase. Aim for variety and real-w
 - **Reviewers may be Claude or CodeX** — state the reviewer explicitly on each PR. The owner
   (cz1993) authors and merges. (If you set up branch protection or CODEOWNERS, reflect this.)
 
-## Guidance #3 — continuously refine for users from any background/industry
+## Guidance #3 — narrow before broadening
 
-Vaultwright must serve owners well beyond tech/consulting. In every iteration, push toward
-generality:
+Vaultwright should eventually serve owners beyond consulting, but the next development sequence is
+not broad industry expansion. Prove the narrow promise first:
 
-- Make the **folder taxonomy, entity types, tag vocabulary, and retention defaults configurable**
-  rather than hard-coded to one field.
-- Ship **industry starter profiles/presets** (e.g. consulting, e-commerce/DTC, creative agency,
-  law practice, medical/dental clinic, trades/contractor, nonprofit) that adjust folders, entity
-  types, and retention — selectable at `init` time.
-- Audit docs/templates for **jargon** that assumes one industry; keep examples diverse.
-- Add tests that exercise multiple profiles. When a design choice helps one industry but hurts
-  another, prefer the configurable option.
+- Define product, sync, and security contracts before adding more capabilities.
+- Make `plan`/`status` lifecycle behavior first-class before broader CLI polish.
+- Extend the initial Office/repo manifests before migration automation.
+- Use external design-partner evidence before designing industry presets.
+- The current starter file plan is function-based (`00_inbox`, `10_governance`, `20_market`,
+  `30_customers`, `40_delivery`, `50_operations`, `60_finance`, `70_people`, `80_sources`) and
+  documented in `docs/information-architecture.md` plus `_meta/domain-map.yml`. Preserve this
+  configurable function-first approach unless the owner explicitly requests an industry-specific
+  preset.
 
 ## Backlog (prioritized — refine as you learn)
 
 **P0 — foundations & safety**
-- Vendor the full **AGPL-3.0** text into `LICENSE` (`curl -o LICENSE https://www.gnu.org/licenses/agpl-3.0.txt`, then restore the copyright/commercial header in `NOTICE`); add `SPDX-License-Identifier: AGPL-3.0-or-later` headers to source files.
+- **Product contract specs:** keep `docs/PRODUCT.md`, `docs/SYNC_SPEC.md`, and
+  `docs/SECURITY_MODEL.md` current; do not implement features that contradict them.
+- **Mirror lifecycle correctness:** extend the initial Office/repo manifests and stable IDs into
+  complete lifecycle states, rename / move / delete / stale / conflict handling, recovery tests,
+  and source-byte integrity tests.
+- **Thin operator CLI:** `tools/vaultwright.py plan`, `sync`, `status`, `lint`, and `doctor` exist;
+  keep them thin. The source-installable `vaultwright` console entry point delegates to the same
+  vault-local wrapper. `plan` must remain non-destructive; keep improving its sensitive-file risks,
+  duplicate warnings, and conversion-quality estimates before writing.
+- **Fresh-vault automation reliability:** `sync_all.sh` fails on required sync failures, missing
+  default `repos.yml` skips cleanly, explicit missing configs fail, and sample repo config cannot
+  accidentally mirror undocumented third-party content.
 - The **no-data** safeguards: `.gitignore` hardening, pre-commit hook, CI scan (see Guidance #1).
 - **Test suite** (pytest) for the three tools — idempotency, sentinel/curation preservation,
   frontmatter merge, lint rules, repo-mirror stub vs populated — with fixtures. **GitHub Actions CI.**
+- Vendor the full **AGPL-3.0** text into `LICENSE` (`curl -o LICENSE https://www.gnu.org/licenses/agpl-3.0.txt`, then restore the copyright/commercial header in `NOTICE`); add `SPDX-License-Identifier: AGPL-3.0-or-later` headers to source files.
 
 **P1 — differentiators**
-- **Anti-proliferation:** near-duplicate / overlap detection + consolidation suggestions in
-  `lint_vault.py` (e.g. title/content similarity, shingling); human-gated.
-- **Mirror robustness:** optional **docling** backend for high-fidelity PDF; an idempotency
-  manifest; conflict-safe curation; cleaner `.xlsx` rendering (drop the `NaN`/`Unnamed` noise).
+- **Mirror robustness:** optional **docling** backend for high-fidelity PDF; richer manifest audit
+  trails; conflict-safe curation; cleaner `.xlsx` rendering (drop the `NaN`/`Unnamed` noise).
+- **Anti-proliferation:** improve the warning-level near-duplicate / overlap detection and add
+  better consolidation suggestions in `lint_vault.py`; keep it human-gated.
 - **Repo mirror:** large-repo handling, rate-limit/backoff, and groundwork for **typed links**.
 
 **P2 — DX & adoption**
-- The **`vaultwright` CLI** (`init` / `sync` / `lint` / `doctor`) wrapping the scripts; `pipx`
-  packaging; `doctor` checks prereqs (Obsidian config, deps, `gh` auth, network).
-- **Industry starter profiles** + the public-data **example vault(s)** from the sample-data hunt.
+- Distribution-quality **`vaultwright` CLI** packaging around the existing wrapper; richer `doctor`
+  checks for Obsidian config, `gh` auth, network, backup posture, and recovery readiness.
+- **Industry starter profiles** only after design-partner evidence shows reusable patterns.
 - **Docs site** (MkDocs or Quartz); quickstart polish; screenshots/GIFs.
 - **Typed links** (`supports` / `contradicts` / `supersedes` / `depends-on`) across schema, linter,
   and a Bases view.
 
 ## Definition of done (every change)
 
-- Tests pass in CI; `lint_vault.py` is clean on the template + example vault.
+- Tests pass in CI; `lint_vault.py` is clean on the template + example vault, including zero
+  orphan curated notes and zero overlap warnings after example regeneration.
 - Scripts remain **idempotent** and cross-platform (macOS + Linux); no new heavy dependencies.
 - No real data/secrets added; no-data guard green.
 - `CHANGELOG.md` + relevant docs updated; commit authored by cz1993; PR reviewed (Claude/CodeX).
@@ -131,14 +189,15 @@ generality:
 ## Anti-patterns (don't)
 
 - Don't reframe Vaultwright as a generic personal-PKM / LLM-wiki — lead with the differentiators.
-- Don't add a vector database or a hosted SaaS into this repo (the commercial layer is separate).
+- Don't add a vector database as a substitute for lifecycle correctness, and don't add a hosted
+  SaaS into this repo.
 - Don't bloat dependencies, assume a single industry, commit data/secrets, or rewrite shared
   history without owner approval.
 
 ## Start here (first session)
 
 1. Read the files listed above; run the **no-data scan** and confirm the tree is clean.
-2. Stand up **tests + CI + the no-data guard** (P0).
-3. Begin the **sample-data hunt**; create `examples/DATA_PROVENANCE.md` and the first example vault.
+2. Confirm **tests + CI + the no-data guard** remain green.
+3. Work the P0 lifecycle/CLI sequence before adding broad examples or industry profiles.
 4. Vendor the AGPL text; add SPDX headers.
 5. Open PRs, request review (Claude/CodeX), iterate. Keep going.

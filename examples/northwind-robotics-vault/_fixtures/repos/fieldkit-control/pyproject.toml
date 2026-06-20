@@ -1,0 +1,5 @@
+[project]
+name = "fieldkit-control"
+version = "0.0.0"
+description = "Synthetic local repo fixture for Vaultwright examples"
+requires-python = ">=3.11"

@@ -24,11 +24,13 @@ cat <<EOF
 Next steps:
   1) Open it in Obsidian ("Open folder as vault"); enable core plugins: Properties, Bases, Graph.
   2) Point your AI agent (Claude Code / Codex) at the folder — it reads CLAUDE.md first.
-  3) pip install -r tools/requirements.txt
-  4) python3 tools/sync_office_md.py                 # mirror Office files
-     cp tools/repos.example.yml tools/repos.yml      # then edit, and:
-     python3 tools/sync_github_repos.py              # mirror GitHub repos
-     python3 tools/lint_vault.py                     # health check
+  3) python3.11 -m pip install -r tools/requirements.txt
+  4) cp tools/repos.example.yml tools/repos.yml      # optional: edit to list repos
+     python3.11 tools/vaultwright.py doctor
+     python3.11 tools/vaultwright.py plan
+     python3.11 tools/vaultwright.py sync
+     python3.11 tools/vaultwright.py status
+     python3.11 tools/vaultwright.py lint
 
 See docs/quickstart.md in the Vaultwright repo for details.
 EOF

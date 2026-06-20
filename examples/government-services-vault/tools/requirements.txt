@@ -1,0 +1,2 @@
+markitdown[docx,pptx,xlsx,pdf]>=0.1.0
+pyyaml>=6.0

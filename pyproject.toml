@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vaultwright"
+version = "0.1.0a0"
+description = "Governed document-to-knowledge lifecycle tooling for local Vaultwright vaults."
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{ name = "cz1993" }]
+dependencies = [
+  "markitdown[docx,pptx,xlsx,pdf]>=0.1.0",
+  "pyyaml>=6.0",
+]
+
+[project.scripts]
+vaultwright = "vaultwright.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

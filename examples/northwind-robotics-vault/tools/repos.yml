@@ -1,0 +1,13 @@
+settings:
+  notes_dir: 80_sources/repos
+  max_doc_bytes: 60000
+  max_total_bytes: 300000
+  recent_commits: 5
+
+repos:
+  - repo: local/fieldkit-control
+    local_path: _fixtures/repos/fieldkit-control
+    note: fieldkit-control.md
+    description: Synthetic controller package used to exercise repo mirroring.
+    tags: [repo, sample, synthetic]
+    related: ["[[Repositories]]"]

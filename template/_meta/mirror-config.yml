@@ -1,0 +1,4 @@
+office_mirrors:
+  mode: dedicated
+  root: _mirrors
+

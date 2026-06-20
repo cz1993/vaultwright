@@ -1,0 +1,17 @@
+#!/usr/bin/env sh
+set -eu
+
+PYTHON="${VAULTWRIGHT_PYTHON:-}"
+if [ -z "$PYTHON" ]; then
+  if command -v python3.11 >/dev/null 2>&1; then
+    PYTHON="python3.11"
+  else
+    PYTHON="python3"
+  fi
+fi
+"$PYTHON" - <<'PY'
+import sys
+if sys.version_info < (3, 11):
+    raise SystemExit("error: Python 3.11+ is required")
+PY
+"$PYTHON" scripts/no_data_scan.py --staged

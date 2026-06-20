@@ -9,7 +9,9 @@ welcome.
   well-tested — they are why Vaultwright exists. See `docs/positioning.md`.
 - Follow the project's own philosophy: prefer **improving/consolidating** existing docs over adding
   new ones (yes, that applies to this repo too).
-- Tooling is Python 3 (stdlib + PyYAML + markitdown) and POSIX shell. No heavy frameworks.
+- Tooling is Python 3.11+ (stdlib + PyYAML + markitdown) and POSIX shell. No heavy frameworks.
+- Run `python3.11 scripts/no_data_scan.py` before opening a PR. To enable the local guard, run
+  `git config core.hooksPath .githooks` once in this repo.
 
 ## Developer Certificate of Origin (DCO)
 
@@ -27,6 +29,9 @@ git commit -s -m "your message"     # adds: Signed-off-by: Your Name <you@exampl
 ## PRs
 
 - One concern per PR; include a short rationale.
-- Run `python3 template/tools/lint_vault.py` against the example vault if you touched the schema,
-  templates, or tools.
+- Run `python3.11 template/tools/lint_vault.py` if you touched the schema, templates, or tools.
+- If you touched example fixtures or mirror behavior, regenerate and lint temporary copies of
+  `examples/northwind-robotics-vault/` and `examples/government-services-vault/` instead of
+  committing generated mirrors, manifests, or audit logs.
+- Run `python3.11 -m pytest` and the no-data scan before requesting review.
 - Add/adjust docs in the same PR when behavior changes.

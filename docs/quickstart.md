@@ -5,7 +5,7 @@ Aimed at a technical founder/owner who knows git. ~15 minutes.
 ## Prerequisites
 
 - [Obsidian](https://obsidian.md) (free) — the human UI.
-- Python 3.9+ and `git`.
+- Python 3.11+ and `git`.
 - An AI coding agent that reads a `CLAUDE.md` / `AGENTS.md`: Claude Code, OpenAI Codex, etc.
 - Optional: GitHub CLI (`gh`) if you'll mirror private repos.
 
@@ -17,7 +17,7 @@ bash scripts/init.sh ~/my-business-vault
 ```
 
 `init.sh` copies `template/` into `~/my-business-vault` (the schema, templates, tools, Bases view,
-and the department folders). It refuses to overwrite a non-empty target.
+and the function-based starter folders). It refuses to overwrite a non-empty target.
 
 ## 2. Open it in Obsidian
 
@@ -28,21 +28,23 @@ and **Graph** (Settings → Core plugins). Open `Documents.base` to see the auto
 
 Open the vault with your agent (e.g. run Claude Code / Codex in the folder). It reads `CLAUDE.md`
 first — that's the operating manual. Try: *"Read CLAUDE.md, then ingest the file I just added to
-`finance/` following the schema."*
+`60_finance/` following the schema."*
 
 ## 4. Mirror your binaries and repos
 
 ```bash
 cd ~/my-business-vault
-pip install -r tools/requirements.txt          # markitdown + pyyaml
-
-python3 tools/sync_office_md.py                 # .docx/.pptx/.xlsx -> markdown mirrors
+python3.11 -m pip install -r tools/requirements.txt  # markitdown + pyyaml
 
 cp tools/repos.example.yml tools/repos.yml      # then edit to list your repos
 gh auth login                                   # read-only is enough (or export GH_TOKEN)
-python3 tools/sync_github_repos.py              # repos -> markdown mirrors
 
-python3 tools/lint_vault.py                     # health check
+python3.11 tools/vaultwright.py doctor          # check dependencies and vault structure
+python3.11 tools/vaultwright.py plan            # inspect source inventory and proposed mirrors
+python3.11 tools/vaultwright.py sync            # mirrors -> _mirrors/ and 80_sources/repos/
+python3.11 tools/vaultwright.py status          # review manifest-backed lifecycle state
+
+python3.11 tools/vaultwright.py lint            # health check
 ```
 
 ## 5. Keep it fresh (unattended)
@@ -56,8 +58,9 @@ vault:
 
 ## Daily use
 
-- **New document?** Drop it in the right folder and ask the agent to *ingest* it — it will mirror
-  (if binary), create or **extend** a note, link it from the relevant hub/entity, and log it.
+- **New document?** Drop the original in the right folder and ask the agent to *ingest* it — it
+  will mirror binaries under `_mirrors/`, create or **extend** a note, link it from the relevant
+  hub/entity, and log it.
 - **A question?** Ask the agent; it reads `INDEX.md` / the MOCs first and answers with citations.
 - **Housekeeping?** Ask it to *lint* — or just run `tools/lint_vault.py`.
 - **Remember:** prefer consolidating into existing notes over creating new ones. See

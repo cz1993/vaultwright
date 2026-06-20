@@ -1,0 +1,52 @@
+domains:
+  intake:
+    folder: 00_inbox
+    purpose: Triage lane for unprocessed source files and agent drafts.
+    examples: [new uploads, unsorted exports, intake notes]
+    aliases: [inbox, triage]
+  governance:
+    folder: 10_governance
+    purpose: Company identity, ownership, policy, risk, legal, compliance, and board records.
+    examples: [policies, contracts, corporate records, risk registers, compliance evidence]
+    aliases: [company, legal, compliance]
+  market:
+    folder: 20_market
+    purpose: Market understanding, brand, campaigns, communications, and partner-facing material.
+    examples: [positioning, content, campaigns, press, partnerships]
+    aliases: [marketing, brand, communications]
+  customers:
+    folder: 30_customers
+    purpose: Accounts, clients, sales opportunities, customer research, support, and relationship history.
+    examples: [account hubs, discovery notes, proposals, support records, customer decisions]
+    aliases: [clients, accounts, sales]
+  delivery:
+    folder: 40_delivery
+    purpose: Products, services, projects, implementations, engagements, and delivery playbooks.
+    examples: [project plans, product docs, implementation notes, service readiness, delivery decisions]
+    aliases: [projects, product, services]
+  operations:
+    folder: 50_operations
+    purpose: Internal operating system, vendors, procurement, IT, security, facilities, and process records.
+    examples: [runbooks, vendor records, system inventories, procurement notes, incident reviews]
+    aliases: [ops, vendors, it]
+  finance:
+    folder: 60_finance
+    purpose: Accounting, tax, payroll, budgets, funding, banking, and financial reporting.
+    examples: [invoices, statements, forecasts, grants, payroll records, tax files]
+    aliases: [funding, accounting, tax]
+  people:
+    folder: 70_people
+    purpose: Hiring, employees, contractors, roles, onboarding, learning, and people operations.
+    examples: [role scorecards, contractor agreements, onboarding, training, performance records]
+    aliases: [hr, recruiting, contractors]
+  sources:
+    folder: 80_sources
+    purpose: Source mirrors, public-data fixtures, repository mirrors, and cross-domain raw-source indexes.
+    examples: [repo mirrors, public datasets, source inventories]
+    aliases: [repos, mirrors, source-materials]
+
+rules:
+  - Prefer the business function a record supports over the department that created it.
+  - Use subfolders for account, project, matter, or system names; keep top-level domains stable.
+  - If a document genuinely spans functions, file it where action/retention ownership lives and add wikilinks/frontmatter to the other domains.
+  - Keep industry-specific folders below these domains instead of adding new top-level folders unless the business has a durable function not represented here.

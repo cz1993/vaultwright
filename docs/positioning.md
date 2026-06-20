@@ -26,12 +26,13 @@ weeks. Notable neighbors (stars approximate, mid-2026):
 
 Not found in any surveyed competitor:
 
-1. **The mirror layer** — hash-refreshed markdown mirrors of **Office files *and* GitHub repos**,
-   editable-original-stays-source-of-truth, with curated/auto separation. This is real tooling, not
-   a copyable prompt file — the hardest part to clone and the main moat.
-2. **Small-business operations as the vertical** — finance / legal / clients / HR / funding, with
-   **PII isolation and a retention policy**. Every competitor is a personal/research brain.
-3. **Bases-driven index** — the dynamic index is generated from frontmatter, not hand-maintained.
+1. **Governed document-to-knowledge lifecycle** — original files remain authoritative while
+   generated mirrors, curated notes, schema, provenance, and safety checks stay inspectable.
+2. **The mirror layer** — hash-refreshed markdown mirrors of **Office files *and* GitHub repos**,
+   editable-original-stays-source-of-truth, with curated/auto separation under `_mirrors/`.
+3. **Consulting/onboarding wedge** — the first buyer is a small consulting or advisory team
+   handling document-heavy client work, not the broad personal-PKM market.
+4. **Bases-driven index** — the dynamic index is generated from frontmatter, not hand-maintained.
 
 ## Interoperate, don't compete
 
@@ -46,6 +47,8 @@ Not found in any surveyed competitor:
 - Not a personal-PKM / Zettelkasten app (those are well served).
 - Not a hosted SaaS (the enterprise/hosted offering is a *separate* commercial layer — see
   `LICENSING.md`).
+- Not a fully validated product yet; lifecycle semantics and external design-partner evidence are
+  release gates.
 
 ## Honest risks
 

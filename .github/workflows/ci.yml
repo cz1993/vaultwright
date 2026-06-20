@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: No-data scan
+        run: python scripts/no_data_scan.py
+      - name: Install package and test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e . pytest
+      - name: Compile Python tools
+        run: python -m py_compile template/tools/lint_vault.py template/tools/sync_office_md.py template/tools/sync_github_repos.py template/tools/vaultwright.py src/vaultwright/cli.py src/vaultwright/__init__.py scripts/no_data_scan.py
+      - name: Shell syntax
+        run: bash -n scripts/init.sh template/tools/sync_all.sh .githooks/pre-commit
+      - name: Unit tests
+        run: pytest
+      - name: Installed CLI smoke test
+        run: |
+          vaultwright --help
+          tmp_vault="$(mktemp -d)/vault"
+          VAULTWRIGHT_REPO="$PWD" vaultwright init "$tmp_vault"
+          vaultwright --root "$tmp_vault" plan
+      - name: Template lint
+        run: python template/tools/lint_vault.py
+      - name: Regenerate example mirrors
+        run: |
+          tmp_example="$(mktemp -d)"
+          for name in northwind-robotics-vault government-services-vault; do
+            cp -R "examples/$name" "$tmp_example/"
+            example="$tmp_example/$name"
+            python "$example/tools/vaultwright.py" plan
+            python "$example/tools/vaultwright.py" sync
+            python "$example/tools/vaultwright.py" status
+            echo "$example" >> /tmp/vaultwright-example-paths
+          done
+      - name: No-data scan after mirror generation
+        run: |
+          while IFS= read -r example; do
+            find "$example" \( -name '*.md' -o -name '*.json' -o -name '*.jsonl' \) -type f -print0 | xargs -0 python scripts/no_data_scan.py --paths
+          done < /tmp/vaultwright-example-paths
+      - name: Example vault lint
+        run: |
+          while IFS= read -r example; do
+            output="$(python "$example/tools/lint_vault.py")"
+            printf '%s\n' "$output"
+            grep -q "Orphan notes (no inbound links): 0" <<<"$output"
+            grep -q "Potential duplicate/overlap notes: 0" <<<"$output"
+          done < /tmp/vaultwright-example-paths

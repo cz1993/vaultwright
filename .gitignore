@@ -3,11 +3,30 @@ __pycache__/
 *.pyc
 .venv/
 venv/
+*.egg-info/
+build/
+dist/
+
+# secrets and local data
+.env
+.env.*
+*.pem
+*.p12
+*.pfx
+*.key
+*.token
+id_rsa
+id_ed25519
+data/
+secrets/
+private/
 
 # OS / editors
 .DS_Store
 *.log
 
-# local test vaults
-/examples/*-vault/
+# local scratch vaults
+/.obsidian/
+/examples/local-*-vault/
+/examples/.obsidian/
 /tmp/

@@ -3,13 +3,15 @@
 Vaultwright is mostly *discipline*, encoded so an agent follows it. This is the why behind the
 schema in `template/CLAUDE.md`.
 
-## 1. Three layers
+## 1. Four layers
 
 - **Raw sources** — the real artifacts (contracts, decks, statements, receipts, repos, the
   originating Office files). Immutable: the agent reads them, never rewrites them. Source of truth.
+- **Generated mirrors** — markdown conversions of Office/PDF files under `_mirrors/`, plus repo
+  mirrors under `80_sources/repos/`. The agent regenerates these from source; you curate only
+  above the sentinel.
 - **Wiki** — markdown notes that summarize, connect, and add metadata: Maps of Content (MOCs),
-  entity pages, knowledge notes, and the auto-generated **mirrors** of binaries/repos. The agent
-  writes this; you curate.
+  entity pages, knowledge notes, decisions, and guides. The agent writes this; you curate.
 - **Schema** — `CLAUDE.md`: the conventions and the ingest/query/lint workflows. It's what makes
   the agent a disciplined maintainer instead of a generic chatbot. You and the agent co-evolve it.
 
@@ -19,9 +21,11 @@ You don't convert or replace your real files. Every binary that matters gets a m
 **companion/mirror** so it becomes linkable, taggable, searchable, and visible in the graph — while
 the original stays the editable source of truth.
 
-- **Office files** → `source-mirror` notes via markitdown, refreshed on content change.
+- **Office/PDF files** → `source-mirror` notes under `_mirrors/` via markitdown, refreshed on
+  content change.
 - **GitHub repos** → `repo-mirror` notes (README + docs + metadata), refreshed when HEAD changes.
-- **PDFs** → embed natively in Obsidian; a light `source-ref` companion when useful.
+- **PDFs** → embed natively in Obsidian; a light `source-ref` companion when useful, or an optional
+  `_mirrors/` text mirror with `sync_office_md.py --include-pdf`.
 - Each mirror has a **curated region** (preserved across syncs) and an **auto region** below a
   sentinel line (regenerated). Edit the original, never the auto region.
 
@@ -29,14 +33,14 @@ This is Vaultwright's core technical idea and its main differentiator — see `p
 
 ## 3. Linking-first (the retrieval engine)
 
-Folders say *where* a file lives; **links say how things relate** — and links are what make
-retrieval work without a vector database at small scale.
+Folders say *where* a file lives; **links say how things relate**. Links and frontmatter are the
+initial retrieval layer; semantic indexes may help later, but they must not replace provenance.
 
 - **Wikilink generously.** An unresolved `[[link]]` is a to-do, not an error — it marks a page
   worth creating.
 - **Maps of Content (MOCs).** Every cluster gets a hub note that links its members with one-line
   context. Hubs link up to `INDEX.md` and across to related hubs.
-- **Entity pages.** Recurring nouns (each client, vendor, program, person, product) get a page;
+- **Entity pages.** Recurring nouns (each account, vendor, program, person, product) get a page;
   everything about them links to it, so the graph clusters naturally.
 - **The index maintains itself.** `Documents.base` reads note frontmatter (Obsidian Bases) and
   generates always-current tables, so a hand-maintained index can't drift.
@@ -44,7 +48,8 @@ retrieval work without a vector database at small scale.
   typed relations (`supports` / `contradicts` / `supersedes` / `depends-on`) so the graph carries
   meaning.
 
-The test: ≤3 clicks from `INDEX.md` to anything, and no orphan notes.
+The test: ≤3 clicks from `INDEX.md` to curated knowledge, and no orphan curated notes. Generated
+source/repo mirrors may be leaf artifacts when manifests and source paths preserve provenance.
 
 ## 4. Anti-proliferation — the discipline that makes it usable
 
@@ -61,19 +66,20 @@ So Vaultwright optimizes for *fewer, better-connected, current* notes:
    set stays small.
 4. **Human-gated promotion.** Agent-drafted notes start as `draft`; a human promotes them to
    `active`. (LLMs hallucinate; the vault must not silently fill with unverified notes.)
-5. **The linter enforces it.** `lint_vault.py` flags orphans, stale mirrors, and — on the roadmap —
-   near-duplicate/overlapping notes that should be merged.
+5. **The linter enforces the basics.** `lint_vault.py` blocks missing required frontmatter, invalid
+   type/status values, and missing Office mirrors. It reports unresolved links, orphans, and likely
+   note overlap as warnings. Stale-mirror checks are a roadmap item.
 
 Most agent-wiki projects happily spawn notes. Disciplined restraint is a deliberate edge.
 
 ## 5. The agent's operating loop
 
 - **Ingest** — file the original; mirror it if binary/repo; create or *extend* a knowledge note;
-  wikilink it from its MOC and entity pages; log one line.
+  wikilink the mirror or source-ref from its MOC and entity pages; log one line.
 - **Query** — read `INDEX.md` / the relevant MOC first, follow links, answer with citations to note
   paths; file reusable answers back as notes so work compounds.
-- **Lint** — periodically check frontmatter, links, orphans, stale mirrors, duplicates; fix
-  mechanically where safe, flag judgment calls.
+- **Lint** — periodically check frontmatter, links, orphans, overlap candidates, and mirror gaps;
+  fix mechanically where safe, flag judgment calls. Stale-mirror checks are planned.
 - **Log** — append one greppable line per change to `log.md`.
 
 ## 6. Governance (because this is business data)
