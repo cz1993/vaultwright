@@ -38,6 +38,11 @@ def repo_mirror_fields(repo: str = "local/fixture", repo_id: str = "repo-test") 
     )
 
 
+def repo_id_for(repo: str, note: str) -> str:
+    digest = hashlib.sha256(f"{repo}\0{note}".encode("utf-8")).hexdigest()[:20]
+    return f"repo_{digest}"
+
+
 def write_source_manifest(
     vault: Path,
     *records: tuple[str, str, str] | tuple[str, str, str, str],
@@ -850,7 +855,7 @@ def test_template_linter_blocks_repo_mirror_type_outside_repo_mirror_root(tmp_pa
 
     assert result.returncode == 1
     assert "Mirror layout errors: 1" in result.stdout
-    assert "repo-mirror notes belong under 80_sources/repos" in result.stdout
+    assert "repo-mirror notes belong under configured tools/repos.yml notes_dir or 80_sources/repos" in result.stdout
 
 
 def test_template_linter_blocks_repo_mirror_without_generated_contract_under_repo_root(tmp_path: Path) -> None:
@@ -882,6 +887,181 @@ def test_template_linter_blocks_repo_mirror_without_generated_contract_under_rep
     assert result.returncode == 1
     assert "Mirror layout errors: 1" in result.stdout
     assert "repo-mirror requires generated sentinel and manifest metadata" in result.stdout
+
+
+def test_template_linter_blocks_configured_repo_without_generated_mirror(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    (vault / "tools" / "repos.yml").write_text(
+        "settings:\n"
+        "  notes_dir: 80_sources/repos\n"
+        "repos:\n"
+        "  - repo: local/fixture\n"
+        "    note: fixture.md\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "lint_vault.py")],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 1
+    assert "Repo config errors: 0" in result.stdout
+    assert "Configured repos without a mirror: 1" in result.stdout
+    assert "80_sources/repos/fixture.md  (configured repo mirror missing or unmanaged)" in result.stdout
+
+
+def test_template_linter_accepts_configured_repo_with_generated_mirror(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    repo_id = repo_id_for("local/fixture", "fixture.md")
+    (vault / "tools" / "repos.yml").write_text(
+        "settings:\n"
+        "  notes_dir: 80_sources/repos\n"
+        "repos:\n"
+        "  - repo: local/fixture\n"
+        "    note: fixture.md\n",
+        encoding="utf-8",
+    )
+    repo_note = vault / "80_sources" / "repos" / "fixture.md"
+    repo_note.parent.mkdir(parents=True, exist_ok=True)
+    repo_note.write_text(
+        "---\n"
+        "title: Fixture Repo\n"
+        "type: repo-mirror\n"
+        "status: active\n"
+        "domain: sources\n"
+        f"{repo_mirror_fields(repo_id=repo_id)}"
+        "created: 2026-01-01\n"
+        "updated: 2026-01-01\n"
+        "---\n"
+        f"# Fixture Repo\n\n{SENTINEL}\n\n## Repository\n",
+        encoding="utf-8",
+    )
+    write_repo_manifest(vault, (repo_id, "80_sources/repos/fixture.md"))
+
+    result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "lint_vault.py")],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0
+    assert "Repo config errors: 0" in result.stdout
+    assert "Configured repos without a mirror: 0" in result.stdout
+
+
+def test_template_linter_accepts_configured_repo_with_custom_notes_dir(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    repo_id = repo_id_for("local/fixture", "fixture.md")
+    (vault / "tools" / "repos.yml").write_text(
+        "settings:\n"
+        "  notes_dir: 40_delivery/repos\n"
+        "repos:\n"
+        "  - repo: local/fixture\n"
+        "    note: fixture.md\n",
+        encoding="utf-8",
+    )
+    repo_note = vault / "40_delivery" / "repos" / "fixture.md"
+    repo_note.parent.mkdir(parents=True, exist_ok=True)
+    repo_note.write_text(
+        "---\n"
+        "title: Fixture Repo\n"
+        "type: repo-mirror\n"
+        "status: active\n"
+        "domain: delivery\n"
+        f"{repo_mirror_fields(repo_id=repo_id)}"
+        "created: 2026-01-01\n"
+        "updated: 2026-01-01\n"
+        "---\n"
+        f"# Fixture Repo\n\n{SENTINEL}\n\n## Repository\n",
+        encoding="utf-8",
+    )
+    write_repo_manifest(vault, (repo_id, "40_delivery/repos/fixture.md"))
+
+    result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "lint_vault.py")],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0
+    assert "Repo config errors: 0" in result.stdout
+    assert "Mirror layout errors: 0" in result.stdout
+    assert "Domain/folder mismatch: 0" in result.stdout
+    assert "Configured repos without a mirror: 0" in result.stdout
+
+
+def test_template_linter_blocks_configured_repo_identity_mismatch(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    old_repo_id = repo_id_for("old/fixture", "fixture.md")
+    (vault / "tools" / "repos.yml").write_text(
+        "settings:\n"
+        "  notes_dir: 80_sources/repos\n"
+        "repos:\n"
+        "  - repo: new/fixture\n"
+        "    note: fixture.md\n",
+        encoding="utf-8",
+    )
+    repo_note = vault / "80_sources" / "repos" / "fixture.md"
+    repo_note.parent.mkdir(parents=True, exist_ok=True)
+    repo_note.write_text(
+        "---\n"
+        "title: Fixture Repo\n"
+        "type: repo-mirror\n"
+        "status: active\n"
+        "domain: sources\n"
+        f"{repo_mirror_fields(repo='old/fixture', repo_id=old_repo_id)}"
+        "created: 2026-01-01\n"
+        "updated: 2026-01-01\n"
+        "---\n"
+        f"# Fixture Repo\n\n{SENTINEL}\n\n## Repository\n",
+        encoding="utf-8",
+    )
+    write_repo_manifest(vault, (old_repo_id, "80_sources/repos/fixture.md"))
+
+    result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "lint_vault.py")],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 1
+    assert "Repo config errors: 0" in result.stdout
+    assert "Configured repos without a mirror: 1" in result.stdout
+    assert "80_sources/repos/fixture.md  (configured repo mirror repo_id mismatch; run vaultwright sync)" in result.stdout
+
+
+def test_template_linter_blocks_invalid_repo_mirror_config_path(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    (vault / "tools" / "repos.yml").write_text(
+        "settings:\n"
+        "  notes_dir: _meta/repos\n"
+        "repos:\n"
+        "  - repo: local/fixture\n"
+        "    note: fixture.md\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "lint_vault.py")],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 1
+    assert "Repo config errors: 1" in result.stdout
+    assert "tools/repos.yml:repos[0].note  [notes_dir contains a reserved path component]" in result.stdout
 
 
 def test_template_linter_blocks_repo_mirror_with_noncurrent_manifest_state(tmp_path: Path) -> None:

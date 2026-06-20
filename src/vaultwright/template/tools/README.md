@@ -7,7 +7,7 @@ These keep your knowledge base current and healthy. See `../CLAUDE.md` §6 for t
 | `sync_office_md.py` | markdown **mirror** under `_mirrors/` for every `.docx/.pptx/.xlsx` (Microsoft markitdown), refreshed on content change |
 | `sync_github_repos.py` | markdown **mirror** under `80_sources/repos/` for each repo in `repos.yml` (README + docs + metadata), refreshed on HEAD change |
 | `vaultwright.py` | thin operator wrapper: `plan`, `sync`, `status`, `conversion`, `migration`, `pilot`, `recovery`, `lint`, `benchmark`, `doctor`, and repo-root `init` |
-| `lint_vault.py` | health check — frontmatter, broken wikilinks, orphans, overlap warnings, mirror gaps, stale generated mirrors |
+| `lint_vault.py` | health check — frontmatter, broken wikilinks, orphans, overlap warnings, mirror gaps, configured repo mirror gaps, stale generated mirrors |
 | `benchmark_tasks.py` | validates `_meta/agent-readiness-tasks.yml` task packs and optional aggregate result packs |
 | `conversion_report.py` | prints a read-only conversion spot-check report from the source manifest |
 | `migration_report.py` | prints a read-only migration report for legacy or unknown top-level folders |
@@ -147,6 +147,10 @@ Successful repo syncs maintain `_meta/repo-manifest.json`. Office and repo syncs
 machine-readable events to `_meta/sync-audit.jsonl`. These generated metadata files explain what
 changed, which source or repo identity was involved, the generated note path, the lifecycle state
 after sync, and structured warnings/errors. They do not embed README or documentation bodies.
+`tools/lint_vault.py` treats an explicit repo entry in `tools/repos.yml` as a source contract: the
+expected `repo-mirror` note must exist under the configured notes directory and must carry the
+generated sentinel plus manifest metadata. A fresh vault with no `tools/repos.yml` still skips repo
+sync and lint checks cleanly.
 Repo plan/status output also prints `next actions` for changed, unreachable, conflicted, manually
 modified, and errored repo mirrors.
 If writing a repo mirror note fails, sync records an `error` state and keeps the previous note; fix

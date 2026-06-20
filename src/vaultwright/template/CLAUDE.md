@@ -114,8 +114,8 @@ This is a first-class rule, not a preference:
 3. **Archive, don't accrete.** Superseded material moves to `_archive/` per `RETENTION.md`.
 4. **Human-gated promotion.** Agent-drafted notes start `status: draft`; a human promotes to
    `active`. Don't let the vault fill with unverified notes.
-5. **The linter helps.** `tools/lint_vault.py` flags orphans, mirror gaps, stale generated
-   mirrors, and likely duplicate/overlap candidates for human review.
+5. **The linter helps.** `tools/lint_vault.py` flags orphans, Office and configured repo mirror
+   gaps, stale generated mirrors, and likely duplicate/overlap candidates for human review.
 
 ---
 
@@ -134,7 +134,8 @@ when the original changes.
 - **GitHub repos**: `tools/sync_github_repos.py` (config `tools/repos.yml`) writes repo mirrors
   under `80_sources/repos/` by default
   (`type: repo-mirror`) with the README, `/docs`, top-level markdown, and metadata — refreshed when
-  the repo's HEAD changes. Repo lifecycle state lives in `_meta/repo-manifest.json`.
+  the repo's HEAD changes. Repo lifecycle state lives in `_meta/repo-manifest.json`, and lint
+  blocks configured repo entries whose expected generated mirror note is missing or unmanaged.
 - **PDFs** embed natively in Obsidian (`![[file.pdf#page=2]]`); use a light `source-ref` companion
   when useful, or run `sync_office_md.py --include-pdf` to create a text mirror under `_mirrors/`.
 - **Rules:** edit the original, never a mirror's auto region. Curate only above the sentinel.

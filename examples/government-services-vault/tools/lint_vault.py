@@ -34,8 +34,18 @@ DEFAULT_MIRROR_ROOT = "_mirrors"
 SOURCE_MANIFEST_REL = "_meta/source-manifest.json"
 REPO_MANIFEST_REL = "_meta/repo-manifest.json"
 LINT_CONFIG_REL = "_meta/lint-config.yml"
+REPO_CONFIG_REL = "tools/repos.yml"
+DEFAULT_REPO_NOTES_DIR = "80_sources/repos"
 SENTINEL = "%% AUTO-GENERATED BELOW — DO NOT EDIT %%"
 MIRROR_MODES = {"dedicated", "sibling"}
+CONTENT_ROOTS = {
+    "00_inbox", "10_governance", "20_market", "30_customers", "40_delivery",
+    "50_operations", "60_finance", "70_people", "80_sources",
+}
+FORBIDDEN_OUTPUT_PARTS = {
+    ".git", ".githooks", ".github", ".obsidian", "_archive", "_fixtures",
+    "_meta", "_templates", "_tmp", "node_modules", "tools",
+}
 OVERLAP_MIN_TOKENS = 18
 OVERLAP_CONTENT_THRESHOLD = 0.72
 OVERLAP_TITLE_THRESHOLD = 0.82
@@ -154,6 +164,91 @@ def lint_config() -> tuple[dict[str, int | float], list[tuple[str, str]]]:
             errors.append((f"{LINT_CONFIG_REL}:overlap.{key}", "must be a number between 0 and 1"))
     return config, errors
 
+def safe_repo_rel_path(value: str, label: str, *, allow_nested: bool = True) -> Path:
+    text = str(value).strip()
+    path = Path(text)
+    if not text or text == "." or path.is_absolute() or ".." in path.parts:
+        raise ValueError(f"{label} must stay inside the vault")
+    if not allow_nested and len(path.parts) != 1:
+        raise ValueError(f"{label} must be a filename, not a path")
+    for part in path.parts:
+        if part.startswith(".") or part in FORBIDDEN_OUTPUT_PARTS:
+            raise ValueError(f"{label} contains a reserved path component")
+    return path
+
+def repo_note_path(notes_dir: str, note: str) -> Path:
+    rel_dir = safe_repo_rel_path(notes_dir, "notes_dir")
+    rel_note = safe_repo_rel_path(note, "note", allow_nested=False)
+    if not rel_dir.parts or rel_dir.parts[0] not in CONTENT_ROOTS:
+        raise ValueError("notes_dir must start with a canonical content root")
+    if rel_note.suffix != ".md":
+        raise ValueError("note must be a .md filename")
+    cursor = ROOT
+    for part in rel_dir.parts:
+        cursor = cursor / part
+        if cursor.exists() and cursor.is_symlink():
+            raise ValueError("notes_dir must not contain symlink components")
+    output_path = ROOT / rel_dir / rel_note
+    if output_path.exists() and output_path.is_symlink():
+        raise ValueError("note output path must not be a symlink")
+    return output_path
+
+def repo_id_for(repo: str, note: str) -> str:
+    digest = hashlib.sha256(f"{repo}\0{note}".encode("utf-8")).hexdigest()[:20]
+    return f"repo_{digest}"
+
+def repo_config() -> tuple[list[dict[str, str | Path]], list[tuple[str, str]]]:
+    path = ROOT / REPO_CONFIG_REL
+    if not path.exists():
+        return [], []
+    try:
+        data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    except yaml.YAMLError:
+        return [], [(REPO_CONFIG_REL, "invalid YAML")]
+    if not isinstance(data, dict):
+        return [], [(REPO_CONFIG_REL, "must be a mapping")]
+
+    settings = data.get("settings", {})
+    repos = data.get("repos", [])
+    errors: list[tuple[str, str]] = []
+    if settings is None:
+        settings = {}
+    if not isinstance(settings, dict):
+        errors.append((f"{REPO_CONFIG_REL}:settings", "must be a mapping"))
+        settings = {}
+    if repos is None:
+        repos = []
+    if not isinstance(repos, list):
+        return [], [*errors, (f"{REPO_CONFIG_REL}:repos", "must be a list")]
+
+    notes_dir = str(settings.get("notes_dir", DEFAULT_REPO_NOTES_DIR))
+    configured: list[dict[str, str | Path]] = []
+    for index, entry in enumerate(repos):
+        label = f"{REPO_CONFIG_REL}:repos[{index}]"
+        if not isinstance(entry, dict):
+            errors.append((label, "must be a mapping"))
+            continue
+        repo = entry.get("repo")
+        note = entry.get("note")
+        if not isinstance(repo, str) or not repo.strip():
+            errors.append((f"{label}.repo", "is required"))
+        if not isinstance(note, str) or not note.strip():
+            errors.append((f"{label}.note", "is required"))
+            continue
+        try:
+            note_path = repo_note_path(notes_dir, note)
+        except ValueError as exc:
+            errors.append((f"{label}.note", str(exc)))
+            continue
+        if isinstance(repo, str) and repo.strip():
+            configured.append({
+                "repo": repo.strip(),
+                "note": note.strip(),
+                "repo_id": repo_id_for(repo.strip(), note.strip()),
+                "path": note_path,
+            })
+    return configured, errors
+
 def load_manifest_records(rel: str, id_key: str) -> tuple[dict[str, dict], list[tuple[str, str]]]:
     path = ROOT / rel
     if not path.exists():
@@ -259,6 +354,8 @@ def resolve(target: str) -> bool:
 DOMAIN_FOLDERS, DOMAIN_FOLDER_ALIASES, domain_map_errors = domain_folders()
 MIRROR_CONFIG, mirror_config_errors = mirror_config()
 LINT_CONFIG, lint_config_errors = lint_config()
+CONFIGURED_REPOS, repo_config_errors = repo_config()
+CONFIGURED_REPO_NOTE_PATHS = {item["path"] for item in CONFIGURED_REPOS if isinstance(item.get("path"), Path)}
 SOURCE_MANIFEST_RECORDS, source_manifest_errors = load_manifest_records(SOURCE_MANIFEST_REL, "source_id")
 REPO_MANIFEST_RECORDS, repo_manifest_errors = load_manifest_records(REPO_MANIFEST_REL, "repo_id")
 manifest_errors = source_manifest_errors + repo_manifest_errors
@@ -274,13 +371,16 @@ overlap_inputs: list[dict[str, object]] = []
 note_types: dict[Path, str] = {}
 source_paths: dict[Path, str] = {}
 managed_generated_mirrors: set[Path] = set()
+repo_mirror_ids: dict[Path, str] = {}
 inbound: dict[Path, int] = {p: 0 for p in md_notes}
 
 def in_mirror_root(rel: Path) -> bool:
     return bool(MIRROR_ROOT.parts) and rel.parts[:len(MIRROR_ROOT.parts)] == MIRROR_ROOT.parts
 
 def is_repo_mirror_path(rel: Path) -> bool:
-    return len(rel.parts) >= 3 and rel.parts[0] == "80_sources" and rel.parts[1] == "repos"
+    return (ROOT / rel) in CONFIGURED_REPO_NOTE_PATHS or (
+        len(rel.parts) >= 3 and rel.parts[0] == "80_sources" and rel.parts[1] == "repos"
+    )
 
 def source_mirror_paths(source_rel: str) -> list[Path]:
     if not source_rel:
@@ -438,6 +538,7 @@ for p in md_notes:
                 if freshness_issue:
                     stale_office_mirrors.append((rels, freshness_issue))
             elif note_type == "repo-mirror":
+                repo_mirror_ids[p] = str(fm.get("repo_id", "")).strip()
                 freshness_issue = repo_mirror_freshness_issue(fm)
                 if freshness_issue:
                     stale_repo_mirrors.append((rels, freshness_issue))
@@ -472,7 +573,7 @@ for p in md_notes:
             if is_repo_mirror_path(rel):
                 bad_mirror_layout.append((rels, "repo-mirror requires generated sentinel and manifest metadata"))
             else:
-                bad_mirror_layout.append((rels, "repo-mirror notes belong under 80_sources/repos"))
+                bad_mirror_layout.append((rels, "repo-mirror notes belong under configured tools/repos.yml notes_dir or 80_sources/repos"))
         if fm.get("client") and not fm.get("account"):
             bad_account_client.append((rels, "client requires account"))
         elif fm.get("account") and fm.get("client") and str(fm["account"]).strip() != str(fm["client"]).strip():
@@ -516,6 +617,7 @@ for p in md_notes:
 
 # mirror integrity
 mirror_gap = []
+repo_mirror_gap = []
 def expected_mirror_paths(src: Path) -> list[Path]:
     if MIRROR_CONFIG["mode"] == "sibling":
         preferred = src.with_suffix(".md")
@@ -531,6 +633,18 @@ for p in all_files:
             continue  # legacy, unsupported by converter
         if not any(candidate in managed_generated_mirrors for candidate in expected_mirror_paths(p)):
             mirror_gap.append(str(p.relative_to(ROOT)) + "  (no markdown mirror)")
+
+for expected in CONFIGURED_REPOS:
+    note_path = expected["path"]
+    expected_repo_id = str(expected["repo_id"])
+    if not isinstance(note_path, Path):
+        continue
+    if note_path not in managed_generated_mirrors:
+        repo_mirror_gap.append(str(note_path.relative_to(ROOT)) + "  (configured repo mirror missing or unmanaged)")
+        continue
+    actual_repo_id = repo_mirror_ids.get(note_path, "")
+    if actual_repo_id != expected_repo_id:
+        repo_mirror_gap.append(str(note_path.relative_to(ROOT)) + "  (configured repo mirror repo_id mismatch; run vaultwright sync)")
 
 orphan_exempt_names = {"INDEX.md", "CLAUDE.md", "AGENTS.md", "README.md", "RETENTION.md", "log.md"}
 orphans = sorted(
@@ -576,6 +690,7 @@ section("Invalid domain", bad_domain)
 section("Domain map errors", domain_map_errors)
 section("Mirror config errors", mirror_config_errors)
 section("Lint config errors", lint_config_errors)
+section("Repo config errors", repo_config_errors)
 section("Manifest errors", manifest_errors)
 section("Domain/folder mismatch", bad_domain_folder)
 section("Account/client mismatch", bad_account_client)
@@ -587,12 +702,13 @@ section("Unresolved wikilinks", unresolved)
 section("Orphan notes (no inbound links)", orphans)
 section("Potential duplicate/overlap notes", overlap_candidates)
 section("Office files without a mirror", mirror_gap)
+section("Configured repos without a mirror", repo_mirror_gap)
 blocking = (
     missing_fm or bad_type or bad_status or bad_domain or domain_map_errors or mirror_config_errors
     or lint_config_errors
-    or manifest_errors or bad_domain_folder or bad_account_client or bad_mirror_layout
+    or repo_config_errors or manifest_errors or bad_domain_folder or bad_account_client or bad_mirror_layout
     or stale_office_mirrors or stale_repo_mirrors
-    or markdown_case or mirror_gap
+    or markdown_case or mirror_gap or repo_mirror_gap
 )
 print("\nOK" if not blocking else "\nISSUES FOUND (unresolved links, orphans & overlap candidates are warnings)")
 sys.exit(1 if blocking else 0)

@@ -332,6 +332,7 @@ def assert_clean_lint(lint_output: str) -> None:
     assert "Invalid domain: 0" in lint_output
     assert "Domain map errors: 0" in lint_output
     assert "Mirror config errors: 0" in lint_output
+    assert "Repo config errors: 0" in lint_output
     assert "Domain/folder mismatch: 0" in lint_output
     assert "Account/client mismatch: 0" in lint_output
     assert "Mirror layout errors: 0" in lint_output
@@ -340,6 +341,7 @@ def assert_clean_lint(lint_output: str) -> None:
     assert "Orphan notes (no inbound links): 0" in lint_output
     assert "Potential duplicate/overlap notes: 0" in lint_output
     assert "Office files without a mirror: 0" in lint_output
+    assert "Configured repos without a mirror: 0" in lint_output
 
 
 def run_vaultwright(vault: Path, command: str) -> subprocess.CompletedProcess[str]:

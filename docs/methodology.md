@@ -72,11 +72,11 @@ So Vaultwright optimizes for *fewer, better-connected, current* notes:
 4. **Human-gated promotion.** Agent-drafted notes start as `draft`; a human promotes them to
    `active`. (LLMs hallucinate; the vault must not silently fill with unverified notes.)
 5. **The linter enforces the basics.** `lint_vault.py` blocks missing required frontmatter, invalid
-   type/status values, missing Office mirrors, and stale generated mirrors whose source/repo
-   evidence or manifest lifecycle state prove the mirror is unsafe to rely on. It reports
-   unresolved links, orphans, and likely note overlap as warnings. `_meta/lint-config.yml` exposes
-   overlap thresholds for pilot calibration; defaults are conservative until real corpora prove
-   better values.
+   type/status values, missing Office mirrors, configured repo entries without a generated mirror,
+   and stale generated mirrors whose source/repo evidence or manifest lifecycle state prove the
+   mirror is unsafe to rely on. It reports unresolved links, orphans, and likely note overlap as
+   warnings. `_meta/lint-config.yml` exposes overlap thresholds for pilot calibration; defaults
+   are conservative until real corpora prove better values.
 
 Most agent-wiki projects happily spawn notes. Disciplined restraint is a deliberate edge.
 
