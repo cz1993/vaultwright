@@ -106,9 +106,10 @@ pre-release work.
 
 ## License
 
-Pre-release licensing intent is AGPL-3.0 for the open core, with a separate **commercial license**
-for enterprise/closed use, and consulting available. The full AGPL text and commercial terms still
-need to be finalized before public release; see [`LICENSE`](LICENSE) and [`LICENSING.md`](LICENSING.md).
+Vaultwright is licensed under the GNU Affero General Public License v3.0 or later for the open
+core, with a separate **commercial license** planned for enterprise/closed use and consulting.
+`LICENSE` contains the full AGPL-3.0 text; commercial terms and contribution policy still require
+owner/counsel finalization before accepting outside contributions. See [`LICENSING.md`](LICENSING.md).
 "Vaultwright" is a trademark — see [`TRADEMARK.md`](TRADEMARK.md).
 
 ## Credits

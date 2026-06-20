@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """
 lint_vault.py — health check for a Vaultwright knowledge base.
 

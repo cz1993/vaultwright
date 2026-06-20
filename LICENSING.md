@@ -1,7 +1,8 @@
 # Licensing & commercial model
 
 > **Not legal advice.** This documents the *intended* model so you can brief an IP lawyer and
-> finalize it before any public release. The author is not a lawyer.
+> finalize commercial/contribution terms before accepting outside contributions or selling
+> enterprise licenses. The author is not a lawyer.
 
 ## Goals (from the project owner)
 
@@ -68,8 +69,8 @@ you want to keep commercial dual-licensing clean. Consider assigning copyright t
 
 ## TODO before launch
 
-- [ ] Vendor the full AGPL-3.0 text into `LICENSE` (see the banner in that file).
+- [x] Vendor the full AGPL-3.0 text into `LICENSE`.
 - [ ] Decide CLA vs DCO with counsel; wire up CLA Assistant if CLA.
 - [ ] Register/secure the "Vaultwright" mark; confirm name availability.
 - [ ] Draft the commercial license agreement + pricing tiers (what counts as "at scale").
-- [ ] Add SPDX headers (`SPDX-License-Identifier: AGPL-3.0-or-later`) to source files.
+- [x] Add SPDX headers (`SPDX-License-Identifier: AGPL-3.0-or-later`) to source files.

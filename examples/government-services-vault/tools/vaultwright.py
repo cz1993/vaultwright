@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Thin operator CLI for a Vaultwright vault.
 
 This wrapper intentionally delegates to the existing tools so the operator commands do not fork

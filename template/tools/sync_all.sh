@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-or-later
 # Refresh every knowledge-base mirror (Office files + GitHub repos), then run the linter.
 # Built for one unattended cron/launchd job on the machine that holds the vault.
 # Auth for private repos must be available to this environment (gh auth / GH_TOKEN).

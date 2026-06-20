@@ -8,7 +8,13 @@ version = "0.1.0a0"
 description = "Governed document-to-knowledge lifecycle tooling for local Vaultwright vaults."
 readme = "README.md"
 requires-python = ">=3.11"
+license = { file = "LICENSE" }
 authors = [{ name = "cz1993" }]
+classifiers = [
+  "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+]
 dependencies = [
   "markitdown[docx,pptx,xlsx,pdf]>=0.1.0",
   "pyyaml>=6.0",

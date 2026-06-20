@@ -60,8 +60,9 @@ section as the active execution trigger until it is resolved.
 - The no-data guard must exist as code and be used by CI and a pre-commit hook.
 - Add a focused pytest suite and GitHub Actions CI for the core scripts.
 - Align docs with implemented behavior: do not claim duplicate/overlap linting until it exists.
-- Resolve license readiness before public release: vendor the full AGPL text, move custom notices to
-  `NOTICE`, add SPDX headers, and decide CLA vs DCO with counsel.
+- Continue license readiness: the full AGPL text is vendored, project-specific notices live in
+  `NOTICE`, and source headers use SPDX; CLA vs DCO, trademark clearance, and commercial terms still
+  require owner/counsel decisions before outside contributions or enterprise licensing.
 
 **Priority execution plan**
 1. Create a P0 feature branch and configure local git identity as `cz1993`.
@@ -161,7 +162,9 @@ not broad industry expansion. Prove the narrow promise first:
 - The **no-data** safeguards: `.gitignore` hardening, pre-commit hook, CI scan (see Guidance #1).
 - **Test suite** (pytest) for the three tools — idempotency, sentinel/curation preservation,
   frontmatter merge, lint rules, repo-mirror stub vs populated — with fixtures. **GitHub Actions CI.**
-- Vendor the full **AGPL-3.0** text into `LICENSE` (`curl -o LICENSE https://www.gnu.org/licenses/agpl-3.0.txt`, then restore the copyright/commercial header in `NOTICE`); add `SPDX-License-Identifier: AGPL-3.0-or-later` headers to source files.
+- Keep licensing metadata current: `LICENSE` must remain the verbatim AGPL-3.0 text, project
+  notices stay in `NOTICE`, source files keep `SPDX-License-Identifier: AGPL-3.0-or-later`, and
+  CLA vs DCO/commercial terms remain owner-counsel decisions.
 
 **P1 — differentiators**
 - **Mirror robustness:** optional **docling** backend for high-fidelity PDF; richer manifest audit
@@ -199,5 +202,6 @@ not broad industry expansion. Prove the narrow promise first:
 1. Read the files listed above; run the **no-data scan** and confirm the tree is clean.
 2. Confirm **tests + CI + the no-data guard** remain green.
 3. Work the P0 lifecycle/CLI sequence before adding broad examples or industry profiles.
-4. Vendor the AGPL text; add SPDX headers.
+4. Check the remaining licensing decisions in `LICENSING.md`; do not accept outside contributions
+   until the owner decides CLA vs DCO with counsel.
 5. Open PRs, request review (Claude/CodeX), iterate. Keep going.

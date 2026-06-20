@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-or-later
 # Bootstrap a new Vaultwright knowledge base from template/.
 # Usage: bash scripts/init.sh <target-dir>
 set -euo pipefail

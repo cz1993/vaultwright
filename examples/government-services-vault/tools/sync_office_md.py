@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """
 sync_office_md.py — keep markdown mirrors of Office files in sync.
 

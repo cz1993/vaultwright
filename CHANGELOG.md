@@ -31,6 +31,9 @@ Initial scaffold extracted and generalized from a real small-business vault.
   `examples/government-services-vault/_meta/agent-readiness-tasks.yml`.
 - Added `tools/benchmark_tasks.py` and `vaultwright benchmark` to validate agent-readiness task
   packs before and after generated mirrors exist.
+- Vendored the full AGPL-3.0 license text into `LICENSE`, kept project-specific licensing notices
+  in `NOTICE`, and added SPDX headers to source/tool/test files.
+- Added a test gate to keep SPDX headers present on Python and shell source files.
 - Added `docs/PRODUCT.md`, `docs/SYNC_SPEC.md`, and `docs/SECURITY_MODEL.md` to narrow the first
   product promise and define release-critical lifecycle/security contracts.
 - Office mirror sync now supports non-mutating `--plan` and manifest-backed `--status` reporting,
@@ -150,8 +153,7 @@ Initial scaffold extracted and generalized from a real small-business vault.
 - No-data scanning now blocks force-staged Python packaging artifacts such as `*.egg-info/`,
   `build/`, and `dist/`.
 
-### Known TODO before public release
-- Vendor the full AGPL-3.0 text into `LICENSE`.
+### Known TODO before release hardening
 - Decide CLA vs DCO; secure the "Vaultwright" name; draft the commercial agreement.
 - Harden distribution packaging for the `vaultwright` CLI (see `cli/README.md`).
 - Calibrate near-duplicate/overlap thresholds with design-partner corpora.

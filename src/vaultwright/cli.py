@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Installable Vaultwright console entry point.
 
 The packaged command delegates plan/sync/status/lint/doctor to the target vault's local

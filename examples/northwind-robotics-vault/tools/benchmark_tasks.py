@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Validate and summarize Vaultwright agent-readiness benchmark task packs."""
 from __future__ import annotations
 

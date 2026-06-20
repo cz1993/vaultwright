@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """
 sync_github_repos.py — keep markdown mirrors of GitHub repos in the knowledge base.
 

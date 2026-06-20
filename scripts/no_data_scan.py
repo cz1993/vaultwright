@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Fail on likely secrets, credentials, PII, or unsafe data files.
 
 The scanner is intentionally conservative and dependency-free. It is not a
