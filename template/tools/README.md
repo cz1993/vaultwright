@@ -6,9 +6,10 @@ These keep your knowledge base current and healthy. See `../CLAUDE.md` §6 for t
 | --- | --- |
 | `sync_office_md.py` | markdown **mirror** under `_mirrors/` for every `.docx/.pptx/.xlsx` (Microsoft markitdown), refreshed on content change |
 | `sync_github_repos.py` | markdown **mirror** under `80_sources/repos/` for each repo in `repos.yml` (README + docs + metadata), refreshed on HEAD change |
-| `vaultwright.py` | thin operator wrapper: `plan`, `sync`, `status`, `lint`, `benchmark`, `doctor`, and repo-root `init` |
+| `vaultwright.py` | thin operator wrapper: `plan`, `sync`, `status`, `recovery`, `lint`, `benchmark`, `doctor`, and repo-root `init` |
 | `lint_vault.py` | health check — frontmatter, broken wikilinks, orphans, overlap warnings, mirror gaps |
 | `benchmark_tasks.py` | validates `_meta/agent-readiness-tasks.yml` benchmark packs and referenced source/mirror paths |
+| `recovery_report.py` | prints a read-only recovery checklist from source/repo manifest lifecycle states |
 | `sync_all.sh` | run both syncs + the linter (for a cron/launchd job) |
 
 ## Install
@@ -26,6 +27,7 @@ For the operator workflow, prefer:
 python3.11 tools/vaultwright.py plan
 python3.11 tools/vaultwright.py sync
 python3.11 tools/vaultwright.py status
+python3.11 tools/vaultwright.py recovery
 python3.11 tools/vaultwright.py lint
 python3.11 tools/vaultwright.py benchmark
 python3.11 tools/vaultwright.py doctor
@@ -35,6 +37,10 @@ python3.11 tools/vaultwright.py doctor
 manifest lifecycle counts, sync audit presence, git backup posture, and GitHub auth posture. A fresh
 vault may warn that manifests, audit logs, or repo config are not generated yet; those warnings are
 preflight context, not sync failures.
+
+`recovery` is also read-only. It reads `_meta/source-manifest.json` and `_meta/repo-manifest.json`
+and prints only records that need operator action, such as missing sources, manual generated-region
+edits, conflicts, unreachable repos, missing mirrors, or error states.
 
 ```bash
 python3.11 tools/sync_office_md.py              # sync the whole vault

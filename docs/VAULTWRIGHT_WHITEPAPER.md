@@ -342,7 +342,7 @@ Professional-services use should begin with a conservative operating model:
 | Mirror storage | Office mirrors and optional text-based PDF mirrors live under `_mirrors/` | Fixes messy source-folder problem |
 | Office sync | Plan/sync/status, manifest, audit events, manual-edit detection, lifecycle next-action guidance | Useful alpha foundation |
 | Repo sync | Plan/sync/status, repo manifest, audit events, manual-edit detection, lifecycle next-action guidance | Useful for code/source repositories |
-| CLI | Vault-local wrapper and source-installable `vaultwright` entry point; doctor reports dependency, manifest, audit, git, and GitHub-auth posture | Better operator ergonomics; distribution packaging not final |
+| CLI | Vault-local wrapper and source-installable `vaultwright` entry point; doctor reports dependency, manifest, audit, git, and GitHub-auth posture; recovery prints read-only manifest action checklists | Better operator ergonomics; distribution packaging not final |
 | Examples | Government-services showcase plus Northwind regression fixture | Better demo plus stable tests |
 | Provenance | Public fixture ledger with source URLs, licence posture, and review date | Good discipline; must be maintained |
 | Safety | No-data scanner, pre-commit hook, CI checks | Strong for repository hygiene |
@@ -422,6 +422,7 @@ Deliverables:
 - government-services example aligned to business registration, GST/HST, account access, and
   funding/support;
 - detailed white paper for consulting review;
+- read-only manifest recovery checklist;
 - local validation of tests, linting, no-data scan, and generated-output residue;
 - no-context strict reviewer pass over the uncommitted worktree;
 - changelog and docs aligned with actual behavior.
@@ -440,7 +441,7 @@ Deliverables:
 
 - packaged install path that does not depend on source-checkout assumptions;
 - continued `doctor` expansion for Obsidian/plugin and backup-recovery checks;
-- deeper lifecycle recovery UX beyond current next-action guidance;
+- deeper lifecycle recovery UX beyond current read-only recovery checklist;
 - dry-run migration report for legacy folder layouts;
 - conversion spot-check guide;
 - pilot worksheet based on `docs/DESIGN_PARTNER_PROTOCOL.md`;

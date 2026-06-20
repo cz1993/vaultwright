@@ -98,6 +98,12 @@ def build_parser() -> argparse.ArgumentParser:
         func=command_delegate,
         delegate_args=lambda args: ["--require-generated"] if args.require_generated else [],
     )
+    recovery = sub.add_parser("recovery", help="Print a read-only manifest recovery checklist.")
+    recovery.add_argument("--json", action="store_true", help="Print machine-readable recovery JSON.")
+    recovery.set_defaults(
+        func=command_delegate,
+        delegate_args=lambda args: ["--json"] if args.json else [],
+    )
     return parser
 
 

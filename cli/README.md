@@ -12,6 +12,7 @@ Current wrapper commands:
 | `python3.11 tools/vaultwright.py plan` | inventory source files and proposed mirror actions without writing |
 | `python3.11 tools/vaultwright.py sync` | run the Office + GitHub repo mirror syncs |
 | `python3.11 tools/vaultwright.py status` | report manifest-backed clean, stale, missing, conflicted, and unsupported states |
+| `python3.11 tools/vaultwright.py recovery` | print a read-only recovery checklist from source/repo manifests |
 | `python3.11 tools/vaultwright.py lint` | run the vault health check |
 | `python3.11 tools/vaultwright.py benchmark` | validate `_meta/agent-readiness-tasks.yml`; add `--require-generated` after sync |
 | `python3.11 tools/vaultwright.py doctor` | read-only preflight for required files/tools, Python dependencies, manifest lifecycle counts, sync audit presence, git backup posture, and GitHub auth posture |
@@ -25,6 +26,7 @@ For source/development installs:
 python3.11 -m pip install -e .
 vaultwright --root ~/client-vault plan
 vaultwright --root ~/client-vault benchmark
+vaultwright --root ~/client-vault recovery
 vaultwright init ~/new-vault
 ```
 

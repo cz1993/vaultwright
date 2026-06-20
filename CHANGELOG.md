@@ -47,6 +47,8 @@ Initial scaffold extracted and generalized from a real small-business vault.
   delegates to vault-local tools instead of forking sync/lint behavior.
 - `vaultwright doctor` now reports manifest lifecycle counts, sync audit presence, git backup
   posture, and GitHub auth posture as read-only preflight context.
+- Added `tools/recovery_report.py` and `vaultwright recovery`, a read-only recovery checklist for
+  non-clean source/repo manifest records and missing generated paths.
 - GitHub repo sync now supports non-mutating `--plan` and manifest-backed `--status` reporting,
   and writes `_meta/repo-manifest.json` with stable repo IDs, configured/resolved repo, note path,
   local-tree or remote-HEAD hash, lifecycle state, warnings, and last successful sync.

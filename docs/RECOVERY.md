@@ -44,6 +44,7 @@ the new complete mirror. After interruption:
 
 ```bash
 python3.11 tools/vaultwright.py status
+python3.11 tools/vaultwright.py recovery
 python3.11 tools/vaultwright.py sync
 python3.11 tools/vaultwright.py lint
 ```
@@ -59,6 +60,27 @@ are treated as review-required, and `--force` will not accept them as clean. If 
 is valid, preserve curated notes above it and regenerate from the original source. If the sentinel is
 missing or altered, restore the mirror from backup or remove the untrusted mirror after preserving
 any known-curated notes elsewhere, then regenerate from the source.
+
+## Recovery Report
+
+Use the read-only recovery report before changing files:
+
+```bash
+python3.11 tools/vaultwright.py recovery
+python3.11 tools/vaultwright.py recovery --json
+```
+
+The report reads `_meta/source-manifest.json` and `_meta/repo-manifest.json`, then lists only records
+that need operator action. It does not move, delete, regenerate, or archive anything. Treat it as a
+triage checklist for:
+
+- `source_missing`, `source_moved`, `manual_modification`, `conflict`, and `error` Office records;
+- missing generated mirror paths;
+- `unreachable`, `repo_changed`, `manual_modification`, `conflict`, and `error` repo records;
+- missing repo mirror notes.
+
+If a manifest is missing, restore it from backup when possible. Without manifest evidence,
+Vaultwright cannot safely prove whether an existing generated region is pristine.
 
 ## Recover From Bad Generated Output
 
@@ -103,6 +125,7 @@ Before public release, recovery must be tested on a copied vault:
 - interrupt sync and rerun;
 - remove one source and verify `source_missing`;
 - edit a generated region and verify `manual_modification`;
+- run `tools/vaultwright.py recovery` and verify the checklist matches the manifest states;
 - restore a curated note from Git;
 - run no-data scan and lint after recovery.
 

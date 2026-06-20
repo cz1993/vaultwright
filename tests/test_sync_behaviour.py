@@ -60,6 +60,7 @@ def test_vaultwright_cli_doctor_passes_on_template() -> None:
     assert "info: sync-audit.jsonl: not generated yet" in result.stdout
     assert "GitHub auth:" in result.stdout
     assert (ROOT / "template/tools/benchmark_tasks.py").exists()
+    assert (ROOT / "template/tools/recovery_report.py").exists()
 
 
 def test_vaultwright_cli_doctor_reports_manifest_lifecycle_counts(tmp_path: Path) -> None:
@@ -158,6 +159,17 @@ def test_packaged_vaultwright_cli_delegates_to_target_vault(tmp_path: Path) -> N
     assert benchmark.returncode == 0, benchmark.stderr or benchmark.stdout
     assert "benchmark validation skipped" in benchmark.stdout
 
+    recovery = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "recovery"],
+        cwd=ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert recovery.returncode == 0, recovery.stderr or recovery.stdout
+    assert "recovery: no manifest records need operator action" in recovery.stdout
+
 
 def test_packaged_vaultwright_cli_init_from_source_checkout(tmp_path: Path) -> None:
     target = tmp_path / "new-vault"
@@ -180,6 +192,82 @@ def test_repos_example_has_no_active_placeholder_repo() -> None:
     cfg = yaml.safe_load((ROOT / "template/tools/repos.example.yml").read_text(encoding="utf-8"))
 
     assert cfg["repos"] == []
+
+
+def test_vaultwright_recovery_reports_manifest_actions(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    source = vault / "40_delivery" / "registration.docx"
+    mirror = vault / "_mirrors" / "40_delivery" / "registration.md"
+    note = vault / "80_sources" / "repos" / "fixture.md"
+    source.parent.mkdir(parents=True, exist_ok=True)
+    mirror.parent.mkdir(parents=True, exist_ok=True)
+    note.parent.mkdir(parents=True, exist_ok=True)
+    source.write_bytes(b"office bytes")
+    mirror.write_text("Generated mirror\n", encoding="utf-8")
+    note.write_text("Generated repo mirror\n", encoding="utf-8")
+    (vault / "_meta" / "source-manifest.json").write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "records": [
+                    {
+                        "source_id": "src-clean",
+                        "current_source_path": "40_delivery/registration.docx",
+                        "mirror_path": "_mirrors/40_delivery/registration.md",
+                        "lifecycle_state": "clean",
+                    },
+                    {
+                        "source_id": "src-missing",
+                        "current_source_path": "40_delivery/missing.docx",
+                        "mirror_path": "_mirrors/40_delivery/missing.md",
+                        "lifecycle_state": "source_missing",
+                    },
+                    {
+                        "source_id": "src-manual",
+                        "current_source_path": "40_delivery/registration.docx",
+                        "mirror_path": "_mirrors/40_delivery/registration.md",
+                        "lifecycle_state": "manual_modification",
+                        "warnings": ["Generated region hash changed."],
+                    },
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (vault / "_meta" / "repo-manifest.json").write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "records": [
+                    {
+                        "repo_id": "repo-conflict",
+                        "configured_repo": "local/fixture",
+                        "note_path": "80_sources/repos/fixture.md",
+                        "lifecycle_state": "conflict",
+                        "errors": ["Target note belongs to another repo_id."],
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "vaultwright.py"), "recovery"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+    assert "recovery: 3 items need operator action (office=2, repo=1)" in result.stdout
+    assert "[office:source_missing" in result.stdout
+    assert "Locate, restore, or intentionally archive the source" in result.stdout
+    assert "[office:manual_modification" in result.stdout
+    assert "Preserve human edits below the sentinel" in result.stdout
+    assert "[repo:conflict" in result.stdout
+    assert "Resolve the target note/repo identity conflict" in result.stdout
 
 
 def test_github_sync_skips_missing_default_config(tmp_path: Path) -> None:

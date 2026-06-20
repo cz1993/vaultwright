@@ -1,0 +1,218 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: AGPL-3.0-or-later
+"""Print a read-only recovery checklist from Vaultwright manifests."""
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parent.parent
+SOURCE_MANIFEST = Path("_meta/source-manifest.json")
+REPO_MANIFEST = Path("_meta/repo-manifest.json")
+CLEAN_STATES = {"clean", "reviewed"}
+SOURCE_EXTS = {".docx", ".pptx", ".xlsx", ".doc", ".pdf"}
+EXCLUDED_PARTS = {"_mirrors", "_templates", "_tmp", "tools", "node_modules", ".git"}
+
+OFFICE_ACTIONS = {
+    "planned": "Run plan review, then sync to create the generated mirror.",
+    "source_changed": "Run sync to refresh the generated region, then review linked curated notes.",
+    "source_moved": "Confirm the move is intentional, then run sync to update the mirror path.",
+    "stale": "Run sync before relying on the mirror; the source or configuration is newer.",
+    "converter_changed": "Review conversion quality, then sync if the new converter output is acceptable.",
+    "unsupported": "Keep the original as source of truth; convert manually or use a supported format.",
+    "source_missing": "Locate, restore, or intentionally archive the source before changing the retained mirror.",
+    "manual_modification": "Preserve human edits below the sentinel before forcing regeneration.",
+    "conflict": "Resolve the mirror/source identity conflict before syncing.",
+    "error": "Fix the reported error, then rerun plan/status before syncing.",
+}
+
+REPO_ACTIONS = {
+    "planned": "Run plan review, then sync to create the repo mirror.",
+    "repo_changed": "Run sync to refresh README/docs/metadata, then review curated notes.",
+    "stale": "Run sync before relying on the mirror; the repo or configuration is newer.",
+    "unreachable": "Check repo spelling, network access, and GitHub auth; existing mirror content is retained.",
+    "manual_modification": "Preserve human edits below the sentinel before forcing regeneration.",
+    "conflict": "Resolve the target note/repo identity conflict before syncing.",
+    "error": "Fix the reported error, then rerun plan/status before syncing.",
+}
+
+
+def rel_exists(root: Path, value: object) -> bool | None:
+    if not isinstance(value, str) or not value.strip():
+        return None
+    path = Path(value)
+    if path.is_absolute() or ".." in path.parts:
+        return None
+    return (root / path).exists()
+
+
+def load_manifest(root: Path, rel: Path) -> tuple[list[dict], list[str]]:
+    path = root / rel
+    if not path.exists():
+        return [], []
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        return [], [f"{rel.as_posix()}: invalid JSON ({exc.__class__.__name__})"]
+    records = data.get("records", [])
+    if not isinstance(records, list):
+        return [], [f"{rel.as_posix()}: records must be a list"]
+    bad = sum(1 for record in records if not isinstance(record, dict))
+    errors = [f"{rel.as_posix()}: {bad} records are not objects"] if bad else []
+    return [record for record in records if isinstance(record, dict)], errors
+
+
+def has_source_evidence(root: Path) -> bool:
+    for path in root.rglob("*"):
+        if not path.is_file() or path.is_symlink():
+            continue
+        try:
+            rel = path.relative_to(root)
+        except ValueError:
+            continue
+        if any(part in EXCLUDED_PARTS for part in rel.parts):
+            continue
+        if path.suffix.lower() in SOURCE_EXTS:
+            return True
+    return False
+
+
+def has_repo_evidence(root: Path) -> bool:
+    repo_notes = root / "80_sources" / "repos"
+    if repo_notes.exists() and any(repo_notes.glob("*.md")):
+        return True
+    repos_yml = root / "tools" / "repos.yml"
+    if not repos_yml.exists():
+        return False
+    for line in repos_yml.read_text(encoding="utf-8", errors="ignore").splitlines():
+        stripped = line.split("#", 1)[0].strip()
+        if stripped.startswith("- repo:"):
+            return True
+    return False
+
+
+def office_item(root: Path, record: dict) -> dict | None:
+    state = str(record.get("lifecycle_state", "unknown"))
+    source_path = record.get("current_source_path") or record.get("source_path") or record.get("source")
+    mirror_path = record.get("mirror_path")
+    source_exists = rel_exists(root, source_path)
+    mirror_exists = rel_exists(root, mirror_path)
+    reasons: list[str] = []
+    if state not in CLEAN_STATES:
+        reasons.append(f"state={state}")
+    if source_exists is False:
+        reasons.append("source path missing")
+    if mirror_exists is False and state != "planned":
+        reasons.append("mirror path missing")
+    if not reasons:
+        return None
+    return {
+        "kind": "office",
+        "id": record.get("source_id", ""),
+        "state": state,
+        "source": source_path or "",
+        "target": mirror_path or "",
+        "source_exists": source_exists,
+        "target_exists": mirror_exists,
+        "reasons": reasons,
+        "action": OFFICE_ACTIONS.get(state, "Review the manifest record, then rerun plan/status before syncing."),
+        "warnings": record.get("warnings") if isinstance(record.get("warnings"), list) else [],
+        "errors": record.get("errors") if isinstance(record.get("errors"), list) else [],
+    }
+
+
+def repo_item(root: Path, record: dict) -> dict | None:
+    state = str(record.get("lifecycle_state", "unknown"))
+    note_path = record.get("note_path")
+    note_exists = rel_exists(root, note_path)
+    reasons: list[str] = []
+    if state not in CLEAN_STATES:
+        reasons.append(f"state={state}")
+    if note_exists is False and state != "planned":
+        reasons.append("repo mirror note missing")
+    if not reasons:
+        return None
+    return {
+        "kind": "repo",
+        "id": record.get("repo_id", ""),
+        "state": state,
+        "source": record.get("configured_repo") or record.get("resolved_repo") or "",
+        "target": note_path or "",
+        "source_exists": None,
+        "target_exists": note_exists,
+        "reasons": reasons,
+        "action": REPO_ACTIONS.get(state, "Review the manifest record, then rerun plan/status before syncing."),
+        "warnings": record.get("warnings") if isinstance(record.get("warnings"), list) else [],
+        "errors": record.get("errors") if isinstance(record.get("errors"), list) else [],
+    }
+
+
+def build_report(root: Path) -> tuple[list[dict], list[str], list[str]]:
+    errors: list[str] = []
+    warnings: list[str] = []
+    items: list[dict] = []
+    source_records, source_errors = load_manifest(root, SOURCE_MANIFEST)
+    repo_records, repo_errors = load_manifest(root, REPO_MANIFEST)
+    errors.extend(source_errors)
+    errors.extend(repo_errors)
+    if not source_records and not (root / SOURCE_MANIFEST).exists() and has_source_evidence(root):
+        warnings.append(f"{SOURCE_MANIFEST.as_posix()} not found; run sync/status or restore it from backup.")
+    if not repo_records and not (root / REPO_MANIFEST).exists() and has_repo_evidence(root):
+        warnings.append(f"{REPO_MANIFEST.as_posix()} not found; repo recovery has no manifest evidence yet.")
+    for record in source_records:
+        item = office_item(root, record)
+        if item:
+            items.append(item)
+    for record in repo_records:
+        item = repo_item(root, record)
+        if item:
+            items.append(item)
+    return items, warnings, errors
+
+
+def print_human(root: Path, items: list[dict], warnings: list[str], errors: list[str]) -> None:
+    print(f"vaultwright recovery: {root}")
+    for warning in warnings:
+        print(f"  warning: {warning}")
+    for error in errors:
+        print(f"  error: {error}", file=sys.stderr)
+    if errors:
+        return
+    if not items:
+        print("recovery: no manifest records need operator action")
+        return
+    office_count = sum(1 for item in items if item["kind"] == "office")
+    repo_count = sum(1 for item in items if item["kind"] == "repo")
+    print(f"recovery: {len(items)} items need operator action (office={office_count}, repo={repo_count})")
+    for item in items:
+        label = f"{item['kind']}:{item['state']}"
+        print(f"  [{label:<28}] {item['source']} -> {item['target']}")
+        print(f"    reasons: {', '.join(item['reasons'])}")
+        print(f"    action: {item['action']}")
+        for warning in item["warnings"][:3]:
+            print(f"    warning: {warning}")
+        for error in item["errors"][:3]:
+            print(f"    error: {error}")
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Print a read-only Vaultwright recovery checklist.")
+    parser.add_argument("--json", action="store_true", help="Print machine-readable recovery JSON.")
+    return parser
+
+
+def main() -> int:
+    args = build_parser().parse_args()
+    items, warnings, errors = build_report(ROOT)
+    if args.json:
+        print(json.dumps({"root": str(ROOT), "items": items, "warnings": warnings, "errors": errors}, indent=2, sort_keys=True))
+    else:
+        print_human(ROOT, items, warnings, errors)
+    return 1 if errors else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

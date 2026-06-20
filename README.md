@@ -82,6 +82,7 @@ python3.11 -m pip install -r tools/requirements.txt  # markitdown + pyyaml
 python3.11 tools/vaultwright.py plan                 # inspect proposed mirror actions first
 python3.11 tools/vaultwright.py sync                 # mirror Office files and configured repos
 python3.11 tools/vaultwright.py status               # review manifest-backed lifecycle state
+python3.11 tools/vaultwright.py recovery             # read-only recovery checklist from manifests
 python3.11 tools/vaultwright.py benchmark            # validate agent-readiness task pack, if present
 # edit tools/repos.yml, then:
 python3.11 tools/sync_github_repos.py                # mirror your GitHub repos
