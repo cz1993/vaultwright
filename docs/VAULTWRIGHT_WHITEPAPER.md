@@ -342,7 +342,7 @@ Professional-services use should begin with a conservative operating model:
 | Mirror storage | Office mirrors and optional text-based PDF mirrors live under `_mirrors/` | Fixes messy source-folder problem |
 | Office sync | Plan/sync/status, manifest, audit events, manual-edit detection, lifecycle next-action guidance | Useful alpha foundation |
 | Repo sync | Plan/sync/status, repo manifest, audit events, manual-edit detection, lifecycle next-action guidance | Useful for code/source repositories |
-| CLI | Vault-local wrapper and source-installable `vaultwright` entry point; CI now installs the built wheel and verifies packaged init, doctor, plan, benchmark, migration, and JSON recovery delegation; doctor reports dependency, manifest, audit, recovery-action counts, git, and GitHub-auth posture; migration and recovery print read-only operator checklists | Better operator ergonomics; tagged release publishing still needs hardening |
+| CLI | Vault-local wrapper and source-installable `vaultwright` entry point; CI now installs the built wheel and verifies packaged init, doctor, plan, benchmark, conversion, migration, and JSON recovery delegation; doctor reports dependency, manifest, audit, recovery-action counts, git, and GitHub-auth posture; conversion, migration, and recovery print read-only operator checklists | Better operator ergonomics; tagged release publishing still needs hardening |
 | Examples | Government-services showcase plus Northwind regression fixture | Better demo plus stable tests |
 | Provenance | Public fixture ledger with source URLs, licence posture, and review date | Good discipline; must be maintained |
 | Safety | No-data scanner, pre-commit hook, CI checks | Strong for repository hygiene |
@@ -355,11 +355,12 @@ Current evidence is encouraging but limited.
 
 | Evidence | Current result | Interpretation |
 | --- | --- | --- |
-| Unit/integration tests | 103 tests passing locally on 2026-06-20 | Good engineering baseline; not product validation |
+| Unit/integration tests | Current pytest suite passing locally and in CI on 2026-06-20 | Good engineering baseline; not product validation |
 | Template lint | Clean in prior validation | Template schema is internally consistent |
 | Example regeneration | Northwind and government examples regenerate in temp copies | CI can verify mirrors without committing generated residue |
 | Government showcase | Canadian business registration, GST/HST, CRA account, and funding/support fixtures | Better demonstration of a consulting-relevant pain point |
 | Office source manifest | Stable source IDs, hashes, mirror paths, lifecycle states, audit events, missing/manual-edit detection | Important lifecycle foundation, not finished operator UX |
+| Conversion spot-check report | Read-only manifest report prioritizes high/medium/low conversion review items from states, warnings, errors, formats, and source/mirror existence | Useful pilot checklist; not a quantitative conversion-quality score |
 | Repo source manifest | Stable repo IDs, local-tree/remote-HEAD hashes, audit events, manual-edit detection | Useful coverage for repo mirrors |
 | Source-installable CLI | Console entry point delegates to vault-local tools and supports source-checkout `init` | Good development ergonomics |
 | Private dogfood | Small copied corpus produced mirrors without source-folder clutter | Useful smoke test only |
@@ -368,7 +369,8 @@ Known gaps:
 
 - No external design partner has completed the workflow.
 - No benchmark covers hundreds or thousands of mixed client files.
-- No quantitative conversion-quality score exists yet.
+- No quantitative conversion-quality score exists yet; the current conversion report is a
+  conservative checklist, not automated quality measurement.
 - No retrieval task measures before/after usefulness.
 - No benchmark yet proves that AI agents perform better against Vaultwright-generated markdown than
   against raw source folders or ad hoc document-chat outputs; `docs/AGENT_READINESS_BENCHMARK.md`
@@ -443,7 +445,7 @@ Deliverables:
 - continued `doctor` expansion for Obsidian/plugin checks and deeper backup posture;
 - deeper lifecycle recovery UX beyond current read-only recovery checklist;
 - pilot-calibrated migration runbooks for legacy folder layouts;
-- conversion spot-check guide;
+- conversion spot-check report plus operator guide;
 - pilot worksheet based on `docs/DESIGN_PARTNER_PROTOCOL.md`;
 - sample statement-of-work outline for consulting delivery.
 
@@ -633,12 +635,13 @@ Experimental or partially defined:
 - Private dogfood on an existing corpus copy.
 - Government-services showcase as a public demo of advisory workflows.
 - Pilot-calibrated migration guidance for legacy folder/domain structures.
+- Quantitative conversion-quality scoring beyond the current read-only spot-check report.
 
 Roadmap:
 
 - Full lifecycle transitions for rename, move, stale, conflict, converter change, and recovery.
 - Distribution-quality `vaultwright` packaging.
-- Richer quantitative conversion-quality scoring.
+- Richer quantitative conversion-quality scoring beyond checklist-based spot checks.
 - Recovery tests and external design-partner execution.
 - Higher-fidelity PDF/spreadsheet extraction tiers.
 - Better similarity/overlap scoring calibrated by design-partner corpora.

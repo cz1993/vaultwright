@@ -75,6 +75,7 @@ def test_vaultwright_cli_doctor_passes_on_template() -> None:
     assert "info: recovery: no action items" in result.stdout
     assert "GitHub auth:" in result.stdout
     assert (ROOT / "template/tools/benchmark_tasks.py").exists()
+    assert (ROOT / "template/tools/conversion_report.py").exists()
     assert (ROOT / "template/tools/migration_report.py").exists()
     assert (ROOT / "template/tools/recovery_report.py").exists()
 
@@ -176,6 +177,18 @@ def test_packaged_vaultwright_cli_delegates_to_target_vault(tmp_path: Path) -> N
     assert benchmark.returncode == 0, benchmark.stderr or benchmark.stdout
     assert "benchmark validation skipped" in benchmark.stdout
 
+    conversion = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "conversion"],
+        cwd=ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert conversion.returncode == 0, conversion.stderr or conversion.stdout
+    assert "_meta/source-manifest.json: missing; run `vaultwright sync` first." in conversion.stdout
+    assert "conversion: no source-manifest records available for spot-checking" in conversion.stdout
+
     migration = subprocess.run(
         [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "migration"],
         cwd=ROOT,
@@ -245,6 +258,7 @@ def test_packaged_vaultwright_cli_init_from_packaged_template(tmp_path: Path) ->
     assert result.returncode == 0, result.stderr or result.stdout
     assert (target / "CLAUDE.md").exists()
     assert (target / ".gitignore").exists()
+    assert (target / "tools" / "conversion_report.py").exists()
     assert (target / "tools" / "migration_report.py").exists()
     assert (target / "tools" / "recovery_report.py").exists()
     assert (target / "tools" / "vaultwright.py").exists()
@@ -254,6 +268,256 @@ def test_repos_example_has_no_active_placeholder_repo() -> None:
     cfg = yaml.safe_load((ROOT / "template/tools/repos.example.yml").read_text(encoding="utf-8"))
 
     assert cfg["repos"] == []
+
+
+def test_vaultwright_conversion_report_prioritizes_spot_checks(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    source_manifest = vault / "_meta" / "source-manifest.json"
+    source_manifest.parent.mkdir(parents=True, exist_ok=True)
+
+    simple_source = vault / "40_delivery" / "simple.docx"
+    pdf_source = vault / "40_delivery" / "guidance.pdf"
+    stale_source = vault / "40_delivery" / "changed.docx"
+    legacy_source = vault / "40_delivery" / "legacy.doc"
+    sheet_source = vault / "60_finance" / "model.xlsx"
+    simple_mirror = vault / "_mirrors" / "40_delivery" / "simple.md"
+    pdf_mirror = vault / "_mirrors" / "40_delivery" / "guidance.md"
+    stale_mirror = vault / "_mirrors" / "40_delivery" / "changed.md"
+    legacy_mirror = vault / "_mirrors" / "40_delivery" / "legacy.md"
+    sheet_mirror = vault / "_mirrors" / "60_finance" / "model.md"
+    for path in (
+        simple_source,
+        pdf_source,
+        stale_source,
+        legacy_source,
+        sheet_source,
+        simple_mirror,
+        pdf_mirror,
+        stale_mirror,
+        legacy_mirror,
+        sheet_mirror,
+    ):
+        path.parent.mkdir(parents=True, exist_ok=True)
+    simple_source.write_bytes(b"docx bytes")
+    pdf_source.write_bytes(b"pdf bytes")
+    stale_source.write_bytes(b"changed docx bytes")
+    legacy_source.write_bytes(b"legacy doc bytes")
+    sheet_source.write_bytes(b"xlsx bytes")
+    simple_mirror.write_text("Simple mirror\n", encoding="utf-8")
+    pdf_mirror.write_text("PDF mirror\n", encoding="utf-8")
+    stale_mirror.write_text("Changed mirror\n", encoding="utf-8")
+    legacy_mirror.write_text("Legacy mirror\n", encoding="utf-8")
+    sheet_mirror.write_text("Sheet mirror\n", encoding="utf-8")
+    before_sources = {
+        path: path.read_bytes()
+        for path in (simple_source, pdf_source, stale_source, legacy_source, sheet_source)
+    }
+    before_mirrors = {
+        path: path.read_text(encoding="utf-8")
+        for path in (simple_mirror, pdf_mirror, stale_mirror, legacy_mirror, sheet_mirror)
+    }
+
+    source_manifest.write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "records": [
+                    {
+                        "source_id": "src-simple",
+                        "current_source_path": "40_delivery/simple.docx",
+                        "mirror_path": "_mirrors/40_delivery/simple.md",
+                        "source_format": "docx",
+                        "source_size": len(before_sources[simple_source]),
+                        "lifecycle_state": "clean",
+                        "warnings": [],
+                        "errors": [],
+                    },
+                    {
+                        "source_id": "src-pdf",
+                        "current_source_path": "40_delivery/guidance.pdf",
+                        "mirror_path": "_mirrors/40_delivery/guidance.md",
+                        "source_format": "pdf",
+                        "source_size": len(before_sources[pdf_source]),
+                        "lifecycle_state": "clean",
+                        "warnings": ["Conversion-quality risk: PDF text extraction may omit scanned pages."],
+                        "errors": [],
+                    },
+                    {
+                        "source_id": "src-stale",
+                        "current_source_path": "40_delivery/changed.docx",
+                        "mirror_path": "_mirrors/40_delivery/changed.md",
+                        "source_format": "docx",
+                        "source_size": len(before_sources[stale_source]),
+                        "lifecycle_state": "source_changed",
+                        "warnings": [],
+                        "errors": [],
+                    },
+                    {
+                        "source_id": "src-legacy",
+                        "current_source_path": "40_delivery/legacy.doc",
+                        "mirror_path": "_mirrors/40_delivery/legacy.md",
+                        "source_format": "doc",
+                        "source_size": len(before_sources[legacy_source]),
+                        "lifecycle_state": "unsupported",
+                        "warnings": ["Legacy .doc files are inventory-only; convert to .docx for reliable mirroring."],
+                        "errors": [],
+                    },
+                    {
+                        "source_id": "src-sheet",
+                        "current_source_path": "60_finance/model.xlsx",
+                        "mirror_path": "_mirrors/60_finance/model.md",
+                        "source_format": "xlsx",
+                        "source_size": len(before_sources[sheet_source]),
+                        "lifecycle_state": "conflict",
+                        "warnings": ["Conversion-quality risk: spreadsheet formulas and formatting require review."],
+                        "errors": ["Mirror frontmatter belongs to a different source_id."],
+                    },
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "vaultwright.py"), "conversion"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+    json_result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "vaultwright.py"), "conversion", "--json"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+    assert "conversion: read-only spot-check report; no files were changed" in result.stdout
+    assert "conversion: 5 manifest records (high=2, medium=2, low=1)" in result.stdout
+    assert "[high  ] 40_delivery/legacy.doc -> _mirrors/40_delivery/legacy.md" in result.stdout
+    assert "[high  ] 60_finance/model.xlsx -> _mirrors/60_finance/model.md" in result.stdout
+    assert "[medium] 40_delivery/changed.docx -> _mirrors/40_delivery/changed.md" in result.stdout
+    assert "[medium] 40_delivery/guidance.pdf -> _mirrors/40_delivery/guidance.md" in result.stdout
+    assert "[low   ] 40_delivery/simple.docx -> _mirrors/40_delivery/simple.md" in result.stdout
+    assert "Resolve lifecycle/recovery item before trusting the generated mirror." in result.stdout
+    assert "Refresh or review the mirror before relying on generated content." in result.stdout
+    assert "Spot-check headings, tables/slides/pages, omissions, and source links" in result.stdout
+
+    assert json_result.returncode == 0, json_result.stderr or json_result.stdout
+    report = json.loads(json_result.stdout)
+    assert report["summary"]["total"] == 5
+    assert report["summary"]["high"] == 2
+    assert report["summary"]["medium"] == 2
+    assert report["summary"]["low"] == 1
+    assert report["summary"]["formats"] == {"doc": 1, "docx": 2, "pdf": 1, "xlsx": 1}
+    by_id = {item["source_id"]: item for item in report["items"]}
+    assert by_id["src-sheet"]["priority"] == "high"
+    assert by_id["src-sheet"]["state"] == "conflict"
+    assert "Mirror frontmatter belongs to a different source_id." in by_id["src-sheet"]["reasons"]
+    assert by_id["src-stale"]["priority"] == "medium"
+    assert by_id["src-stale"]["state"] == "source_changed"
+    assert "state=source_changed" in by_id["src-stale"]["reasons"]
+    assert by_id["src-pdf"]["priority"] == "medium"
+    assert by_id["src-simple"]["priority"] == "low"
+    assert report["warnings"] == []
+    assert report["errors"] == []
+
+    assert {path: path.read_bytes() for path in before_sources} == before_sources
+    assert {path: path.read_text(encoding="utf-8") for path in before_mirrors} == before_mirrors
+
+
+def test_vaultwright_conversion_report_handles_invalid_inputs(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+
+    invalid_args = subprocess.run(
+        [sys.executable, str(vault / "tools" / "vaultwright.py"), "conversion", "--low-risk-per-format", "-1"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert invalid_args.returncode == 1
+    assert "--low-risk-per-format must be >= 0" in invalid_args.stderr
+
+    manifest = vault / "_meta" / "source-manifest.json"
+    manifest.write_text(json.dumps({"records": {}}), encoding="utf-8")
+    malformed = subprocess.run(
+        [sys.executable, str(vault / "tools" / "vaultwright.py"), "conversion"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+    malformed_json = subprocess.run(
+        [sys.executable, str(vault / "tools" / "vaultwright.py"), "conversion", "--json"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert malformed.returncode == 1
+    assert "_meta/source-manifest.json: records must be a list" in malformed.stderr
+    assert malformed_json.returncode == 1
+    report = json.loads(malformed_json.stdout)
+    assert report["items"] == []
+    assert report["summary"]["total"] == 0
+    assert report["errors"] == ["_meta/source-manifest.json: records must be a list"]
+
+    manifest.write_text(
+        json.dumps(
+            {
+                "records": [
+                    {
+                        "source_id": "src-unsafe",
+                        "current_source_path": "/tmp/outside.docx",
+                        "mirror_path": "../outside.md",
+                        "source_format": "docx",
+                        "source_size": 10,
+                        "lifecycle_state": "clean",
+                        "warnings": [],
+                        "errors": [],
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    unsafe = subprocess.run(
+        [
+            sys.executable,
+            str(vault / "tools" / "vaultwright.py"),
+            "conversion",
+            "--low-risk-per-format",
+            "0",
+        ],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+    unsafe_json = subprocess.run(
+        [
+            sys.executable,
+            str(vault / "tools" / "vaultwright.py"),
+            "conversion",
+            "--json",
+            "--low-risk-per-format",
+            "0",
+        ],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert unsafe.returncode == 0, unsafe.stderr or unsafe.stdout
+    assert "conversion: 1 manifest records (high=1, medium=0, low=0)" in unsafe.stdout
+    assert "source path is unsafe: /tmp/outside.docx" in unsafe.stdout
+    assert "mirror path is unsafe: ../outside.md" in unsafe.stdout
+    report = json.loads(unsafe_json.stdout)
+    assert report["summary"]["high"] == 1
+    assert report["items"][0]["priority"] == "high"
+    assert "source path is unsafe: /tmp/outside.docx" in report["items"][0]["reasons"]
+    assert "mirror path is unsafe: ../outside.md" in report["items"][0]["reasons"]
 
 
 def test_vaultwright_migration_reports_legacy_and_unknown_folders(tmp_path: Path) -> None:

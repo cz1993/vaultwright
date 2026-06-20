@@ -42,6 +42,7 @@ BENCHMARK_FAMILIES = {"answer", "reconcile", "update", "audit", "consolidate"}
 COPIED_TOOL_FILES = [
     "README.md",
     "benchmark_tasks.py",
+    "conversion_report.py",
     "lint_vault.py",
     "recovery_report.py",
     "repos.example.yml",
@@ -280,6 +281,17 @@ def run_example_regeneration(tmp_path: Path, name: str, generated_rels: list[Pat
     assert status.returncode == 0, status.stderr or status.stdout
     assert "unchanged" in status.stdout
     assert "clean=" in status.stdout
+
+    conversion = subprocess.run(
+        [sys.executable, str(vault / "tools" / "vaultwright.py"), "conversion"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+    assert conversion.returncode == 0, conversion.stderr or conversion.stdout
+    assert "conversion: read-only spot-check report; no files were changed" in conversion.stdout
+    assert "spot-check items" in conversion.stdout
+    assert_source_payloads_unchanged(vault, original_sources)
 
     for path in generated:
         assert path.exists()

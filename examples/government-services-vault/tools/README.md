@@ -6,9 +6,10 @@ These keep your knowledge base current and healthy. See `../CLAUDE.md` §6 for t
 | --- | --- |
 | `sync_office_md.py` | markdown **mirror** under `_mirrors/` for every `.docx/.pptx/.xlsx` (Microsoft markitdown), refreshed on content change |
 | `sync_github_repos.py` | markdown **mirror** under `80_sources/repos/` for each repo in `repos.yml` (README + docs + metadata), refreshed on HEAD change |
-| `vaultwright.py` | thin operator wrapper: `plan`, `sync`, `status`, `migration`, `recovery`, `lint`, `benchmark`, `doctor`, and repo-root `init` |
+| `vaultwright.py` | thin operator wrapper: `plan`, `sync`, `status`, `conversion`, `migration`, `recovery`, `lint`, `benchmark`, `doctor`, and repo-root `init` |
 | `lint_vault.py` | health check — frontmatter, broken wikilinks, orphans, overlap warnings, mirror gaps |
 | `benchmark_tasks.py` | validates `_meta/agent-readiness-tasks.yml` benchmark packs and referenced source/mirror paths |
+| `conversion_report.py` | prints a read-only conversion spot-check report from the source manifest |
 | `migration_report.py` | prints a read-only migration report for legacy or unknown top-level folders |
 | `recovery_report.py` | prints a read-only recovery checklist from source/repo manifest lifecycle states |
 | `sync_all.sh` | run both syncs + the linter (for a cron/launchd job) |
@@ -28,6 +29,7 @@ For the operator workflow, prefer:
 python3.11 tools/vaultwright.py plan
 python3.11 tools/vaultwright.py sync
 python3.11 tools/vaultwright.py status
+python3.11 tools/vaultwright.py conversion
 python3.11 tools/vaultwright.py migration
 python3.11 tools/vaultwright.py recovery
 python3.11 tools/vaultwright.py lint
@@ -39,6 +41,11 @@ python3.11 tools/vaultwright.py doctor
 manifest lifecycle counts, sync audit presence, recovery action counts, git backup posture, and
 GitHub auth posture. A fresh vault may warn that manifests, audit logs, or repo config are not
 generated yet; those warnings are preflight context, not sync failures.
+
+`conversion` is read-only. It reads `_meta/source-manifest.json` and turns lifecycle states,
+format risks, warnings, errors, and source/mirror existence into a prioritized spot-check list. It
+does not claim a quantitative quality score; operators still review high-risk formats, tables,
+slides, PDFs, source links, and generated-region boundaries before relying on mirrors.
 
 `migration` is read-only. It scans top-level folders, reports old aliases from
 `_meta/domain-map.yml` such as `marketing/`, `legal/`, `clients/`, or `hr/`, and flags unknown

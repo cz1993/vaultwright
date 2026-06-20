@@ -84,6 +84,16 @@ def command_benchmark(args: argparse.Namespace) -> int:
     return run(cmd, root)
 
 
+def command_conversion(args: argparse.Namespace) -> int:
+    root = args.root.resolve()
+    cmd = python_cmd(root, "conversion_report.py")
+    if args.json:
+        cmd.append("--json")
+    if args.low_risk_per_format != 1:
+        cmd.extend(["--low-risk-per-format", str(args.low_risk_per_format)])
+    return run(cmd, root)
+
+
 def command_migration(args: argparse.Namespace) -> int:
     root = args.root.resolve()
     cmd = python_cmd(root, "migration_report.py")
@@ -220,6 +230,7 @@ def command_doctor(args: argparse.Namespace) -> int:
         "sync_github_repos.py",
         "lint_vault.py",
         "benchmark_tasks.py",
+        "conversion_report.py",
         "migration_report.py",
         "recovery_report.py",
     ):
@@ -291,6 +302,15 @@ def build_parser() -> argparse.ArgumentParser:
     benchmark = sub.add_parser("benchmark", help="Validate the agent-readiness benchmark task pack.")
     benchmark.add_argument("--require-generated", action="store_true", help="Require generated mirror paths to exist.")
     benchmark.set_defaults(func=command_benchmark)
+    conversion = sub.add_parser("conversion", help="Print a read-only conversion spot-check report.")
+    conversion.add_argument("--json", action="store_true", help="Print machine-readable conversion JSON.")
+    conversion.add_argument(
+        "--low-risk-per-format",
+        type=int,
+        default=1,
+        help="Include this many low-risk sample records per format in the spot-check list.",
+    )
+    conversion.set_defaults(func=command_conversion)
     migration = sub.add_parser("migration", help="Print a read-only legacy folder migration report.")
     migration.add_argument("--json", action="store_true", help="Print machine-readable migration JSON.")
     migration.set_defaults(func=command_migration)

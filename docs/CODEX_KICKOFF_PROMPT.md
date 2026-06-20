@@ -152,10 +152,12 @@ not broad industry expansion. Prove the narrow promise first:
 - **Mirror lifecycle correctness:** extend the initial Office/repo manifests and stable IDs into
   complete lifecycle states, rename / move / delete / stale / conflict handling, recovery tests,
   and source-byte integrity tests.
-- **Thin operator CLI:** `tools/vaultwright.py plan`, `sync`, `status`, `lint`, and `doctor` exist;
-  keep them thin. The source-installable `vaultwright` console entry point delegates to the same
-  vault-local wrapper. `plan` must remain non-destructive; keep improving its sensitive-file risks,
-  duplicate warnings, and conversion-quality estimates before writing.
+- **Thin operator CLI:** `tools/vaultwright.py plan`, `sync`, `status`, `conversion`,
+  `migration`, `recovery`, `lint`, and `doctor` exist; keep them thin. The source-installable
+  `vaultwright` console entry point delegates to the same vault-local wrapper. `plan` must remain
+  non-destructive; keep improving its sensitive-file risks, duplicate warnings, and
+  conversion-quality estimates before writing. `conversion`, `migration`, and `recovery` must
+  remain read-only operator reports.
 - **Fresh-vault automation reliability:** `sync_all.sh` fails on required sync failures, missing
   default `repos.yml` skips cleanly, explicit missing configs fail, and sample repo config cannot
   accidentally mirror undocumented third-party content.

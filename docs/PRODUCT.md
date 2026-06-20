@@ -17,7 +17,8 @@ The first workflow is:
 1. Point Vaultwright at an existing client document collection.
 2. Produce a non-destructive inventory and sync plan.
 3. Generate mirrors for supported files without modifying originals.
-4. Report unsupported, stale, conflicted, risky, or low-quality conversions.
+4. Run a read-only conversion spot-check report for unsupported, stale, conflicted, risky, or
+   potentially low-quality conversions.
 5. Create a small number of curated hubs and entity pages.
 6. Refresh the workspace over time with auditable sync/status output.
 

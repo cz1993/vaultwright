@@ -25,12 +25,14 @@ Each pilot should use a copied, permission-cleared corpus:
 1. Baseline interview: current process, pain points, tools, security constraints.
 2. Non-destructive inventory: run `tools/vaultwright.py plan`.
 3. First sync: run `tools/vaultwright.py sync` and capture manifests/audit logs.
-4. Review exceptions: unsupported, stale, missing, unreachable, conflicted, or manual-modification
+4. Conversion review: run `tools/vaultwright.py conversion` and spot-check high/medium-priority
+   mirrors before relying on generated content.
+5. Review exceptions: unsupported, stale, missing, unreachable, conflicted, or manual-modification
    states.
-5. Curate the first hubs and entity pages.
-6. Answer a fixed set of operational questions with citations.
-7. Modify or move selected sources, rerun status/sync, and verify lifecycle reporting.
-8. One-week follow-up: determine whether the participant returned to the vault.
+6. Curate the first hubs and entity pages.
+7. Answer a fixed set of operational questions with citations.
+8. Modify or move selected sources, rerun status/sync, and verify lifecycle reporting.
+9. One-week follow-up: determine whether the participant returned to the vault.
 
 ## Required Metrics
 

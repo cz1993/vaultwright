@@ -99,6 +99,25 @@ def build_parser() -> argparse.ArgumentParser:
         func=command_delegate,
         delegate_args=lambda args: ["--require-generated"] if args.require_generated else [],
     )
+    conversion = sub.add_parser("conversion", help="Print a read-only conversion spot-check report.")
+    conversion.add_argument("--json", action="store_true", help="Print machine-readable conversion JSON.")
+    conversion.add_argument(
+        "--low-risk-per-format",
+        type=int,
+        default=1,
+        help="Include this many low-risk sample records per format in the spot-check list.",
+    )
+    conversion.set_defaults(
+        func=command_delegate,
+        delegate_args=lambda args: (
+            (["--json"] if args.json else [])
+            + (
+                ["--low-risk-per-format", str(args.low_risk_per_format)]
+                if args.low_risk_per_format != 1
+                else []
+            )
+        ),
+    )
     migration = sub.add_parser("migration", help="Print a read-only legacy folder migration report.")
     migration.add_argument("--json", action="store_true", help="Print machine-readable migration JSON.")
     migration.set_defaults(

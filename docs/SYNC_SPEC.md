@@ -38,15 +38,16 @@ Current implementation status:
   mirror still exists, plus moved-source review blocking while the previous generated mirror still
   exists, plus update-path frontmatter/curated-note preservation tests, plus converter-failure and
   mirror-write-failure recovery tests that preserve the previous mirror and allow later clean
-  regeneration;
+  regeneration, plus a read-only conversion spot-check report that turns manifest warnings,
+  errors, lifecycle states, formats, and source/mirror existence into an operator review list;
 - implemented for repo mirrors: stable repo IDs, configured/resolved repo, note path, local-tree or
   remote HEAD hash, lifecycle state, warnings/errors, non-mutating plan/status reports, and
   generated-region manual-edit detection, plus lifecycle next-action guidance in plan/status
   output, plus repo stub-to-populated tests that preserve curated notes/frontmatter, plus repo-note
   write-failure recovery tests that preserve the previous note and allow later clean regeneration;
 - partially implemented: move detection by unique hash match when the old manifest path is absent;
-- not complete: full rename/move UX, rollback automation, quantitative conversion-quality scoring,
-  and exhaustive conflict-resolution flows.
+- not complete: full rename/move UX, rollback automation, quantitative conversion-quality scoring
+  beyond checklist-based spot checks, and exhaustive conflict-resolution flows.
 
 ## Lifecycle States
 
