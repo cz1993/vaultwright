@@ -7,11 +7,15 @@ SOURCE_TEMPLATE = ROOT / "template"
 PACKAGE_TEMPLATE = ROOT / "src" / "vaultwright" / "template"
 
 
+def generated_cache(path: Path) -> bool:
+    return "__pycache__" in path.parts or path.suffix == ".pyc"
+
+
 def template_files(root: Path) -> dict[str, bytes]:
     return {
         path.relative_to(root).as_posix(): path.read_bytes()
         for path in sorted(root.rglob("*"))
-        if path.is_file()
+        if path.is_file() and not generated_cache(path)
     }
 
 

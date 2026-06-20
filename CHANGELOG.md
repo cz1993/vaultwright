@@ -78,6 +78,8 @@ Initial scaffold extracted and generalized from a real small-business vault.
 ### Fixed
 - `sync_all.sh` now fails when a required sync command fails instead of masking errors behind a
   later successful lint.
+- Packaged-template parity tests now ignore generated Python bytecode caches created by CI compile
+  preflight steps.
 - GitHub repo sync now skips cleanly when the default `tools/repos.yml` is absent, while explicit
   missing configs fail.
 - `repos.example.yml` no longer contains an active placeholder that could resolve to a real
