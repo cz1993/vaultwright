@@ -545,6 +545,78 @@ def test_github_sync_writes_manifest_audit_and_status_for_local_repo(tmp_path: P
     assert "clean=1" in status_result.stdout
 
 
+def test_github_sync_populates_stub_and_preserves_curation(tmp_path: Path, monkeypatch) -> None:
+    sync = load_sync_module()
+    vault = tmp_path / "vault"
+    monkeypatch.setattr(sync, "ROOT", vault)
+    monkeypatch.setattr(sync, "resolve_slug", lambda _entry, _token: (None, None))
+    entry = {
+        "repo": "example/private-service",
+        "note": "private-service.md",
+        "tags": ["private"],
+        "related": ["[[Source Access]]"],
+        "account": "[[Acme Manufacturing]]",
+    }
+    settings = {"notes_dir": "80_sources/repos"}
+    manifest = sync.empty_repo_manifest()
+
+    stub_plan = sync.plan_one(entry, settings, None, manifest)
+    stub_status = sync.sync_one(entry, settings, None, False, False)
+    sync.update_manifest_after_sync(manifest, stub_plan, stub_status)
+    sync.write_repo_manifest(manifest, vault)
+    note = vault / "80_sources" / "repos" / "private-service.md"
+    stub_text = note.read_text(encoding="utf-8")
+    stub_fm, _stub_body = sync.split_fm(stub_text)
+    stub_record = sync.load_repo_manifest(vault)["records"][0]
+
+    assert stub_plan["action"] == "create"
+    assert stub_status == "stub"
+    assert stub_record["lifecycle_state"] == "unreachable"
+    assert "Not yet synced" in stub_text
+    assert stub_fm["status"] == "draft"
+    assert stub_fm["tags"] == ["private"]
+    assert stub_fm["related"] == ["[[Source Access]]"]
+    assert stub_fm["account"] == "[[Acme Manufacturing]]"
+    assert stub_fm["client"] == "[[Acme Manufacturing]]"
+
+    curated_stub = stub_text.replace("## Notes\n\n", "## Notes\n\nCurated triage note.\n\n", 1)
+    note.write_text(curated_stub, encoding="utf-8")
+    fixture = vault / "_fixtures" / "private-service"
+    fixture.mkdir(parents=True)
+    (fixture / "README.md").write_text("# Private Service\n\nOperational runbook.\n", encoding="utf-8")
+    reachable_entry = {**entry, "local_path": "_fixtures/private-service"}
+    loaded = sync.load_repo_manifest(vault)
+
+    populate_plan = sync.plan_one(reachable_entry, settings, None, loaded)
+    populate_status = sync.sync_one(
+        reachable_entry,
+        settings,
+        None,
+        False,
+        False,
+        trusted_existing_baseline=True,
+    )
+    sync.update_manifest_after_sync(loaded, populate_plan, populate_status)
+    sync.write_repo_manifest(loaded, vault)
+    populated_text = note.read_text(encoding="utf-8")
+    populated_fm, _populated_body = sync.split_fm(populated_text)
+    populated_record = sync.load_repo_manifest(vault)["records"][0]
+
+    assert populate_plan["action"] == "update"
+    assert populate_status == "updated"
+    assert populated_record["lifecycle_state"] == "clean"
+    assert populated_record["errors"] == []
+    assert populated_record["last_commit"] == sync.local_tree_sha(fixture)
+    assert populated_fm["status"] == "active"
+    assert populated_fm["tags"] == ["private"]
+    assert populated_fm["related"] == ["[[Source Access]]"]
+    assert populated_fm["account"] == "[[Acme Manufacturing]]"
+    assert "Curated triage note." in populated_text
+    assert "Not yet synced" not in populated_text
+    assert "## `README.md`" in populated_text
+    assert "Operational runbook." in populated_text
+
+
 def test_github_sync_preserves_note_and_recovers_after_write_failure(tmp_path: Path, monkeypatch) -> None:
     sync = load_sync_module()
     vault = tmp_path / "vault"

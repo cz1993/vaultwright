@@ -157,6 +157,8 @@ Initial scaffold extracted and generalized from a real small-business vault.
   sync, status, and lint operations leave source bytes unchanged.
 - Example regeneration tests now assert a second sync leaves stable generated mirrors, repo notes,
   and manifests unchanged while treating `_meta/sync-audit.jsonl` as append-only history.
+- Added repo mirror regression coverage for upgrading an unreachable pending stub into a populated
+  mirror while preserving curated notes and frontmatter.
 - Example generated-residue tests now use pattern checks for `_mirrors/`, manifests, audit logs,
   repo mirrors, sibling Office mirrors, and `.mirror.md` fallback files, not only hardcoded
   expected paths.
