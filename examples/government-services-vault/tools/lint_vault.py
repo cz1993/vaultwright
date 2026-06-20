@@ -481,6 +481,14 @@ def source_mirror_freshness_issue(rel: Path, fm: dict) -> str | None:
 def repo_mirror_freshness_issue(fm: dict) -> str | None:
     repo_id = str(fm.get("repo_id", "")).strip()
     record = REPO_MANIFEST_RECORDS.get(repo_id, {})
+    mirror_repo = str(fm.get("repo", "")).strip()
+    manifest_repos = {
+        str(record.get(key, "") or "").strip()
+        for key in ("resolved_repo", "configured_repo")
+        if str(record.get(key, "") or "").strip()
+    }
+    if manifest_repos and mirror_repo not in manifest_repos:
+        return "repo frontmatter repo differs from repo manifest; run vaultwright sync before relying on mirror"
     state = str(record.get("lifecycle_state", "clean") or "clean")
     if state not in CURRENT_REPO_STATES:
         return f"repo-manifest lifecycle_state={state}; run vaultwright sync/status before relying on mirror"

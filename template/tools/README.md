@@ -154,6 +154,8 @@ after sync, and structured warnings/errors. They do not embed README or document
 expected `repo-mirror` note must exist under the configured notes directory and must carry the
 generated sentinel plus manifest metadata. A fresh vault with no `tools/repos.yml` still skips repo
 sync and lint checks cleanly.
+Lint also treats repo frontmatter as managed evidence: if a generated mirror's `repo` or commit
+metadata drifts from `_meta/repo-manifest.json`, rerun repo sync before relying on the mirror.
 Repo plan/status output also prints `next actions` for changed, unreachable, conflicted, manually
 modified, and errored repo mirrors.
 If writing a repo mirror note fails, sync records an `error` state and keeps the previous note; fix

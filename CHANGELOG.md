@@ -11,6 +11,8 @@ All notable changes to Vaultwright are documented here. Format loosely follows
   identity.
 - GitHub repo sync and lint now reject duplicate `tools/repos.yml` entries that resolve to the
   same generated repo-mirror note path, preventing partial syncs and source-identity conflicts.
+- Lint now blocks generated repo mirrors when the frontmatter `repo` identity drifts from the
+  repo manifest's configured or resolved repo identity.
 
 ### Known TODO before stable release hardening
 - Decide CLA vs DCO; secure the "Vaultwright" name; draft the commercial agreement.
