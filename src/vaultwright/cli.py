@@ -111,6 +111,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     conversion = sub.add_parser("conversion", help="Print a read-only conversion spot-check report.")
     conversion.add_argument("--json", action="store_true", help="Print machine-readable conversion JSON.")
+    conversion.add_argument("--guide", action="store_true", help="Append an operator conversion-review checklist.")
     conversion.add_argument(
         "--low-risk-per-format",
         type=int,
@@ -121,6 +122,7 @@ def build_parser() -> argparse.ArgumentParser:
         func=command_delegate,
         delegate_args=lambda args: (
             (["--json"] if args.json else [])
+            + (["--guide"] if args.guide else [])
             + (
                 ["--low-risk-per-format", str(args.low_risk_per_format)]
                 if args.low_risk_per_format != 1

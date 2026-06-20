@@ -51,7 +51,7 @@ python3.11 tools/vaultwright.py doctor
 python3.11 tools/vaultwright.py plan
 python3.11 tools/vaultwright.py sync
 python3.11 tools/vaultwright.py status
-python3.11 tools/vaultwright.py conversion
+python3.11 tools/vaultwright.py conversion --guide
 python3.11 tools/vaultwright.py recovery
 python3.11 tools/vaultwright.py pilot --json
 python3.11 tools/vaultwright.py benchmark --require-generated
@@ -64,6 +64,7 @@ python3.11 tools/vaultwright.py lint
 - Unsupported/skipped files:
 - Conversion high-priority items reviewed:
 - Conversion medium-priority spot checks reviewed:
+- Conversion guide checklist completed:
 - Recovery items resolved:
 - Manual corrections made:
 - Curated hubs/entity pages created:

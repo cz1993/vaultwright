@@ -62,6 +62,8 @@ Product contract: [`docs/PRODUCT.md`](docs/PRODUCT.md). Sync contract:
 [`docs/SECURITY_MODEL.md`](docs/SECURITY_MODEL.md). Recovery guide:
 [`docs/RECOVERY.md`](docs/RECOVERY.md). Design-partner protocol:
 [`docs/DESIGN_PARTNER_PROTOCOL.md`](docs/DESIGN_PARTNER_PROTOCOL.md).
+Conversion review guide:
+[`docs/CONVERSION_REVIEW_GUIDE.md`](docs/CONVERSION_REVIEW_GUIDE.md).
 Agent-readiness benchmark:
 [`docs/AGENT_READINESS_BENCHMARK.md`](docs/AGENT_READINESS_BENCHMARK.md).
 Full write-up: [`docs/methodology.md`](docs/methodology.md).
@@ -82,7 +84,7 @@ python3.11 -m pip install -r tools/requirements.txt  # markitdown + pyyaml
 python3.11 tools/vaultwright.py plan                 # inspect proposed mirror actions first
 python3.11 tools/vaultwright.py sync                 # mirror Office files and configured repos
 python3.11 tools/vaultwright.py status               # review manifest-backed lifecycle state
-python3.11 tools/vaultwright.py conversion           # read-only conversion spot-check report
+python3.11 tools/vaultwright.py conversion --guide   # read-only conversion spot-check + guide
 python3.11 tools/vaultwright.py migration            # dry-run report for legacy/unknown folders
 python3.11 tools/vaultwright.py recovery             # read-only recovery checklist from manifests
 python3.11 tools/vaultwright.py pilot                # aggregate pilot evidence, no source content

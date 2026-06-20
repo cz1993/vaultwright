@@ -61,6 +61,9 @@ Initial scaffold extracted and generalized from a real small-business vault.
 - Added `tools/conversion_report.py` and `vaultwright conversion`, a read-only conversion
   spot-check report that prioritizes manifest records by lifecycle state, warning/error metadata,
   source format, and source/mirror existence without claiming an automated quality score.
+- `vaultwright conversion --guide` now appends a manifest-aware operator checklist for conversion
+  review, including priority handling, format-specific caveats, and sign-off criteria without
+  printing source or mirror content.
 - Added `tools/migration_report.py` and `vaultwright migration`, a read-only report for legacy
   alias folders and unknown top-level folders, including non-reserved hidden/underscore folders,
   before any manual migration.

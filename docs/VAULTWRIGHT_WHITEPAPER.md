@@ -360,7 +360,7 @@ Current evidence is encouraging but limited.
 | Example regeneration | Northwind and government examples regenerate in temp copies | CI can verify mirrors without committing generated residue |
 | Government showcase | Canadian business registration, GST/HST, CRA account, and funding/support fixtures | Better demonstration of a consulting-relevant pain point |
 | Office source manifest | Stable source IDs, hashes, mirror paths, lifecycle states, audit events, missing/manual-edit detection | Important lifecycle foundation, not finished operator UX |
-| Conversion spot-check report | Read-only manifest report prioritizes high/medium/low conversion review items from states, warnings, errors, formats, and source/mirror existence | Useful pilot checklist; not a quantitative conversion-quality score |
+| Conversion spot-check report | Read-only manifest report prioritizes high/medium/low conversion review items from states, warnings, errors, formats, and source/mirror existence; `conversion --guide` adds a format-aware operator checklist | Useful pilot checklist; not a quantitative conversion-quality score |
 | Pilot evidence report | Read-only aggregate report summarizes corpus shape, manifest states, audit counts, conversion priorities, recovery counts, benchmark tasks, and optional benchmark result scores without source content | Useful for private design-partner worksheets; not external validation by itself |
 | Repo source manifest | Stable repo IDs, local-tree/remote-HEAD hashes, audit events, manual-edit detection | Useful coverage for repo mirrors |
 | Source-installable CLI | Console entry point delegates to vault-local tools and supports source-checkout `init` | Good development ergonomics |
@@ -447,7 +447,7 @@ Deliverables:
 - continued `doctor` expansion beyond the current Obsidian/plugin checks and backup posture;
 - deeper lifecycle recovery UX beyond current read-only recovery checklist;
 - pilot-calibrated migration runbooks for legacy folder layouts;
-- conversion spot-check report plus operator guide;
+- continued calibration of the conversion spot-check report and operator guide on pilot corpora;
 - pilot worksheet and aggregate `vaultwright pilot` evidence report based on
   `docs/DESIGN_PARTNER_PROTOCOL.md`;
 - sample statement-of-work outline for consulting delivery.

@@ -21,6 +21,32 @@ RISK_WARNING_PREFIXES = (
     "Sensitive-name risk:",
     "Potential duplicate:",
 )
+FORMAT_GUIDANCE = {
+    "doc": [
+        "Treat legacy .doc files as inventory-only until converted manually to .docx.",
+        "Check whether the retained source contains comments, tracked changes, or embedded objects.",
+    ],
+    "docx": [
+        "Spot-check heading hierarchy, tables, lists, links, comments, and generated-region boundaries.",
+        "Confirm the mirror frontmatter source path points back to the authoritative document.",
+    ],
+    "pdf": [
+        "Check scanned or image-only pages against the original PDF; text extraction may omit them.",
+        "Spot-check page order, tables, footnotes, form fields, and any diagrams used for decisions.",
+    ],
+    "pptx": [
+        "Check slide titles, speaker notes, image-heavy slides, tables, and omitted embedded media.",
+        "Use the original deck for visual layout decisions; treat the mirror as search/review text.",
+    ],
+    "xls": [
+        "Treat legacy spreadsheets as high-risk; preserve the workbook as the source of truth.",
+        "Check formulas, hidden sheets, merged cells, number/date formats, and workbook-level notes.",
+    ],
+    "xlsx": [
+        "Check formulas, hidden sheets, merged cells, number/date formats, and workbook-level notes.",
+        "Use the original workbook for calculations; use the mirror for search and citation triage.",
+    ],
+}
 
 
 def load_source_records(root: Path) -> tuple[list[dict], list[str], list[str]]:
@@ -199,6 +225,50 @@ def build_report(root: Path, low_risk_per_format: int = 1) -> tuple[dict, list[s
     }, warnings, []
 
 
+def build_guide(report: dict) -> dict:
+    summary = report.get("summary", {})
+    formats = summary.get("formats", {}) if isinstance(summary.get("formats"), dict) else {}
+    high = int(summary.get("high", 0) or 0)
+    medium = int(summary.get("medium", 0) or 0)
+    low = int(summary.get("low", 0) or 0)
+    sections = [
+        {
+            "title": "Preflight",
+            "items": [
+                "Run `vaultwright status` and `vaultwright recovery` before sign-off.",
+                "Confirm source files are backed up and original source bytes remain authoritative.",
+                "Do not edit generated mirror content below the sentinel; record corrections as review notes.",
+            ],
+        },
+        {
+            "title": "Priority handling",
+            "items": [
+                f"Resolve all high-priority items before relying on mirrors for client-facing conclusions (current high={high}).",
+                f"Spot-check medium-priority items before use and record any manual corrections (current medium={medium}).",
+                f"Sample low-priority records for routine coverage by format (current low={low}).",
+            ],
+        },
+    ]
+    format_items: list[str] = []
+    for fmt in sorted(formats):
+        guidance = FORMAT_GUIDANCE.get(fmt)
+        if not guidance:
+            continue
+        count = formats.get(fmt, 0)
+        format_items.append(f"{fmt} ({count}): " + " ".join(guidance))
+    if format_items:
+        sections.append({"title": "Format checks", "items": format_items})
+    sections.append({
+        "title": "Sign-off",
+        "items": [
+            "Verify each accepted mirror has a valid source path, mirror path, and lifecycle state.",
+            "Record unsupported files, conversion defects, and manual corrections in the pilot worksheet.",
+            "Use source-backed citations for durable curated notes; do not treat generated markdown as final authority.",
+        ],
+    })
+    return {"sections": sections}
+
+
 def summary_counts(items: list[dict]) -> dict:
     priorities = Counter(item["priority"] for item in items)
     states = Counter(item["state"] for item in items)
@@ -241,9 +311,19 @@ def print_human(root: Path, report: dict, warnings: list[str], errors: list[str]
         print(f"    action: {item['action']}")
 
 
+def print_guide(guide: dict) -> None:
+    print("conversion guide: operator review checklist; no files were changed")
+    for section in guide.get("sections", []):
+        title = section.get("title", "Checklist")
+        print(f"  {title}")
+        for item in section.get("items", []):
+            print(f"    - {item}")
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Print a read-only Vaultwright conversion spot-check report.")
     parser.add_argument("--json", action="store_true", help="Print machine-readable conversion JSON.")
+    parser.add_argument("--guide", action="store_true", help="Append an operator conversion-review checklist.")
     parser.add_argument(
         "--low-risk-per-format",
         type=int,
@@ -266,10 +346,14 @@ def main() -> int:
         "warnings": warnings,
         "errors": errors,
     }
+    if args.guide:
+        payload["guide"] = build_guide(report)
     if args.json:
         print(json.dumps(payload, indent=2, sort_keys=True))
     else:
         print_human(ROOT, report, warnings, errors)
+        if args.guide and not errors:
+            print_guide(payload["guide"])
     return 1 if errors else 0
 
 

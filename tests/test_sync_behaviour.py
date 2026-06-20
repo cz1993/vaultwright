@@ -313,6 +313,17 @@ def test_packaged_vaultwright_cli_delegates_to_target_vault(tmp_path: Path) -> N
     assert "_meta/source-manifest.json: missing; run `vaultwright sync` first." in conversion.stdout
     assert "conversion: no source-manifest records available for spot-checking" in conversion.stdout
 
+    conversion_guide = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "conversion", "--guide"],
+        cwd=ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert conversion_guide.returncode == 0, conversion_guide.stderr or conversion_guide.stdout
+    assert "conversion guide: operator review checklist; no files were changed" in conversion_guide.stdout
+
     migration = subprocess.run(
         [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "migration"],
         cwd=ROOT,
@@ -884,6 +895,18 @@ def test_vaultwright_conversion_report_prioritizes_spot_checks(tmp_path: Path) -
         text=True,
         capture_output=True,
     )
+    guide_result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "vaultwright.py"), "conversion", "--guide"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+    guide_json_result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "vaultwright.py"), "conversion", "--guide", "--json"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
 
     assert result.returncode == 0, result.stderr or result.stdout
     assert "conversion: read-only spot-check report; no files were changed" in result.stdout
@@ -915,6 +938,28 @@ def test_vaultwright_conversion_report_prioritizes_spot_checks(tmp_path: Path) -
     assert by_id["src-simple"]["priority"] == "low"
     assert report["warnings"] == []
     assert report["errors"] == []
+
+    assert guide_result.returncode == 0, guide_result.stderr or guide_result.stdout
+    assert "conversion guide: operator review checklist; no files were changed" in guide_result.stdout
+    assert "Resolve all high-priority items before relying on mirrors" in guide_result.stdout
+    assert "doc (1): Treat legacy .doc files as inventory-only" in guide_result.stdout
+    assert "pdf (1): Check scanned or image-only pages against the original PDF" in guide_result.stdout
+    assert "xlsx (1): Check formulas, hidden sheets" in guide_result.stdout
+    assert "Use source-backed citations for durable curated notes" in guide_result.stdout
+    assert "PDF mirror" not in guide_result.stdout
+    assert "Sheet mirror" not in guide_result.stdout
+
+    assert guide_json_result.returncode == 0, guide_json_result.stderr or guide_json_result.stdout
+    guide_payload = json.loads(guide_json_result.stdout)
+    assert guide_payload["summary"]["total"] == 5
+    assert [section["title"] for section in guide_payload["guide"]["sections"]] == [
+        "Preflight",
+        "Priority handling",
+        "Format checks",
+        "Sign-off",
+    ]
+    format_section = next(section for section in guide_payload["guide"]["sections"] if section["title"] == "Format checks")
+    assert any(item.startswith("pdf (1):") for item in format_section["items"])
 
     assert {path: path.read_bytes() for path in before_sources} == before_sources
     assert {path: path.read_text(encoding="utf-8") for path in before_mirrors} == before_mirrors

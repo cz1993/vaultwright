@@ -30,7 +30,7 @@ For the operator workflow, prefer:
 python3.11 tools/vaultwright.py plan
 python3.11 tools/vaultwright.py sync
 python3.11 tools/vaultwright.py status
-python3.11 tools/vaultwright.py conversion
+python3.11 tools/vaultwright.py conversion --guide
 python3.11 tools/vaultwright.py migration
 python3.11 tools/vaultwright.py pilot
 python3.11 tools/vaultwright.py recovery
@@ -49,6 +49,8 @@ Obsidian UI config are not generated yet; those warnings are preflight context, 
 format risks, warnings, errors, and source/mirror existence into a prioritized spot-check list. It
 does not claim a quantitative quality score; operators still review high-risk formats, tables,
 slides, PDFs, source links, and generated-region boundaries before relying on mirrors.
+Use `--guide` to append a manifest-aware operator checklist; see
+`docs/CONVERSION_REVIEW_GUIDE.md` in the source repository for the durable review protocol.
 
 `migration` is read-only. It scans top-level folders, reports old aliases from
 `_meta/domain-map.yml` such as `marketing/`, `legal/`, `clients/`, or `hr/`, and flags unknown
