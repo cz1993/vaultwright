@@ -270,6 +270,15 @@ def build_report(root: Path) -> tuple[list[dict], list[str], list[str]]:
     return items, warnings, errors
 
 
+def summary_counts(items: list[dict]) -> dict[str, int]:
+    return {
+        "total": len(items),
+        "office": sum(1 for item in items if item["kind"] == "office"),
+        "repo": sum(1 for item in items if item["kind"] == "repo"),
+        "temp": sum(1 for item in items if item["kind"] == "temp"),
+    }
+
+
 def print_human(root: Path, items: list[dict], warnings: list[str], errors: list[str]) -> None:
     print(f"vaultwright recovery: {root}")
     for warning in warnings:
@@ -316,7 +325,13 @@ def main() -> int:
     args = build_parser().parse_args()
     items, warnings, errors = build_report(ROOT)
     if args.json:
-        print(json.dumps({"root": str(ROOT), "items": items, "warnings": warnings, "errors": errors}, indent=2, sort_keys=True))
+        print(json.dumps({
+            "root": str(ROOT),
+            "summary": summary_counts(items),
+            "items": items,
+            "warnings": warnings,
+            "errors": errors,
+        }, indent=2, sort_keys=True))
     else:
         print_human(ROOT, items, warnings, errors)
     return 1 if errors else 0

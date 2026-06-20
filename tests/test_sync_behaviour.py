@@ -184,6 +184,19 @@ def test_packaged_vaultwright_cli_delegates_to_target_vault(tmp_path: Path) -> N
     assert recovery.returncode == 0, recovery.stderr or recovery.stdout
     assert "recovery: no manifest records need operator action" in recovery.stdout
 
+    recovery_json = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "recovery", "--json"],
+        cwd=ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert recovery_json.returncode == 0, recovery_json.stderr or recovery_json.stdout
+    report = json.loads(recovery_json.stdout)
+    assert report["items"] == []
+    assert report["summary"]["total"] == 0
+
 
 def test_packaged_vaultwright_cli_init_from_source_checkout(tmp_path: Path) -> None:
     target = tmp_path / "new-vault"
@@ -366,6 +379,7 @@ def test_vaultwright_recovery_reports_manifest_actions(tmp_path: Path) -> None:
 
     assert json_result.returncode == 0, json_result.stderr or json_result.stdout
     report = json.loads(json_result.stdout)
+    assert report["summary"] == {"office": 3, "repo": 1, "temp": 0, "total": 4}
     by_id = {item["id"]: item for item in report["items"]}
     assert by_id["src-manual"]["latest_audit"]["timestamp"] == "2026-06-20T00:01:00Z"
     assert by_id["src-manual"]["latest_audit"]["status"] == "skipped:manual_modification"
@@ -403,6 +417,7 @@ def test_vaultwright_recovery_reports_stale_atomic_temp_files(tmp_path: Path) ->
 
     assert json_result.returncode == 0, json_result.stderr or json_result.stdout
     report = json.loads(json_result.stdout)
+    assert report["summary"] == {"office": 0, "repo": 0, "temp": 1, "total": 1}
     assert len(report["items"]) == 1
     item = report["items"][0]
     assert item["kind"] == "temp"

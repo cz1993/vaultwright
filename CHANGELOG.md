@@ -47,8 +47,8 @@ Initial scaffold extracted and generalized from a real small-business vault.
   delegates to vault-local tools instead of forking sync/lint behavior.
 - Packaged the starter vault template under `src/vaultwright/template`, so `vaultwright init` can
   scaffold from an installed wheel without a source checkout or `VAULTWRIGHT_REPO`.
-- CI now builds and installs a wheel without dependencies and smoke-tests `vaultwright init` from
-  the packaged template.
+- CI now builds a wheel, installs it into a clean environment, and smoke-tests packaged
+  `vaultwright init`, `doctor`, `plan`, `benchmark`, and JSON `recovery` delegation.
 - `vaultwright doctor` now reports manifest lifecycle counts, sync audit presence, git backup
   posture, and GitHub auth posture as read-only preflight context.
 - Added `tools/recovery_report.py` and `vaultwright recovery`, a read-only recovery checklist for
@@ -57,6 +57,7 @@ Initial scaffold extracted and generalized from a real small-business vault.
   errors for each manifest item that needs operator action.
 - Recovery reports now flag stale atomic temp files left by interrupted writes, without deleting
   them automatically.
+- Recovery JSON output now includes compact total/office/repo/temp summary counts for automation.
 - GitHub repo sync now supports non-mutating `--plan` and manifest-backed `--status` reporting,
   and writes `_meta/repo-manifest.json` with stable repo IDs, configured/resolved repo, note path,
   local-tree or remote-HEAD hash, lifecycle state, warnings, and last successful sync.
@@ -197,6 +198,5 @@ Initial scaffold extracted and generalized from a real small-business vault.
 
 ### Known TODO before release hardening
 - Decide CLA vs DCO; secure the "Vaultwright" name; draft the commercial agreement.
-- Finalize release artifact publishing and install verification beyond the current wheel smoke
-  test.
+- Finalize tagged release artifact publishing and install verification from a published artifact.
 - Calibrate near-duplicate/overlap thresholds with design-partner corpora.

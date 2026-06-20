@@ -85,6 +85,10 @@ move, delete, regenerate, or archive anything. Treat it as a triage checklist fo
 - missing repo mirror notes.
 - stale atomic temp files left by interrupted writes.
 
+The JSON form includes `summary.total`, `summary.office`, `summary.repo`, and `summary.temp`
+counts for automation, plus the same item-level reasons, actions, warnings, errors, and latest
+audit context as the human report.
+
 For each item with audit history, the report includes the latest audit timestamp, status, lifecycle
 state, and structured warnings/errors. This is diagnostic metadata only; it should not contain raw
 document text or repo documentation bodies.

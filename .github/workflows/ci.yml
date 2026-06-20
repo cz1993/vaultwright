@@ -36,11 +36,15 @@ jobs:
           tmp_build="$(mktemp -d)"
           python -m pip wheel . --no-deps -w "$tmp_build/wheelhouse"
           python -m venv "$tmp_build/venv"
-          "$tmp_build/venv/bin/python" -m pip install --no-deps "$tmp_build"/wheelhouse/vaultwright-*.whl
+          "$tmp_build/venv/bin/python" -m pip install "$tmp_build"/wheelhouse/vaultwright-*.whl
           tmp_vault="$tmp_build/vault"
           "$tmp_build/venv/bin/vaultwright" init "$tmp_vault"
           test -f "$tmp_vault/CLAUDE.md"
           test -f "$tmp_vault/tools/recovery_report.py"
+          "$tmp_build/venv/bin/vaultwright" --root "$tmp_vault" doctor
+          "$tmp_build/venv/bin/vaultwright" --root "$tmp_vault" plan
+          "$tmp_build/venv/bin/vaultwright" --root "$tmp_vault" benchmark
+          "$tmp_build/venv/bin/vaultwright" --root "$tmp_vault" recovery --json
       - name: Template lint
         run: python template/tools/lint_vault.py
       - name: Regenerate example mirrors
