@@ -77,6 +77,8 @@ Initial scaffold extracted and generalized from a real small-business vault.
   before any manual migration.
 - Added `tools/pilot_report.py`, `vaultwright pilot`, and `docs/PILOT_WORKSHEET.md` for aggregate
   design-partner evidence capture without printing source or mirror content.
+- Added `vaultwright pilot --worksheet`, a redacted Markdown summary mode for private pilot records
+  that reports aggregate counts and review queues without source paths or document content.
 - Recovery reports now attach the latest matching sync-audit status, lifecycle state, warnings, and
   errors for each manifest item that needs operator action.
 - Recovery reports now flag stale atomic temp files left by interrupted writes, without deleting

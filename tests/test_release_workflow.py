@@ -42,6 +42,7 @@ def test_release_workflow_verifies_built_wheel_before_release() -> None:
     assert "vaultwright-release-venv" in text
     assert "vaultwright\" init" in text
     assert "conversion --guide --json" in text
+    assert "pilot --worksheet" in text
     assert "actions/upload-artifact@v7" in text
 
 

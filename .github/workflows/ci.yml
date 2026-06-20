@@ -49,6 +49,7 @@ jobs:
           "$tmp_build/venv/bin/vaultwright" --root "$tmp_vault" conversion --json
           "$tmp_build/venv/bin/vaultwright" --root "$tmp_vault" migration --json
           "$tmp_build/venv/bin/vaultwright" --root "$tmp_vault" pilot --json
+          "$tmp_build/venv/bin/vaultwright" --root "$tmp_vault" pilot --worksheet
           "$tmp_build/venv/bin/vaultwright" --root "$tmp_vault" recovery --json
       - name: Template lint
         run: python template/tools/lint_vault.py

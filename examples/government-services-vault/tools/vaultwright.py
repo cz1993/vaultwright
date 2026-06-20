@@ -126,6 +126,8 @@ def command_pilot(args: argparse.Namespace) -> int:
     cmd = python_cmd(root, "pilot_report.py")
     if args.json:
         cmd.append("--json")
+    if args.worksheet:
+        cmd.append("--worksheet")
     return run(cmd, root)
 
 
@@ -518,7 +520,13 @@ def build_parser() -> argparse.ArgumentParser:
     migration.add_argument("--json", action="store_true", help="Print machine-readable migration JSON.")
     migration.set_defaults(func=command_migration)
     pilot = sub.add_parser("pilot", help="Print a read-only design-partner pilot evidence report.")
-    pilot.add_argument("--json", action="store_true", help="Print machine-readable pilot JSON.")
+    pilot_output = pilot.add_mutually_exclusive_group()
+    pilot_output.add_argument("--json", action="store_true", help="Print machine-readable pilot JSON.")
+    pilot_output.add_argument(
+        "--worksheet",
+        action="store_true",
+        help="Print a redacted Markdown pilot worksheet summary.",
+    )
     pilot.set_defaults(func=command_pilot)
     recovery = sub.add_parser("recovery", help="Print a read-only manifest recovery checklist.")
     recovery.add_argument("--json", action="store_true", help="Print machine-readable recovery JSON.")

@@ -348,9 +348,81 @@ def print_human(root: Path, report: dict[str, Any], warnings: list[str], errors:
         )
 
 
+def print_worksheet_summary(report: dict[str, Any], warnings: list[str], errors: list[str]) -> None:
+    inventory = report["inventory"]
+    source = report["source_manifest"]
+    repo = report["repo_manifest"]
+    audit = report["audit"]
+    conversion = report["conversion"]["summary"]
+    recovery = report["recovery"]["summary"]
+    benchmark = report["benchmark"]["summary"]
+    results = benchmark.get("results", {})
+    result_summary = results.get("summary", {}) if isinstance(results, dict) else {}
+    result_available = bool(isinstance(results, dict) and results.get("available"))
+
+    print("# Vaultwright Pilot Evidence Summary")
+    print()
+    print(
+        "Generated from aggregate Vaultwright manifests and reports only. It intentionally omits "
+        "source paths, document text, mirror text, answer text, reviewer notes, and client identifiers."
+    )
+    print()
+    print("## Corpus Shape")
+    print(f"- Content files: {inventory['content_files']}")
+    print(f"- Content bytes: {inventory['content_bytes']}")
+    print(f"- Office/PDF source candidates: {inventory['office_source_candidates']}")
+    print(f"- Source manifest records: {source['records']}")
+    print(f"- Repo manifest records: {repo['records']}")
+    print(f"- Source formats: {', '.join(f'{key}={value}' for key, value in sorted(source.get('formats', {}).items())) or 'none'}")
+    print()
+    print("## Health And Review Queues")
+    print(f"- Source warnings/errors: {source['warnings']}/{source['errors']}")
+    print(f"- Repo warnings/errors: {repo['warnings']}/{repo['errors']}")
+    print(f"- Sync audit events: {audit['events']}")
+    print(
+        "- Conversion review queue: "
+        f"available={report['conversion']['available']} "
+        f"high={conversion.get('high', 0)} "
+        f"medium={conversion.get('medium', 0)} "
+        f"low={conversion.get('low', 0)}"
+    )
+    print(
+        "- Recovery queue: "
+        f"available={report['recovery']['available']} "
+        f"items={recovery.get('total', 0)}"
+    )
+    print(
+        "- Benchmark tasks: "
+        f"available={report['benchmark']['available']} "
+        f"tasks={benchmark.get('tasks', 0)}"
+    )
+    print(
+        "- Benchmark results: "
+        f"available={result_available} "
+        f"records={result_summary.get('results', 0)} "
+        f"missing={result_summary.get('missing_results', 0)}"
+    )
+    print(f"- Pilot report warnings/errors: {len(warnings)}/{len(errors)}")
+    print()
+    print("## Private Worksheet Fields")
+    print("- Baseline time to answer fixed questions:")
+    print("- Vaultwright time to answer fixed questions:")
+    print("- Manual correction count:")
+    print("- Operator confidence score:")
+    print("- Support time required:")
+    print("- Participant returned after one week:")
+    print("- Product changes requested:")
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Print a read-only Vaultwright pilot evidence report.")
-    parser.add_argument("--json", action="store_true", help="Print machine-readable pilot JSON.")
+    output = parser.add_mutually_exclusive_group()
+    output.add_argument("--json", action="store_true", help="Print machine-readable pilot JSON.")
+    output.add_argument(
+        "--worksheet",
+        action="store_true",
+        help="Print a redacted Markdown summary for a private pilot worksheet.",
+    )
     return parser
 
 
@@ -364,6 +436,8 @@ def main() -> int:
     }
     if args.json:
         print(json.dumps(payload, indent=2, sort_keys=True))
+    elif args.worksheet:
+        print_worksheet_summary(report, warnings, errors)
     else:
         print_human(ROOT, report, warnings, errors)
     return 1 if errors else 0

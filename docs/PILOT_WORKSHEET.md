@@ -42,6 +42,15 @@ Record from `python3.11 tools/vaultwright.py pilot --json` after first sync:
 Do not paste source paths, document text, mirror text, secrets, personal data, or client identifiers
 into this worksheet.
 
+For a paste-ready aggregate summary, use:
+
+```bash
+python3.11 tools/vaultwright.py pilot --worksheet
+```
+
+This prints a Markdown summary with counts, review queues, and private worksheet prompts. It omits
+source paths, source text, mirror text, answer text, reviewer notes, and client identifiers.
+
 ## Run Log
 
 Record command results and elapsed time:
@@ -54,6 +63,7 @@ python3.11 tools/vaultwright.py status
 python3.11 tools/vaultwright.py conversion --guide
 python3.11 tools/vaultwright.py recovery
 python3.11 tools/vaultwright.py pilot --json
+python3.11 tools/vaultwright.py pilot --worksheet
 python3.11 tools/vaultwright.py benchmark --require-generated
 python3.11 tools/vaultwright.py benchmark --results _meta/agent-readiness-results.yml --require-results
 python3.11 tools/vaultwright.py lint

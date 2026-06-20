@@ -1089,6 +1089,12 @@ def test_vaultwright_pilot_report_summarizes_evidence_without_content(tmp_path: 
         text=True,
         capture_output=True,
     )
+    worksheet_result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "vaultwright.py"), "pilot", "--worksheet"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
 
     assert result.returncode == 0, result.stderr or result.stdout
     assert "pilot: read-only evidence report; no source content was printed" in result.stdout
@@ -1117,6 +1123,20 @@ def test_vaultwright_pilot_report_summarizes_evidence_without_content(tmp_path: 
     assert report["report"]["conversion"]["summary"]["medium"] == 1
     assert report["report"]["recovery"]["summary"]["total"] == 0
     assert report["report"]["benchmark"]["summary"]["tasks"] == 5
+
+    assert worksheet_result.returncode == 0, worksheet_result.stderr or worksheet_result.stdout
+    assert "# Vaultwright Pilot Evidence Summary" in worksheet_result.stdout
+    assert "Source manifest records: 1" in worksheet_result.stdout
+    assert "Conversion review queue: available=True high=0 medium=1 low=0" in worksheet_result.stdout
+    assert "Recovery queue: available=True items=0" in worksheet_result.stdout
+    assert "Benchmark tasks: available=True tasks=5" in worksheet_result.stdout
+    assert "Baseline time to answer fixed questions" in worksheet_result.stdout
+    assert "confidential source bytes" not in worksheet_result.stdout
+    assert "Generated mirror text" not in worksheet_result.stdout
+    assert "Generated repo mirror text" not in worksheet_result.stdout
+    assert "40_delivery/client-plan.docx" not in worksheet_result.stdout
+    assert "_mirrors/40_delivery/client-plan.md" not in worksheet_result.stdout
+    assert str(vault) not in worksheet_result.stdout
 
     assert source.read_bytes() == before_source
     assert mirror.read_text(encoding="utf-8") == before_mirror

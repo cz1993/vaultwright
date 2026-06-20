@@ -90,6 +90,7 @@ python3.11 tools/vaultwright.py conversion --guide   # read-only conversion spot
 python3.11 tools/vaultwright.py migration            # dry-run report for legacy/unknown folders
 python3.11 tools/vaultwright.py recovery             # read-only recovery checklist from manifests
 python3.11 tools/vaultwright.py pilot                # aggregate pilot evidence, no source content
+python3.11 tools/vaultwright.py pilot --worksheet    # redacted Markdown private-pilot summary
 python3.11 tools/vaultwright.py benchmark            # validate agent-readiness task pack, if present
 # edit tools/repos.yml, then:
 python3.11 tools/sync_github_repos.py                # mirror your GitHub repos

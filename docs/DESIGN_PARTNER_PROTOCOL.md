@@ -34,8 +34,9 @@ Each pilot should use a copied, permission-cleared corpus:
    states.
 6. Curate the first hubs and entity pages.
 7. Answer a fixed set of operational questions with citations.
-8. Capture aggregate evidence: run `tools/vaultwright.py pilot --json` and store it with the
-   private pilot worksheet.
+8. Capture aggregate evidence: run `tools/vaultwright.py pilot --json` and
+   `tools/vaultwright.py pilot --worksheet`, then store the outputs with the private pilot
+   worksheet.
 9. Modify or move selected sources, rerun status/sync, and verify lifecycle reporting.
 10. One-week follow-up: determine whether the participant returned to the vault.
 
@@ -67,8 +68,10 @@ For each pilot, maintain an anonymized summary:
 - product changes made;
 - participant quote only with written permission.
 
-`tools/vaultwright.py pilot --json` is designed for this evidence packet. It reports aggregate
-counts only and must not be treated as permission to commit pilot evidence to this repository.
+`tools/vaultwright.py pilot --json` is designed for machine-readable aggregate evidence.
+`tools/vaultwright.py pilot --worksheet` prints a redacted Markdown summary for private pilot
+records. Both report aggregate counts only and must not be treated as permission to commit pilot
+evidence to this repository.
 
 ## Success Standard
 
