@@ -84,6 +84,10 @@ previous generated mirror after review. Vaultwright will not write the new mirro
 old generated mirror still exists, because that would leave two generated notes claiming the same
 source.
 
+For Office `source_moved` records with `previous_mirror_path`, preserve any curated notes in the
+old mirror, then move, archive, or remove that previous generated mirror. Vaultwright will not
+write the new mirror path while the old generated mirror still exists.
+
 If a manifest is missing, restore it from backup when possible. Without manifest evidence,
 Vaultwright cannot safely prove whether an existing generated region is pristine.
 
@@ -130,6 +134,8 @@ Before public release, recovery must be tested on a copied vault:
 - interrupt sync and rerun;
 - remove one source and verify `source_missing`;
 - edit a generated region and verify `manual_modification`;
+- move one source and verify `source_moved` blocks new mirror generation while the previous mirror
+  exists, then remove or move the previous mirror and verify the new mirror can be generated;
 - change the Office mirror root with the old mirror present and verify `conflict`, then remove the
   old mirror and verify the new mirror can be generated;
 - run `tools/vaultwright.py recovery` and verify the checklist matches the manifest states;

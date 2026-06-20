@@ -35,7 +35,8 @@ Current implementation status:
   format-specific conversion-quality warnings, plus lifecycle next-action guidance in plan/status
   output, and post-conversion source hash checks that abort mirror writes if the source changes
   while conversion is running, plus mirror-root-change conflict detection when the old generated
-  mirror still exists;
+  mirror still exists, plus moved-source review blocking while the previous generated mirror still
+  exists;
 - implemented for repo mirrors: stable repo IDs, configured/resolved repo, note path, local-tree or
   remote HEAD hash, lifecycle state, warnings/errors, non-mutating plan/status reports, and
   generated-region manual-edit detection, plus lifecycle next-action guidance in plan/status output;
@@ -72,6 +73,10 @@ Every release-ready state must have:
 
 - Rename/move should be detected by stable source ID and source hash where possible, not treated
   only as delete plus create.
+- When a source move changes the generated mirror path, sync should not create the new mirror while
+  the previous generated mirror still exists. The operator must preserve, move, archive, or remove
+  the old mirror first so curated notes are not stranded and duplicate generated mirrors are not
+  created.
 - Source deletion should not delete mirrors automatically. It should mark the manifest record as
   `source_missing` and surface a review action.
 - Mirror path changes should be planned before writes and reported after writes.

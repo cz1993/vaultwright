@@ -19,7 +19,7 @@ EXCLUDED_PARTS = {"_mirrors", "_templates", "_tmp", "tools", "node_modules", ".g
 OFFICE_ACTIONS = {
     "planned": "Run plan review, then sync to create the generated mirror.",
     "source_changed": "Run sync to refresh the generated region, then review linked curated notes.",
-    "source_moved": "Confirm the move is intentional, then run sync to update the mirror path.",
+    "source_moved": "Confirm the move is intentional, preserve/archive any old mirror, then run sync to update the mirror path.",
     "stale": "Run sync before relying on the mirror; the source or configuration is newer.",
     "converter_changed": "Review conversion quality, then sync if the new converter output is acceptable.",
     "unsupported": "Keep the original as source of truth; convert manually or use a supported format.",

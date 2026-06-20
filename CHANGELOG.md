@@ -85,6 +85,9 @@ Initial scaffold extracted and generalized from a real small-business vault.
 - Office mirror sync now reports a conflict when the configured mirror root or mode changes while
   the previous generated mirror still exists, preventing duplicate generated mirrors for one
   source.
+- Office mirror sync now blocks moved-source regeneration while the previous generated mirror still
+  exists, so operators must preserve, move, archive, or remove the old mirror before creating the
+  new generated path.
 - GitHub repo sync now skips cleanly when the default `tools/repos.yml` is absent, while explicit
   missing configs fail.
 - `repos.example.yml` no longer contains an active placeholder that could resolve to a real

@@ -227,12 +227,15 @@ def test_vaultwright_recovery_reports_manifest_actions(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     shutil.copytree(ROOT / "template", vault)
     source = vault / "40_delivery" / "registration.docx"
+    moved_source = vault / "50_operations" / "registration.docx"
     mirror = vault / "_mirrors" / "40_delivery" / "registration.md"
     note = vault / "80_sources" / "repos" / "fixture.md"
     source.parent.mkdir(parents=True, exist_ok=True)
+    moved_source.parent.mkdir(parents=True, exist_ok=True)
     mirror.parent.mkdir(parents=True, exist_ok=True)
     note.parent.mkdir(parents=True, exist_ok=True)
     source.write_bytes(b"office bytes")
+    moved_source.write_bytes(b"moved office bytes")
     mirror.write_text("Generated mirror\n", encoding="utf-8")
     note.write_text("Generated repo mirror\n", encoding="utf-8")
     (vault / "_meta" / "source-manifest.json").write_text(
@@ -258,6 +261,15 @@ def test_vaultwright_recovery_reports_manifest_actions(tmp_path: Path) -> None:
                         "mirror_path": "_mirrors/40_delivery/registration.md",
                         "lifecycle_state": "manual_modification",
                         "warnings": ["Generated region hash changed."],
+                    },
+                    {
+                        "source_id": "src-moved",
+                        "current_source_path": "50_operations/registration.docx",
+                        "previous_source_paths": ["40_delivery/registration.docx"],
+                        "mirror_path": "_mirrors/50_operations/registration.md",
+                        "previous_mirror_path": "_mirrors/40_delivery/registration.md",
+                        "previous_mirror_reason": "source_moved",
+                        "lifecycle_state": "source_moved",
                     },
                 ],
             }
@@ -290,11 +302,13 @@ def test_vaultwright_recovery_reports_manifest_actions(tmp_path: Path) -> None:
     )
 
     assert result.returncode == 0, result.stderr or result.stdout
-    assert "recovery: 3 items need operator action (office=2, repo=1)" in result.stdout
+    assert "recovery: 4 items need operator action (office=3, repo=1)" in result.stdout
     assert "[office:source_missing" in result.stdout
     assert "Locate, restore, or intentionally archive the source" in result.stdout
     assert "[office:manual_modification" in result.stdout
     assert "Preserve human edits below the sentinel" in result.stdout
+    assert "[office:source_moved" in result.stdout
+    assert "preserve/archive any old mirror" in result.stdout
     assert "[repo:conflict" in result.stdout
     assert "Resolve the target note/repo identity conflict" in result.stdout
 
@@ -1249,16 +1263,44 @@ def test_office_sync_detects_moved_source_by_manifest_hash(tmp_path: Path) -> No
     sync.sync_one(original, vault, FakeConverter(), False, False, config, {}, manifest, "markitdown", "test")
     sync.write_source_manifest(vault, manifest)
     source_id = manifest["records"][0]["source_id"]
+    old_mirror = vault / "_mirrors" / "40_delivery" / "registration.md"
+    old_mirror_text = old_mirror.read_text(encoding="utf-8")
 
     moved.write_bytes(original.read_bytes())
     original.unlink()
     loaded = sync.load_source_manifest(vault)
     plan = sync.plan_one(moved, vault, config, {}, loaded, "markitdown", "test")
+    skipped = sync.sync_one(moved, vault, FakeConverter(), False, False, config, {}, loaded, "markitdown", "test")
+    forced = sync.sync_one(moved, vault, FakeConverter(), True, False, config, {}, loaded, "markitdown", "test")
+    sync.write_source_manifest(vault, loaded)
+    repeated_plan = sync.plan_one(moved, vault, config, {}, sync.load_source_manifest(vault), "markitdown", "test")
 
     assert plan["record"]["source_id"] == source_id
-    assert plan["action"] == "update"
+    assert plan["action"] == "review"
     assert plan["record"]["lifecycle_state"] == "source_moved"
     assert plan["record"]["previous_source_paths"] == ["40_delivery/registration.docx"]
+    assert plan["record"]["previous_mirror_path"] == "_mirrors/40_delivery/registration.md"
+    assert plan["record"]["previous_mirror_reason"] == "source_moved"
+    assert skipped == "skipped:source_moved"
+    assert forced == "skipped:source_moved"
+    assert old_mirror.read_text(encoding="utf-8") == old_mirror_text
+    assert not (vault / "_mirrors" / "50_operations" / "registration.md").exists()
+    assert repeated_plan["action"] == "review"
+    assert repeated_plan["record"]["lifecycle_state"] == "source_moved"
+
+    old_mirror.unlink()
+    resolvable = sync.load_source_manifest(vault)
+    resolved_status = sync.sync_one(moved, vault, FakeConverter(), False, False, config, {}, resolvable, "markitdown", "test")
+    sync.write_source_manifest(vault, resolvable)
+    resolved = sync.load_source_manifest(vault)["records"][0]
+
+    assert resolved_status == "created"
+    assert (vault / "_mirrors" / "50_operations" / "registration.md").exists()
+    assert resolved["source_id"] == source_id
+    assert resolved["lifecycle_state"] == "clean"
+    assert resolved["previous_source_paths"] == ["40_delivery/registration.docx"]
+    assert "previous_mirror_path" not in resolved
+    assert "previous_mirror_reason" not in resolved
 
 
 def test_office_sync_conflicts_when_mirror_root_changes_with_old_mirror(tmp_path: Path) -> None:
@@ -1285,6 +1327,7 @@ def test_office_sync_conflicts_when_mirror_root_changes_with_old_mirror(tmp_path
     assert plan["action"] == "review"
     assert plan["record"]["lifecycle_state"] == "conflict"
     assert plan["record"]["previous_mirror_path"] == "_mirrors/40_delivery/registration.md"
+    assert plan["record"]["previous_mirror_reason"] == "mirror_location_changed"
     assert any("Configured mirror location changed" in error for error in plan["record"]["errors"])
     assert status == "skipped:conflict"
     assert old_mirror.read_text(encoding="utf-8") == old_mirror_text
@@ -1292,6 +1335,7 @@ def test_office_sync_conflicts_when_mirror_root_changes_with_old_mirror(tmp_path
     assert repeated_plan["action"] == "review"
     assert repeated_plan["record"]["lifecycle_state"] == "conflict"
     assert repeated_plan["record"]["previous_mirror_path"] == "_mirrors/40_delivery/registration.md"
+    assert repeated_plan["record"]["previous_mirror_reason"] == "mirror_location_changed"
 
     old_mirror.unlink()
     resolvable = sync.load_source_manifest(vault)
@@ -1315,6 +1359,7 @@ def test_office_sync_conflicts_when_mirror_root_changes_with_old_mirror(tmp_path
     assert resolved_record["lifecycle_state"] == "clean"
     assert resolved_record["mirror_path"] == "_generated/40_delivery/registration.md"
     assert "previous_mirror_path" not in resolved_record
+    assert "previous_mirror_reason" not in resolved_record
 
 
 def test_github_token_is_not_embedded_in_git_argv(monkeypatch) -> None:

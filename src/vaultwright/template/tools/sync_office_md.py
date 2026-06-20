@@ -81,7 +81,7 @@ FORBIDDEN_MIRROR_PARTS = {
 LIFECYCLE_GUIDANCE = {
     "planned": "review the plan, then run sync to create the generated mirror.",
     "source_changed": "run sync to refresh the generated region, then review linked curated notes.",
-    "source_moved": "confirm the source move is intentional, then run sync to update the mirror path.",
+    "source_moved": "confirm the source move is intentional, preserve/archive any old mirror, then run sync to update the mirror path.",
     "stale": "run sync before relying on the mirror; the source or configuration is newer.",
     "converter_changed": "review conversion quality, then run sync if the new converter output is acceptable.",
     "unsupported": "keep the original as source of truth; convert the file manually or use a supported format.",
@@ -651,15 +651,22 @@ def plan_one(
         if (root / previous_path).exists():
             previous_mirror_rel = candidate
             break
+    previous_mirror_reason = (existing_record or {}).get("previous_mirror_reason")
+    previous_mirror_is_source_move = (
+        previous_mirror_reason == "source_moved"
+        or (existing_record or {}).get("lifecycle_state") == "source_moved"
+    )
     mirror_location_changed = bool(
         existing_record
         and previous_mirror_rel
+        and not previous_mirror_is_source_move
         and (
             existing_record.get("mirror_mode") != mirror_mode
             or existing_record.get("mirror_root") != mirror_root
             or existing_record.get("previous_mirror_path")
         )
     )
+    moved_source_has_previous_mirror = bool(previous_mirror_rel and (moved_from or previous_mirror_is_source_move))
     existing_fm = None
     existing_generated_hash = None
     if mirror.exists():
@@ -691,6 +698,13 @@ def plan_one(
             )
             warnings.append(
                 "Archive or remove the previous mirror before syncing the new mirror path."
+            )
+        elif moved_source_has_previous_mirror:
+            action = "review"
+            lifecycle_state = "source_moved"
+            warnings.append(
+                "Source path changed while the previous generated mirror still exists; preserve, "
+                "move, archive, or remove the old mirror before syncing the new mirror path."
             )
         elif moved_from:
             action = "update"
@@ -760,7 +774,12 @@ def plan_one(
         "current_source_path": source_rel,
         "previous_source_paths": previous_paths,
         "mirror_path": mirror_rel,
-        "previous_mirror_path": previous_mirror_rel if mirror_location_changed else None,
+        "previous_mirror_path": previous_mirror_rel if (mirror_location_changed or moved_source_has_previous_mirror) else None,
+        "previous_mirror_reason": (
+            "mirror_location_changed" if mirror_location_changed
+            else "source_moved" if moved_source_has_previous_mirror
+            else None
+        ),
         "source_format": src.suffix.lstrip(".").lower(),
         "source_size": source_size,
         "source_modified": source_mtime,
@@ -787,6 +806,7 @@ def plan_one(
     }
     if not record.get("previous_mirror_path"):
         record.pop("previous_mirror_path", None)
+        record.pop("previous_mirror_reason", None)
     return {
         "source": src,
         "mirror": mirror,
@@ -836,6 +856,8 @@ def print_lifecycle_guidance(state_counts: dict[str, int]) -> None:
 
 def review_blocks_force(record: dict) -> bool:
     if record.get("lifecycle_state") == "conflict":
+        return True
+    if record.get("lifecycle_state") == "source_moved" and record.get("previous_mirror_path"):
         return True
     if record.get("lifecycle_state") != "manual_modification":
         return False

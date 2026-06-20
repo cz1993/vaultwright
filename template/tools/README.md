@@ -66,6 +66,9 @@ manual-modification states. Plan/status output also prints `next actions` for li
 need review, sync, source recovery, or conflict resolution.
 If a source file changes while conversion is running, sync records an error and leaves the previous
 mirror untouched so generated markdown is not tied to stale source-hash metadata.
+If a source moves and the generated mirror path changes, sync reports `source_moved` while the
+previous generated mirror still exists. Preserve, move, archive, or remove the old mirror before
+generating the new path.
 If the configured mirror root or mode changes, sync reports `conflict` while the previous generated
 mirror still exists. Review and archive/remove the old mirror before generating the new path.
 
