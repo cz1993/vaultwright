@@ -59,6 +59,8 @@ Initial scaffold extracted and generalized from a real small-business vault.
   existing release unless it is still both draft and prerelease.
 - Modernized Python package license metadata to use an SPDX expression plus explicit `LICENSE` and
   `NOTICE` files, avoiding deprecated setuptools license-table and classifier warnings.
+- Updated GitHub Actions workflow dependencies to current majors for CI and release automation,
+  removing the Node 20 runtime deprecation warning path.
 - `vaultwright doctor` now reports manifest lifecycle counts, sync audit presence, recovery action
   counts, git backup posture, GitHub auth posture, optional Obsidian config/plugin posture, and
   `.gitignore` backup guard coverage as read-only preflight context.
