@@ -73,7 +73,9 @@ So Vaultwright optimizes for *fewer, better-connected, current* notes:
    `active`. (LLMs hallucinate; the vault must not silently fill with unverified notes.)
 5. **The linter enforces the basics.** `lint_vault.py` blocks missing required frontmatter, invalid
    type/status values, and missing Office mirrors. It reports unresolved links, orphans, and likely
-   note overlap as warnings. Stale-mirror checks are a roadmap item.
+   note overlap as warnings. `_meta/lint-config.yml` exposes overlap thresholds for pilot
+   calibration; defaults are conservative until real corpora prove better values. Stale-mirror
+   checks are a roadmap item.
 
 Most agent-wiki projects happily spawn notes. Disciplined restraint is a deliberate edge.
 
@@ -84,7 +86,8 @@ Most agent-wiki projects happily spawn notes. Disciplined restraint is a deliber
 - **Query** — read `INDEX.md` / the relevant MOC first, follow links, answer with citations to note
   paths; file reusable answers back as notes so work compounds.
 - **Lint** — periodically check frontmatter, links, orphans, overlap candidates, and mirror gaps;
-  fix mechanically where safe, flag judgment calls. Stale-mirror checks are planned.
+  fix mechanically where safe, flag judgment calls. Tune overlap sensitivity in copied pilot vaults
+  through `_meta/lint-config.yml`; stale-mirror checks are planned.
 - **Log** — append one greppable line per change to `log.md`.
 
 ## 6. Governance (because this is business data)

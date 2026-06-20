@@ -1,0 +1,6 @@
+# Vaultwright lint configuration.
+# Tune these only in copied pilot vaults after reviewing real overlap warnings.
+overlap:
+  min_shared_terms: 18
+  content_threshold: 0.72
+  title_threshold: 0.82

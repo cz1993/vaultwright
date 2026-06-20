@@ -846,6 +846,73 @@ def test_template_linter_reports_overlap_candidates_as_warning_only(tmp_path: Pa
     assert "content overlap" in result.stdout
 
 
+def test_template_linter_allows_overlap_threshold_calibration(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    first = vault / "40_delivery" / "grant-readiness.md"
+    second = vault / "40_delivery" / "funding-readiness.md"
+    body = (
+        "The intake checklist reviews eligibility, incorporation status, payroll evidence, "
+        "tax registration, cashflow runway, milestone plan, owner responsibilities, supporting "
+        "documents, application deadline, budget assumptions, reporting cadence, compliance risks, "
+        "grant program fit, review notes, approval path, and follow-up actions.\n"
+    )
+    for path, title in ((first, "Grant Readiness Checklist"), (second, "Funding Readiness Checklist")):
+        path.write_text(
+            "---\n"
+            f"title: {title}\n"
+            "type: guide\n"
+            "status: active\n"
+            "domain: delivery\n"
+            "created: 2026-01-01\n"
+            "updated: 2026-01-01\n"
+            "---\n"
+            f"# {title}\n\n{body}",
+            encoding="utf-8",
+        )
+    (vault / "_meta" / "lint-config.yml").write_text(
+        "overlap:\n"
+        "  min_shared_terms: 30\n"
+        "  content_threshold: 0.99\n"
+        "  title_threshold: 0.95\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "lint_vault.py")],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0
+    assert "Lint config errors: 0" in result.stdout
+    assert "Potential duplicate/overlap notes: 0" in result.stdout
+
+
+def test_template_linter_blocks_invalid_lint_config(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    (vault / "_meta" / "lint-config.yml").write_text(
+        "overlap:\n"
+        "  min_shared_terms: one\n"
+        "  content_threshold: 2\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "lint_vault.py")],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 1
+    assert "Lint config errors: 2" in result.stdout
+    assert "_meta/lint-config.yml:overlap.min_shared_terms" in result.stdout
+    assert "_meta/lint-config.yml:overlap.content_threshold" in result.stdout
+
+
 def test_template_linter_skips_generated_mirrors_for_overlap_and_orphan_candidates(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     shutil.copytree(ROOT / "template", vault)

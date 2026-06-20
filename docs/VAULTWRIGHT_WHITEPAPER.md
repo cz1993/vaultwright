@@ -391,7 +391,7 @@ Known gaps:
 | Conversion quality gaps | High | Mirrors miss table/image/formula/comment meaning | Add conversion caveats, spot checks, quantitative scoring, and format-specific fallback paths |
 | Lifecycle confusion | High | Users cannot tell whether a mirror is stale, moved, or manually changed | Continue manifest-backed lifecycle states and recovery UX |
 | Tax/legal interpretation risk | High | Users mistake generated notes for official advice | Keep citations, disclaimers, review workflow, and source authority clear |
-| AI note proliferation | Medium | The vault becomes another pile of generated files | Use warning-level similarity/overlap linting and stricter hub/entity workflow |
+| AI note proliferation | Medium | The vault becomes another pile of generated files | Use configurable warning-level similarity/overlap linting and stricter hub/entity workflow |
 | Agent over-automation | Medium | Agents treat generated markdown as final authority and skip source/provenance review | Preserve source links, manifests, sentinel boundaries, and human review gates |
 | Public-source licence drift | Medium | External source terms change or are misapplied | Keep dated provenance reviews and avoid copying protected content |
 | Narrow demo domain | Medium | Government example is useful but not company-specific | Add later domain packs only after lifecycle proof |
@@ -648,7 +648,8 @@ Roadmap:
 - Richer quantitative conversion-quality scoring beyond checklist-based spot checks.
 - Recovery tests and external design-partner execution.
 - Higher-fidelity PDF/spreadsheet extraction tiers.
-- Better similarity/overlap scoring calibrated by design-partner corpora.
+- Better similarity/overlap scoring, using `_meta/lint-config.yml` as the pilot calibration surface
+  and design-partner corpora as the evidence source.
 - Typed links and richer evidence relationships.
 - Agent-readiness benchmarks comparing raw source folders, document-chat transcripts, and
   Vaultwright-generated markdown for question answering, reconciliation, update, and audit tasks,

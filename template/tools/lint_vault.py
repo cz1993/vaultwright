@@ -33,6 +33,7 @@ DEFAULT_MIRROR_MODE = "dedicated"
 DEFAULT_MIRROR_ROOT = "_mirrors"
 SOURCE_MANIFEST_REL = "_meta/source-manifest.json"
 REPO_MANIFEST_REL = "_meta/repo-manifest.json"
+LINT_CONFIG_REL = "_meta/lint-config.yml"
 SENTINEL = "%% AUTO-GENERATED BELOW — DO NOT EDIT %%"
 MIRROR_MODES = {"dedicated", "sibling"}
 OVERLAP_MIN_TOKENS = 18
@@ -111,6 +112,45 @@ def mirror_config() -> tuple[dict[str, Path | str], list[tuple[str, str]]]:
         errors.append(("_meta/mirror-config.yml:office_mirrors.root", str(exc)))
         root_path = Path(DEFAULT_MIRROR_ROOT)
     return {"mode": mode, "root": root_path}, errors
+
+def lint_config() -> tuple[dict[str, int | float], list[tuple[str, str]]]:
+    config = {
+        "overlap_min_tokens": OVERLAP_MIN_TOKENS,
+        "overlap_content_threshold": OVERLAP_CONTENT_THRESHOLD,
+        "overlap_title_threshold": OVERLAP_TITLE_THRESHOLD,
+    }
+    path = ROOT / LINT_CONFIG_REL
+    if not path.exists():
+        return config, []
+    try:
+        data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    except yaml.YAMLError:
+        return config, [(LINT_CONFIG_REL, "invalid YAML")]
+    if not isinstance(data, dict):
+        return config, [(LINT_CONFIG_REL, "must be a mapping")]
+    overlap = data.get("overlap", {})
+    if overlap is None:
+        overlap = {}
+    if not isinstance(overlap, dict):
+        return config, [(f"{LINT_CONFIG_REL}:overlap", "must be a mapping")]
+    errors: list[tuple[str, str]] = []
+
+    min_shared_terms = overlap.get("min_shared_terms", config["overlap_min_tokens"])
+    if isinstance(min_shared_terms, int) and not isinstance(min_shared_terms, bool) and min_shared_terms >= 2:
+        config["overlap_min_tokens"] = min_shared_terms
+    else:
+        errors.append((f"{LINT_CONFIG_REL}:overlap.min_shared_terms", "must be an integer >= 2"))
+
+    for key, config_key in (
+        ("content_threshold", "overlap_content_threshold"),
+        ("title_threshold", "overlap_title_threshold"),
+    ):
+        value = overlap.get(key, config[config_key])
+        if isinstance(value, (int, float)) and not isinstance(value, bool) and 0.0 <= float(value) <= 1.0:
+            config[config_key] = float(value)
+        else:
+            errors.append((f"{LINT_CONFIG_REL}:overlap.{key}", "must be a number between 0 and 1"))
+    return config, errors
 
 def load_manifest_records(rel: str, id_key: str) -> tuple[dict[str, dict], list[tuple[str, str]]]:
     path = ROOT / rel
@@ -197,10 +237,14 @@ def resolve(target: str) -> bool:
 
 DOMAIN_FOLDERS, DOMAIN_FOLDER_ALIASES, domain_map_errors = domain_folders()
 MIRROR_CONFIG, mirror_config_errors = mirror_config()
+LINT_CONFIG, lint_config_errors = lint_config()
 SOURCE_MANIFEST_RECORDS, source_manifest_errors = load_manifest_records(SOURCE_MANIFEST_REL, "source_id")
 REPO_MANIFEST_RECORDS, repo_manifest_errors = load_manifest_records(REPO_MANIFEST_REL, "repo_id")
 manifest_errors = source_manifest_errors + repo_manifest_errors
 MIRROR_ROOT = MIRROR_CONFIG["root"] if isinstance(MIRROR_CONFIG["root"], Path) else Path(DEFAULT_MIRROR_ROOT)
+overlap_min_tokens = int(LINT_CONFIG["overlap_min_tokens"])
+overlap_content_threshold = float(LINT_CONFIG["overlap_content_threshold"])
+overlap_title_threshold = float(LINT_CONFIG["overlap_title_threshold"])
 DOMAINS = set(DOMAIN_FOLDERS)
 missing_fm, bad_type, bad_status, bad_domain, bad_domain_folder, bad_account_client, bad_mirror_layout, unresolved = [], [], [], [], [], [], [], []
 overlap_inputs: list[dict[str, object]] = []
@@ -354,7 +398,7 @@ for p in md_notes:
         ):
             title_words = normalized_words(str(fm.get("title", "")))
             body_words = normalized_words(body)
-            if title_words or len(body_words) >= OVERLAP_MIN_TOKENS:
+            if title_words or len(body_words) >= overlap_min_tokens:
                 overlap_inputs.append({
                     "path": rels,
                     "title": str(fm.get("title", "")),
@@ -422,9 +466,9 @@ for left, right in itertools.combinations(overlap_inputs, 2):
     body_score = jaccard(left_body, right_body) if isinstance(left_body, set) and isinstance(right_body, set) else 0.0
     common_body = len(left_body & right_body) if isinstance(left_body, set) and isinstance(right_body, set) else 0
     reasons = []
-    if len(left_title) >= 2 and len(right_title) >= 2 and title_score >= OVERLAP_TITLE_THRESHOLD:
+    if len(left_title) >= 2 and len(right_title) >= 2 and title_score >= overlap_title_threshold:
         reasons.append(f"title similarity {title_score:.0%}")
-    if common_body >= OVERLAP_MIN_TOKENS and body_score >= OVERLAP_CONTENT_THRESHOLD:
+    if common_body >= overlap_min_tokens and body_score >= overlap_content_threshold:
         reasons.append(f"content overlap {body_score:.0%}")
     if reasons:
         overlap_candidates.append((
@@ -446,6 +490,7 @@ section("Invalid status", bad_status)
 section("Invalid domain", bad_domain)
 section("Domain map errors", domain_map_errors)
 section("Mirror config errors", mirror_config_errors)
+section("Lint config errors", lint_config_errors)
 section("Manifest errors", manifest_errors)
 section("Domain/folder mismatch", bad_domain_folder)
 section("Account/client mismatch", bad_account_client)
@@ -457,6 +502,7 @@ section("Potential duplicate/overlap notes", overlap_candidates)
 section("Office files without a mirror", mirror_gap)
 blocking = (
     missing_fm or bad_type or bad_status or bad_domain or domain_map_errors or mirror_config_errors
+    or lint_config_errors
     or manifest_errors or bad_domain_folder or bad_account_client or bad_mirror_layout
     or markdown_case or mirror_gap
 )

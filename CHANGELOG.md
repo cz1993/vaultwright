@@ -7,7 +7,7 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 
 ### Known TODO before stable release hardening
 - Decide CLA vs DCO; secure the "Vaultwright" name; draft the commercial agreement.
-- Calibrate near-duplicate/overlap thresholds with design-partner corpora.
+- Calibrate the default near-duplicate/overlap thresholds with design-partner corpora.
 
 ## [0.1.0a1] — 2026-06-20
 
@@ -85,6 +85,8 @@ Initial scaffold extracted and generalized from a real small-business vault.
   design-partner evidence capture without printing source or mirror content.
 - Added `vaultwright pilot --worksheet`, a redacted Markdown summary mode for private pilot records
   that reports aggregate counts and review queues without source paths or document content.
+- Added `_meta/lint-config.yml` so overlap-warning thresholds can be tuned in copied pilot vaults
+  without changing linter code.
 - Recovery reports now attach the latest matching sync-audit status, lifecycle state, warnings, and
   errors for each manifest item that needs operator action.
 - Recovery reports now flag stale atomic temp files left by interrupted writes, without deleting

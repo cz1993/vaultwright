@@ -77,6 +77,7 @@ python3.11 tools/vaultwright.py lint
 - Conversion guide checklist completed:
 - Recovery items resolved:
 - Manual corrections made:
+- Overlap threshold changes from `_meta/lint-config.yml`:
 - Curated hubs/entity pages created:
 - Source files verified unchanged:
 - Second sync idempotency result:
