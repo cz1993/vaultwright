@@ -176,6 +176,30 @@ def append_audit(root: Path, event: dict) -> None:
         f.write(json.dumps(payload, sort_keys=True) + "\n")
 
 
+def sync_audit_event(root: Path, plan: dict, manifest: dict, status: str) -> dict:
+    planned_record = plan["record"]
+    record = (
+        manifest_record_for_source(
+            manifest,
+            root,
+            planned_record.get("current_source_path", ""),
+            planned_record.get("source_sha256", ""),
+            int(planned_record.get("source_size") or 0),
+        )[0]
+        or planned_record
+    )
+    return {
+        "tool": "sync_office_md",
+        "source_id": planned_record.get("source_id"),
+        "source_path": planned_record.get("current_source_path"),
+        "mirror_path": planned_record.get("mirror_path"),
+        "status": status,
+        "lifecycle_state": record.get("lifecycle_state"),
+        "warnings": unique_list(record.get("warnings", [])),
+        "errors": unique_list(record.get("errors", [])),
+    }
+
+
 def is_excluded(rel: Path, mirror_root: Path | None = None) -> bool:
     if mirror_root and rel.parts[:len(mirror_root.parts)] == mirror_root.parts:
         return True
@@ -1172,20 +1196,7 @@ def main():
         if status.startswith(("created", "updated")):
             changed.append(src.relative_to(root))
         if not args.dry_run:
-            append_audit(root, {
-                "tool": "sync_office_md",
-                "source_id": plan["record"].get("source_id"),
-                "source_path": plan["record"].get("current_source_path"),
-                "mirror_path": plan["record"].get("mirror_path"),
-                "status": status,
-                "lifecycle_state": (manifest_record_for_source(
-                    manifest,
-                    root,
-                    plan["record"].get("current_source_path", ""),
-                    plan["record"].get("source_sha256", ""),
-                    int(plan["record"].get("source_size") or 0),
-                )[0] or plan["record"]).get("lifecycle_state"),
-            })
+            append_audit(root, sync_audit_event(root, plan, manifest, status))
 
     missing = 0
     manifest_changed = False

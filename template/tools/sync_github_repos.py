@@ -466,6 +466,21 @@ def append_audit(event: dict, root: Path = ROOT) -> None:
         f.write(json.dumps(payload, sort_keys=True) + "\n")
 
 
+def sync_audit_event(plan: dict, manifest: dict, status: str, entry: dict) -> dict:
+    planned_record = plan["record"]
+    record = repo_record_by_id(manifest, planned_record.get("repo_id")) or planned_record
+    return {
+        "tool": "sync_github_repos",
+        "repo_id": planned_record.get("repo_id"),
+        "repo": entry.get("repo"),
+        "note_path": planned_record.get("note_path"),
+        "status": status,
+        "lifecycle_state": record.get("lifecycle_state"),
+        "warnings": unique_list(record.get("warnings", [])),
+        "errors": unique_list(record.get("errors", [])),
+    }
+
+
 def dump_fm(data):
     ordered = {k: data[k] for k in KEY_ORDER if k in data}
     for k, v in data.items():
@@ -1019,14 +1034,7 @@ def main():
             changed.append(entry.get("note", ""))
         if not args.dry_run:
             update_manifest_after_sync(manifest, plan, status)
-            append_audit({
-                "tool": "sync_github_repos",
-                "repo_id": plan["record"].get("repo_id"),
-                "repo": entry.get("repo"),
-                "note_path": plan["record"].get("note_path"),
-                "status": status,
-                "lifecycle_state": (repo_record_by_id(manifest, plan["record"].get("repo_id")) or {}).get("lifecycle_state"),
-            }, ROOT)
+            append_audit(sync_audit_event(plan, manifest, status, entry), ROOT)
 
     manifest_changed = False
     if not args.dry_run:

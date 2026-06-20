@@ -134,6 +134,10 @@ Every generated change should be explainable from:
 - machine-readable `_meta/sync-audit.jsonl` event;
 - output path.
 
+Audit events must include the generated artifact path, lifecycle state, status, and structured
+`warnings` / `errors` copied from the manifest record after the sync attempt. They must not include
+raw source content, extracted document text, repo document bodies, secrets, or tokens.
+
 Rollback guidance lives in `docs/RECOVERY.md` and must be tested before a public release.
 
 ## Original Source Integrity

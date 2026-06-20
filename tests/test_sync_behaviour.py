@@ -494,6 +494,12 @@ def test_github_sync_preserves_note_and_recovers_after_write_failure(tmp_path: P
     assert failed_record["last_successful_sync"] == first_record["last_successful_sync"]
     assert failed_record["generated_region_sha256"] == first_record["generated_region_sha256"]
     assert any("error:repo-write:OSError: disk full" in error for error in failed_record["errors"])
+    sync.append_audit(sync.sync_audit_event(failed_plan, loaded, failed_status, entry), vault)
+    failed_event = json.loads((vault / "_meta" / "sync-audit.jsonl").read_text(encoding="utf-8").splitlines()[-1])
+    assert failed_event["status"] == failed_status
+    assert failed_event["lifecycle_state"] == "error"
+    assert failed_event["note_path"] == "80_sources/repos/fixture.md"
+    assert any("error:repo-write:OSError: disk full" in error for error in failed_event["errors"])
 
     recoverable = sync.load_repo_manifest(vault)
     recovery_plan = sync.plan_one(entry, settings, None, recoverable)
@@ -1147,6 +1153,7 @@ def test_office_sync_preserves_mirror_and_recovers_after_write_failure(tmp_path:
     source.write_bytes(b"office bytes v2")
     monkeypatch.setattr(sync, "write_text_atomic", failing_write)
     loaded = sync.load_source_manifest(vault)
+    failed_plan = sync.plan_one(source, vault, config, {}, loaded, "markitdown", "test")
     failed = sync.sync_one(source, vault, FakeConverter(), False, False, config, {}, loaded, "markitdown", "test")
     monkeypatch.setattr(sync, "write_text_atomic", original_write_text_atomic)
     sync.write_source_manifest(vault, loaded)
@@ -1158,6 +1165,12 @@ def test_office_sync_preserves_mirror_and_recovers_after_write_failure(tmp_path:
     assert failed_record["last_successful_sync"] == first_record["last_successful_sync"]
     assert failed_record["generated_region_sha256"] == first_record["generated_region_sha256"]
     assert any("Mirror write failed: OSError: disk full" in error for error in failed_record["errors"])
+    sync.append_audit(vault, sync.sync_audit_event(vault, failed_plan, loaded, failed))
+    failed_event = json.loads((vault / "_meta" / "sync-audit.jsonl").read_text(encoding="utf-8").splitlines()[-1])
+    assert failed_event["status"] == failed
+    assert failed_event["lifecycle_state"] == "error"
+    assert failed_event["mirror_path"] == "_mirrors/40_delivery/registration.md"
+    assert any("Mirror write failed: OSError: disk full" in error for error in failed_event["errors"])
 
     recoverable = sync.load_source_manifest(vault)
     plan = sync.plan_one(source, vault, config, {}, recoverable, "markitdown", "test")

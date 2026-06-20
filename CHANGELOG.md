@@ -57,6 +57,8 @@ Initial scaffold extracted and generalized from a real small-business vault.
   and writes `_meta/repo-manifest.json` with stable repo IDs, configured/resolved repo, note path,
   local-tree or remote-HEAD hash, lifecycle state, warnings, and last successful sync.
 - Office and repo syncs now append machine-readable events to `_meta/sync-audit.jsonl`.
+- Office and repo sync audit events now include generated artifact paths plus structured lifecycle
+  warnings/errors for recovery diagnostics without embedding source content.
 - Office planning now reports warning counts for sensitive-looking paths, duplicate source bytes,
   and format-specific conversion-quality risks.
 - Added `docs/RECOVERY.md` and `docs/DESIGN_PARTNER_PROTOCOL.md`.

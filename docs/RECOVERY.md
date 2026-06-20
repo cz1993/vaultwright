@@ -54,6 +54,10 @@ restore it from backup when possible. If no backup exists, rerun status/sync to 
 from the current sources and mirrors, then review all `planned`, `stale`, `source_missing`,
 `unreachable`, and `manual_modification` states.
 
+When an error state exists, inspect the newest `_meta/sync-audit.jsonl` event for that `source_id` or
+`repo_id`. The event records the generated artifact path, lifecycle state, sync status, and
+structured `warnings` / `errors` without embedding source document text or repo document bodies.
+
 Important limitation: without the old manifest, Vaultwright cannot prove whether an existing
 generated region is pristine. Existing Office and repo mirrors without a manifest-generated baseline
 are treated as review-required, and `--force` will not accept them as clean. If the sentinel boundary
