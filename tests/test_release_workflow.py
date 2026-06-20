@@ -71,6 +71,7 @@ def test_release_workflow_isolates_write_token_to_publish_job() -> None:
     assert "contents: write" in text
     assert text.index("contents: write") > text.index("publish-draft:")
     assert text.index("GH_TOKEN: ${{ github.token }}") > text.index("publish-draft:")
+    assert text.index("GH_REPO: ${{ github.repository }}") > text.index("publish-draft:")
 
 
 def test_release_workflow_refuses_to_mutate_published_release() -> None:
