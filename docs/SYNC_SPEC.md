@@ -149,3 +149,5 @@ Tests must prove that sync does not mutate original source bytes.
 
 The release gate is byte-for-byte equality of source files before and after sync for representative
 supported formats and skipped/unsupported files.
+Example-vault regeneration tests should snapshot representative source payloads before plan,
+dry-run, sync, status, and lint operations, then assert those payloads are unchanged.

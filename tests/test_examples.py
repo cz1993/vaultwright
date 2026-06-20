@@ -53,6 +53,26 @@ COPIED_TOOL_FILES = [
 ]
 
 
+def source_payloads(vault: Path) -> dict[Path, bytes]:
+    payloads: dict[Path, bytes] = {}
+    for path in vault.rglob("*"):
+        if not path.is_file() or path.is_symlink():
+            continue
+        rel = path.relative_to(vault)
+        if path.suffix.lower() in OFFICE_SOURCE_EXTS and "_mirrors" not in rel.parts:
+            payloads[rel] = path.read_bytes()
+        elif rel.parts[:2] == ("_fixtures", "repos"):
+            payloads[rel] = path.read_bytes()
+    return payloads
+
+
+def assert_source_payloads_unchanged(vault: Path, before: dict[Path, bytes]) -> None:
+    after = source_payloads(vault)
+    assert after.keys() == before.keys()
+    for rel, payload in before.items():
+        assert after[rel] == payload, rel
+
+
 def assert_no_generated_residue(src: Path) -> None:
     mirror_files = [
         path.relative_to(src)
@@ -181,10 +201,22 @@ def run_example_regeneration(tmp_path: Path, name: str, generated_rels: list[Pat
     src = ROOT / f"examples/{name}"
     vault = tmp_path / name
     shutil.copytree(src, vault)
+    original_sources = source_payloads(vault)
 
     generated = [vault / rel for rel in generated_rels]
     for path in generated:
         assert not path.exists()
+
+    cli_plan = subprocess.run(
+        [sys.executable, str(vault / "tools" / "vaultwright.py"), "plan"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+    assert cli_plan.returncode == 0, cli_plan.stderr or cli_plan.stdout
+    for path in generated:
+        assert not path.exists()
+    assert_source_payloads_unchanged(vault, original_sources)
 
     plan = subprocess.run(
         [sys.executable, str(vault / "tools" / "sync_office_md.py"), "--plan", "--quiet"],
@@ -195,6 +227,19 @@ def run_example_regeneration(tmp_path: Path, name: str, generated_rels: list[Pat
     assert plan.returncode == 0, plan.stderr or plan.stdout
     for path in generated:
         assert not path.exists()
+    assert_source_payloads_unchanged(vault, original_sources)
+
+    for script in ("sync_office_md.py", "sync_github_repos.py"):
+        dry_run = subprocess.run(
+            [sys.executable, str(vault / "tools" / script), "--dry-run", "--quiet"],
+            cwd=vault,
+            text=True,
+            capture_output=True,
+        )
+        assert dry_run.returncode == 0, dry_run.stderr or dry_run.stdout
+        for path in generated:
+            assert not path.exists()
+        assert_source_payloads_unchanged(vault, original_sources)
 
     lint_output = ""
     for script in ("sync_office_md.py", "sync_github_repos.py", "lint_vault.py"):
@@ -224,6 +269,7 @@ def run_example_regeneration(tmp_path: Path, name: str, generated_rels: list[Pat
         assert path.exists()
     for rel in raw_folder_rels:
         assert not (vault / rel).exists()
+    assert_source_payloads_unchanged(vault, original_sources)
     return lint_output
 
 

@@ -178,6 +178,7 @@ The test suite now exercises the copied-vault regeneration path, source-byte pre
 converter-failure, Office mirror-write-failure, and repo-note write-failure recovery that preserve
 the prior generated file, interrupted-write temp detection, conversion-race aborts that preserve
 the prior mirror, `source_missing`, `manual_modification`, lint, and generated-text no-data scan
-checks on the Northwind example.
+checks on the Northwind example. Example regeneration tests also assert source bytes stay unchanged
+across plan, dry-run, sync, status, and lint operations.
 Operator backup/restore drills and full copied-vault no-data scans on pilot vaults are still
 required before production use.
