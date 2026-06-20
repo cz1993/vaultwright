@@ -50,7 +50,8 @@ Current implementation status:
   plus config validation and blocking lint checks for duplicate configured repo note targets, plus
   blocking lint checks for configured repo entries whose expected generated note is missing or
   unmanaged, and for generated repo mirrors whose manifest lifecycle state is no longer current,
-  whose frontmatter repo or commit drifts from the manifest, or whose local source tree changed;
+  whose frontmatter repo or commit drifts from the manifest, or whose local source tree changed,
+  plus repo sync/status detection and repair for managed repo frontmatter identity drift;
 - partially implemented: move detection by unique hash match when the old manifest path is absent;
 - not complete: full rename/move UX, rollback automation, quantitative conversion-quality scoring
   beyond checklist-based spot checks, and exhaustive conflict-resolution flows.

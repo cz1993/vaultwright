@@ -363,6 +363,25 @@ def repo_note_conflict(existing_fm: dict, body: str, expected_repo_id: str) -> s
     return None
 
 
+def repo_identity_values(entry: dict, resolved_repo: str | None = None, existing_record: dict | None = None) -> set[str]:
+    values = {str(entry.get("repo", "") or "").strip(), str(resolved_repo or "").strip()}
+    record = existing_record or {}
+    values.add(str(record.get("configured_repo", "") or "").strip())
+    values.add(str(record.get("resolved_repo", "") or "").strip())
+    return {value for value in values if value}
+
+
+def repo_frontmatter_identity_issue(existing_fm: dict, allowed_repos: set[str]) -> str | None:
+    repo_value = str(existing_fm.get("repo", "") or "").strip()
+    if not existing_fm:
+        return None
+    if not repo_value:
+        return "Repo frontmatter is missing the managed repo identity."
+    if allowed_repos and repo_value not in allowed_repos:
+        return "Repo frontmatter repo differs from the configured/resolved repo identity."
+    return None
+
+
 def review_blocks_force(record: dict) -> bool:
     if record.get("lifecycle_state") == "conflict":
         return True
@@ -735,6 +754,13 @@ def plan_one(entry, settings, token, manifest):
     elif existing_record and existing_record.get("last_commit") != last_commit:
         action = "update"
         lifecycle_state = "repo_changed"
+    elif identity_issue := repo_frontmatter_identity_issue(
+        existing_fm,
+        repo_identity_values(entry, resolved_repo, existing_record),
+    ):
+        action = "update"
+        lifecycle_state = "stale"
+        warnings.append(f"{identity_issue} Sync will rewrite managed frontmatter.")
     elif not note_path.exists():
         action = "create"
         lifecycle_state = "planned"
@@ -822,6 +848,7 @@ def update_manifest_after_sync(manifest: dict, plan: dict, status: str) -> None:
         record["generated_region_sha256"] = observed_generated_hash
         record["observed_generated_region_sha256"] = None
         record["lifecycle_state"] = "clean"
+        record["warnings"] = []
         record["errors"] = []
     elif status == "stub":
         record["generated_region_sha256"] = observed_generated_hash
@@ -894,7 +921,8 @@ def sync_one(entry, settings, token, force, dry, trusted_existing_baseline=False
             return f"error:local-path ({local_path} not found)"
         slug = entry["repo"]
         sha = local_tree_sha(local_path)
-        if existing_fm.get("last_commit") == sha and not force:
+        identity_issue = repo_frontmatter_identity_issue(existing_fm, repo_identity_values(entry, slug))
+        if existing_fm.get("last_commit") == sha and not force and not identity_issue:
             return "unchanged"
         docs = collect_docs(local_path, int(settings.get("max_doc_bytes", 60000)),
                             int(settings.get("max_total_bytes", 300000)))
@@ -934,7 +962,8 @@ def sync_one(entry, settings, token, force, dry, trusted_existing_baseline=False
             return error
         return "stub"
 
-    if existing_fm.get("last_commit") == sha and not force:
+    identity_issue = repo_frontmatter_identity_issue(existing_fm, repo_identity_values(entry, slug))
+    if existing_fm.get("last_commit") == sha and not force and not identity_issue:
         return "unchanged"
 
     tmp, err = clone(slug, token, max(int(settings.get("recent_commits", 10)) + 5, 15))

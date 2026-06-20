@@ -2169,6 +2169,65 @@ def test_github_sync_reports_manual_generated_region_modification(tmp_path: Path
     assert "Manual edit below sentinel" in note.read_text(encoding="utf-8")
 
 
+def test_github_sync_repairs_managed_repo_frontmatter_identity_drift(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    tools = vault / "tools"
+    fixture = vault / "_fixtures" / "repo"
+    tools.mkdir(parents=True)
+    fixture.mkdir(parents=True)
+    (fixture / "README.md").write_text("# Fixture\n", encoding="utf-8")
+    shutil.copy(ROOT / "template/tools/sync_github_repos.py", tools / "sync_github_repos.py")
+    (tools / "repos.yml").write_text(
+        "settings:\n"
+        "  notes_dir: 80_sources/repos\n"
+        "repos:\n"
+        "  - repo: local/fixture\n"
+        "    local_path: _fixtures/repo\n"
+        "    note: fixture.md\n",
+        encoding="utf-8",
+    )
+    first = subprocess.run(
+        [sys.executable, str(tools / "sync_github_repos.py"), "--quiet"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+    assert first.returncode == 0, first.stderr or first.stdout
+
+    note = vault / "80_sources" / "repos" / "fixture.md"
+    note.write_text(
+        note.read_text(encoding="utf-8").replace("repo: local/fixture", "repo: wrong/fixture"),
+        encoding="utf-8",
+    )
+    status = subprocess.run(
+        [sys.executable, str(tools / "sync_github_repos.py"), "--status"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert status.returncode == 0, status.stderr or status.stdout
+    assert "planned:update (stale)" in status.stdout
+    assert "stale (1): run sync before relying on the mirror" in status.stdout
+
+    repaired = subprocess.run(
+        [sys.executable, str(tools / "sync_github_repos.py")],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert repaired.returncode == 0, repaired.stderr or repaired.stdout
+    assert "[updated" in repaired.stdout
+    text = note.read_text(encoding="utf-8")
+    assert "repo: local/fixture" in text
+    assert "repo: wrong/fixture" not in text
+    manifest = json.loads((vault / "_meta" / "repo-manifest.json").read_text(encoding="utf-8"))
+    assert manifest["records"][0]["lifecycle_state"] == "clean"
+    assert manifest["records"][0]["warnings"] == []
+    assert manifest["records"][0]["errors"] == []
+
+
 def test_github_sync_refuses_to_take_over_hand_authored_note(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     tools = vault / "tools"
