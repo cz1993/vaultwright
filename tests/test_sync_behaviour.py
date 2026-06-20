@@ -23,6 +23,15 @@ class FakeConverter:
         return FakeConversion()
 
 
+class SourceChangingConverter:
+    def __init__(self, replacement: bytes) -> None:
+        self.replacement = replacement
+
+    def convert(self, path: str) -> FakeConversion:
+        Path(path).write_bytes(self.replacement)
+        return FakeConversion()
+
+
 def load_sync_module():
     spec = importlib.util.spec_from_file_location(
         "sync_github_repos_for_test",
@@ -958,6 +967,44 @@ def test_office_sync_second_run_is_manifest_stable(tmp_path: Path) -> None:
     assert wrote is False
     assert mirror.read_text(encoding="utf-8") == first_mirror
     assert (vault / "_meta" / "source-manifest.json").read_text(encoding="utf-8") == first_manifest
+
+
+def test_office_sync_aborts_when_source_changes_during_conversion(tmp_path: Path) -> None:
+    sync = load_office_sync_module()
+    vault = tmp_path / "vault"
+    source = vault / "40_delivery" / "registration.docx"
+    source.parent.mkdir(parents=True)
+    source.write_bytes(b"office bytes v1")
+    config = sync.load_mirror_config(vault)
+    manifest = sync.empty_manifest()
+    sync.sync_one(source, vault, FakeConverter(), False, False, config, {}, manifest, "markitdown", "test")
+    sync.write_source_manifest(vault, manifest)
+    mirror = vault / "_mirrors" / "40_delivery" / "registration.md"
+    first_mirror = mirror.read_text(encoding="utf-8")
+    first_record = sync.load_source_manifest(vault)["records"][0]
+
+    source.write_bytes(b"office bytes v2")
+    loaded = sync.load_source_manifest(vault)
+    status = sync.sync_one(
+        source,
+        vault,
+        SourceChangingConverter(b"office bytes v3"),
+        False,
+        False,
+        config,
+        {},
+        loaded,
+        "markitdown",
+        "test",
+    )
+    sync.write_source_manifest(vault, loaded)
+
+    assert status == "error:source-changed-during-conversion"
+    assert mirror.read_text(encoding="utf-8") == first_mirror
+    saved = sync.load_source_manifest(vault)["records"][0]
+    assert saved["lifecycle_state"] == "error"
+    assert saved["last_successful_sync"] == first_record["last_successful_sync"]
+    assert any("Source bytes changed during conversion" in error for error in saved["errors"])
 
 
 def test_office_sync_reports_manual_generated_region_modification(tmp_path: Path) -> None:

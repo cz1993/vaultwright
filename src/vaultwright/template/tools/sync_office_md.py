@@ -874,6 +874,26 @@ def sync_one(
             upsert_manifest_record(manifest, record)
         return f"error:{name}: {str(e)[:120]}"
 
+    try:
+        post_convert_sha = sha256_of(src)
+    except Exception as e:
+        name = e.__class__.__name__
+        record["lifecycle_state"] = "error"
+        record["errors"] = unique_list(record.get("errors", []) + [
+            f"Source became unreadable during conversion: {name}: {str(e)[:120]}"
+        ])
+        if manifest is not None and not dry:
+            upsert_manifest_record(manifest, record)
+        return f"error:source-unreadable-after-conversion:{name}"
+    if post_convert_sha != sha:
+        record["lifecycle_state"] = "error"
+        record["errors"] = unique_list(record.get("errors", []) + [
+            "Source bytes changed during conversion; mirror was not written.",
+        ])
+        if manifest is not None and not dry:
+            upsert_manifest_record(manifest, record)
+        return "error:source-changed-during-conversion"
+
     # preserve the curated region (above the sentinel) if the mirror already exists
     preserved_prefix, sentinel_found = split_body_at_sentinel(existing_body)
     if existing_body and sentinel_found:

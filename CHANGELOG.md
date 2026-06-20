@@ -80,6 +80,8 @@ Initial scaffold extracted and generalized from a real small-business vault.
   later successful lint.
 - Packaged-template parity tests now ignore generated Python bytecode caches created by CI compile
   preflight steps.
+- Office mirror sync now aborts the mirror write if source bytes change during conversion, records
+  an error lifecycle state, and preserves the previous mirror.
 - GitHub repo sync now skips cleanly when the default `tools/repos.yml` is absent, while explicit
   missing configs fail.
 - `repos.example.yml` no longer contains an active placeholder that could resolve to a real
@@ -167,5 +169,6 @@ Initial scaffold extracted and generalized from a real small-business vault.
 
 ### Known TODO before release hardening
 - Decide CLA vs DCO; secure the "Vaultwright" name; draft the commercial agreement.
-- Harden distribution packaging for the `vaultwright` CLI (see `cli/README.md`).
+- Finalize release artifact publishing and install verification beyond the current wheel smoke
+  test.
 - Calibrate near-duplicate/overlap thresholds with design-partner corpora.

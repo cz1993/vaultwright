@@ -130,6 +130,7 @@ Before public release, recovery must be tested on a copied vault:
 - run no-data scan and lint after recovery.
 
 The test suite now exercises the copied-vault regeneration path, source-byte preservation,
-`source_missing`, `manual_modification`, lint, and generated-text no-data scan checks on the
-Northwind example. Operator backup/restore drills and full copied-vault no-data scans on pilot
-vaults are still required before production use.
+conversion-race aborts that preserve the prior mirror, `source_missing`, `manual_modification`,
+lint, and generated-text no-data scan checks on the Northwind example. Operator backup/restore
+drills and full copied-vault no-data scans on pilot vaults are still required before production
+use.
