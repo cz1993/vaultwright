@@ -64,6 +64,8 @@ Product contract: [`docs/PRODUCT.md`](docs/PRODUCT.md). Sync contract:
 [`docs/DESIGN_PARTNER_PROTOCOL.md`](docs/DESIGN_PARTNER_PROTOCOL.md).
 Conversion review guide:
 [`docs/CONVERSION_REVIEW_GUIDE.md`](docs/CONVERSION_REVIEW_GUIDE.md).
+Release checklist:
+[`docs/RELEASE.md`](docs/RELEASE.md).
 Agent-readiness benchmark:
 [`docs/AGENT_READINESS_BENCHMARK.md`](docs/AGENT_READINESS_BENCHMARK.md).
 Full write-up: [`docs/methodology.md`](docs/methodology.md).

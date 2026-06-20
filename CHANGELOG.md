@@ -53,6 +53,10 @@ Initial scaffold extracted and generalized from a real small-business vault.
 - CI now builds a wheel, installs it into a clean environment, and smoke-tests packaged
   `vaultwright init`, `doctor`, `plan`, `benchmark`, `conversion`, `migration`, `pilot`, and JSON
   `recovery` delegation.
+- Added a tag-driven GitHub Release workflow and `docs/RELEASE.md`; `v*` tags build artifacts,
+  install-test the wheel, upload workflow artifacts, and create a draft prerelease for owner review
+  without publishing to PyPI. The workflow keeps build/test read-only and refuses to clobber an
+  existing release unless it is still both draft and prerelease.
 - `vaultwright doctor` now reports manifest lifecycle counts, sync audit presence, recovery action
   counts, git backup posture, GitHub auth posture, optional Obsidian config/plugin posture, and
   `.gitignore` backup guard coverage as read-only preflight context.

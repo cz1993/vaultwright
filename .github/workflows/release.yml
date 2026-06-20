@@ -1,0 +1,81 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: No-data scan
+        run: python scripts/no_data_scan.py
+      - name: Build package artifacts
+        run: |
+          python -m pip install --upgrade pip build
+          python -m build
+          python -m pip wheel . --no-deps -w /tmp/vaultwright-wheelhouse
+      - name: Verify wheel install
+        run: |
+          python -m venv "$RUNNER_TEMP/vaultwright-release-venv"
+          "$RUNNER_TEMP/vaultwright-release-venv/bin/python" -m pip install dist/vaultwright-*.whl
+          tmp_vault="$RUNNER_TEMP/vaultwright-release-vault"
+          "$RUNNER_TEMP/vaultwright-release-venv/bin/vaultwright" init "$tmp_vault"
+          test -f "$tmp_vault/CLAUDE.md"
+          test -f "$tmp_vault/tools/conversion_report.py"
+          "$RUNNER_TEMP/vaultwright-release-venv/bin/vaultwright" --root "$tmp_vault" doctor
+          "$RUNNER_TEMP/vaultwright-release-venv/bin/vaultwright" --root "$tmp_vault" plan
+          "$RUNNER_TEMP/vaultwright-release-venv/bin/vaultwright" --root "$tmp_vault" benchmark
+          "$RUNNER_TEMP/vaultwright-release-venv/bin/vaultwright" --root "$tmp_vault" conversion --guide --json
+          "$RUNNER_TEMP/vaultwright-release-venv/bin/vaultwright" --root "$tmp_vault" migration --json
+          "$RUNNER_TEMP/vaultwright-release-venv/bin/vaultwright" --root "$tmp_vault" pilot --json
+          "$RUNNER_TEMP/vaultwright-release-venv/bin/vaultwright" --root "$tmp_vault" recovery --json
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: vaultwright-dist-${{ github.ref_name }}
+          path: dist/*
+          if-no-files-found: error
+
+  publish-draft:
+    runs-on: ubuntu-latest
+    needs: build-release
+    permissions:
+      contents: write
+    steps:
+      - name: Download workflow artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: vaultwright-dist-${{ github.ref_name }}
+          path: dist
+      - name: Create draft GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            release_json="$(gh release view "$GITHUB_REF_NAME" --json isDraft,isPrerelease)"
+            if ! printf '%s' "$release_json" | python -c 'import json, sys; data = json.load(sys.stdin); sys.exit(0 if data.get("isDraft") and data.get("isPrerelease") else 1)'; then
+              echo "::error::Existing release $GITHUB_REF_NAME is not both draft and prerelease; refusing to clobber assets."
+              exit 1
+            fi
+            gh release upload "$GITHUB_REF_NAME" dist/* --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" dist/* \
+              --title "$GITHUB_REF_NAME" \
+              --generate-notes \
+              --draft \
+              --prerelease
+          fi
