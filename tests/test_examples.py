@@ -3,6 +3,8 @@ import shutil
 import subprocess
 import sys
 
+import yaml
+
 
 ROOT = Path(__file__).resolve().parents[1]
 NORTHWIND_GENERATED = [
@@ -33,7 +35,9 @@ GOVERNMENT_RAW_FOLDER_MIRRORS = [
     Path("60_finance/2026-06_business_support_and_funding_tracker.md"),
     Path("20_market/2026-06_canadian_business_startup_navigation_brief.md"),
 ]
+GOVERNMENT_BENCHMARK = Path("_meta/agent-readiness-tasks.yml")
 OFFICE_SOURCE_EXTS = {".docx", ".pptx", ".xlsx", ".pdf"}
+BENCHMARK_FAMILIES = {"answer", "reconcile", "update", "audit", "consolidate"}
 
 
 def assert_no_generated_residue(src: Path) -> None:
@@ -90,6 +94,64 @@ def test_government_services_example_source_tree_has_no_generated_residue() -> N
         assert not (src / rel).exists()
     log = (src / "log.md").read_text(encoding="utf-8")
     assert "sync |" not in log
+
+
+def load_government_benchmark(vault: Path) -> dict:
+    data = yaml.safe_load((vault / GOVERNMENT_BENCHMARK).read_text(encoding="utf-8"))
+    assert isinstance(data, dict)
+    return data
+
+
+def test_government_services_agent_readiness_tasks_reference_committed_sources() -> None:
+    vault = ROOT / "examples/government-services-vault"
+    data = load_government_benchmark(vault)
+    assert data["schema_version"] == 1
+    assert data["corpus"] == "government-services-vault"
+    assert set(data["comparison_modes"]) == {
+        "raw_source_folder",
+        "document_chat_transcript",
+        "vaultwright_markdown",
+    }
+    tasks = data["tasks"]
+    assert isinstance(tasks, list)
+    assert len(tasks) >= 5
+    families = {task["family"] for task in tasks}
+    assert BENCHMARK_FAMILIES.issubset(families)
+    assert families <= BENCHMARK_FAMILIES
+
+    generated = set(GOVERNMENT_GENERATED)
+    for task in tasks:
+        assert task["id"]
+        assert task["prompt"].endswith("?")
+        assert task["success_criteria"]
+        for rel in task.get("source_paths", []):
+            assert (vault / rel).exists(), rel
+            assert "_mirrors" not in Path(rel).parts
+        for rel in task.get("curated_paths", []):
+            path = vault / rel
+            assert path.exists(), rel
+            assert path.suffix == ".md"
+        for rel in task.get("generated_mirror_paths", []):
+            mirror = Path(rel)
+            assert mirror in generated, rel
+            assert not (vault / mirror).exists(), rel
+
+    benchmark = subprocess.run(
+        [sys.executable, str(vault / "tools" / "vaultwright.py"), "benchmark"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+    assert benchmark.returncode == 0, benchmark.stderr or benchmark.stdout
+    assert "benchmark_tasks: 6 tasks" in benchmark.stdout
+    assert "generated mirror not present yet" in benchmark.stdout
+
+
+def assert_benchmark_generated_mirrors_exist(vault: Path) -> None:
+    data = load_government_benchmark(vault)
+    for task in data["tasks"]:
+        for rel in task.get("generated_mirror_paths", []):
+            assert (vault / rel).exists(), rel
 
 
 def run_example_regeneration(tmp_path: Path, name: str, generated_rels: list[Path], raw_folder_rels: list[Path]) -> str:
@@ -179,6 +241,7 @@ def test_northwind_example_mirrors_regenerate_from_sources(tmp_path: Path) -> No
 
 
 def test_government_services_example_mirrors_regenerate_from_sources(tmp_path: Path) -> None:
+    vault = tmp_path / "government-services-vault"
     lint_output = run_example_regeneration(
         tmp_path,
         "government-services-vault",
@@ -186,6 +249,15 @@ def test_government_services_example_mirrors_regenerate_from_sources(tmp_path: P
         GOVERNMENT_RAW_FOLDER_MIRRORS,
     )
     assert_clean_lint(lint_output)
+    assert_benchmark_generated_mirrors_exist(vault)
+    benchmark = subprocess.run(
+        [sys.executable, str(vault / "tools" / "vaultwright.py"), "benchmark", "--require-generated"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+    assert benchmark.returncode == 0, benchmark.stderr or benchmark.stdout
+    assert "benchmark_tasks: 6 tasks" in benchmark.stdout
 
 
 def test_northwind_recovery_gate_regenerates_and_flags_review_states(tmp_path: Path) -> None:

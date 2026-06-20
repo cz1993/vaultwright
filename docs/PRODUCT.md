@@ -47,6 +47,8 @@ A successful first workflow produces:
 - repo mirrors under `80_sources/repos/`;
 - source/repo manifests, audit events, and lifecycle status reports;
 - curated hubs for the highest-value document clusters;
+- an agent-readable markdown substrate with source links, frontmatter, headings, manifests, and
+  refresh boundaries;
 - explicit warnings for unsupported or risky inputs;
 - a repeatable refresh procedure.
 
@@ -69,6 +71,7 @@ community plugins, or a specific team-deployment model.
 
 AI may assist with:
 
+- reading generated markdown mirrors as the first operational substrate;
 - summarizing generated mirrors;
 - proposing curated notes;
 - suggesting links and consolidation;
@@ -82,3 +85,10 @@ AI must not silently:
 - overwrite human-curated notes;
 - make uncited factual claims in durable notes;
 - cross client boundaries.
+
+## Agent-Readiness Validation
+
+Vaultwright's long-term value depends on whether agents perform better against governed markdown
+than against raw folders or one-off document-chat transcripts. The benchmark protocol in
+`docs/AGENT_READINESS_BENCHMARK.md` defines the evidence needed before this claim is treated as
+more than a thesis.

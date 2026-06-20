@@ -1,12 +1,12 @@
 # Vaultwright
 
-**Turn an existing business document collection into a governed, inspectable knowledge workspace
+**Turn an existing business document collection into governed, inspectable, agent-ready markdown
 without modifying the original records.**
 
 Vaultwright is a pre-release methodology + small toolkit for consultants and operators who need to
-preserve source documents while making their contents usable by people and AI. You bring source
-files, a local vault, an AI coding agent (Claude Code, OpenAI Codex, etc.), and optionally
-[Obsidian](https://obsidian.md) as the reference UI.
+preserve source documents while making their contents usable by people and AI agents. You bring
+source files, a local vault, an AI coding agent (Claude Code, OpenAI Codex, etc.), and optionally
+[Obsidian](https://obsidian.md) as the reference human UI.
 
 > Inspired by Andrej Karpathy's ["LLM wiki" pattern](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f).
 > Honest about the landscape — see [`docs/positioning.md`](docs/positioning.md).
@@ -29,8 +29,8 @@ parts nobody else ships:
    auto-generated markdown **mirrors** that refresh when the original changes (content-hashed,
    idempotent). Office mirrors live under `_mirrors/` so raw source folders stay clean; text-based
    PDF mirrors are available with `sync_office_md.py --include-pdf`. The original stays the source
-   of truth; the mirror is searchable, linkable, and visible in your graph. Your hand-written notes
-   in each mirror are preserved across syncs.
+   of truth; the mirror is searchable, linkable, diffable, and easier for agents to inspect than
+   opaque binaries. Your hand-written notes in each mirror are preserved across syncs.
 2. **Linking-first retrieval.** Maps of Content, entity pages, backlinks, and a frontmatter-driven
    index (Obsidian **Bases**) are the initial retrieval engine. Vector or semantic indexes may
    help later, but they are not the source of truth.
@@ -62,6 +62,8 @@ Product contract: [`docs/PRODUCT.md`](docs/PRODUCT.md). Sync contract:
 [`docs/SECURITY_MODEL.md`](docs/SECURITY_MODEL.md). Recovery guide:
 [`docs/RECOVERY.md`](docs/RECOVERY.md). Design-partner protocol:
 [`docs/DESIGN_PARTNER_PROTOCOL.md`](docs/DESIGN_PARTNER_PROTOCOL.md).
+Agent-readiness benchmark:
+[`docs/AGENT_READINESS_BENCHMARK.md`](docs/AGENT_READINESS_BENCHMARK.md).
 Full write-up: [`docs/methodology.md`](docs/methodology.md).
 Professional review brief: [`docs/VAULTWRIGHT_WHITEPAPER.md`](docs/VAULTWRIGHT_WHITEPAPER.md).
 
@@ -80,6 +82,7 @@ python3.11 -m pip install -r tools/requirements.txt  # markitdown + pyyaml
 python3.11 tools/vaultwright.py plan                 # inspect proposed mirror actions first
 python3.11 tools/vaultwright.py sync                 # mirror Office files and configured repos
 python3.11 tools/vaultwright.py status               # review manifest-backed lifecycle state
+python3.11 tools/vaultwright.py benchmark            # validate agent-readiness task pack, if present
 # edit tools/repos.yml, then:
 python3.11 tools/sync_github_repos.py                # mirror your GitHub repos
 python3.11 tools/vaultwright.py lint                 # health check

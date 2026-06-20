@@ -4,7 +4,7 @@ Aimed at a technical founder/owner who knows git. ~15 minutes.
 
 ## Prerequisites
 
-- [Obsidian](https://obsidian.md) (free) — the human UI.
+- [Obsidian](https://obsidian.md) (free) — optional reference human UI.
 - Python 3.11+ and `git`.
 - An AI coding agent that reads a `CLAUDE.md` / `AGENTS.md`: Claude Code, OpenAI Codex, etc.
 - Optional: GitHub CLI (`gh`) if you'll mirror private repos.
@@ -23,6 +23,9 @@ and the function-based starter folders). It refuses to overwrite a non-empty tar
 
 "Open folder as vault" → `~/my-business-vault`. Enable the core plugins **Properties**, **Bases**,
 and **Graph** (Settings → Core plugins). Open `Documents.base` to see the auto-generated index.
+
+Obsidian is useful for people, but it is not the correctness boundary. The key artifact is the
+filesystem of markdown mirrors, manifests, and curated notes that your agent can inspect directly.
 
 ## 3. Point your agent at it
 
@@ -43,6 +46,7 @@ python3.11 tools/vaultwright.py doctor          # check dependencies and vault s
 python3.11 tools/vaultwright.py plan            # inspect source inventory and proposed mirrors
 python3.11 tools/vaultwright.py sync            # mirrors -> _mirrors/ and 80_sources/repos/
 python3.11 tools/vaultwright.py status          # review manifest-backed lifecycle state
+python3.11 tools/vaultwright.py benchmark       # validate benchmark tasks, if configured
 
 python3.11 tools/vaultwright.py lint            # health check
 ```
@@ -65,3 +69,5 @@ vault:
 - **Housekeeping?** Ask it to *lint* — or just run `tools/lint_vault.py`.
 - **Remember:** prefer consolidating into existing notes over creating new ones. See
   `docs/methodology.md` §4.
+- **Agent-readiness pilot?** Use `docs/AGENT_READINESS_BENCHMARK.md` to compare raw-source,
+  document-chat, and Vaultwright-markdown performance on the same questions.

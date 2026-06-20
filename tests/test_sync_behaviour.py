@@ -53,6 +53,7 @@ def test_vaultwright_cli_doctor_passes_on_template() -> None:
 
     assert result.returncode == 0, result.stderr or result.stdout
     assert "vaultwright doctor: OK" in result.stdout
+    assert (ROOT / "template/tools/benchmark_tasks.py").exists()
 
 
 def test_vaultwright_cli_root_uses_target_vault_tools(tmp_path: Path) -> None:
@@ -100,6 +101,17 @@ def test_packaged_vaultwright_cli_delegates_to_target_vault(tmp_path: Path) -> N
 
     assert result.returncode == 0, result.stderr or result.stdout
     assert "sync_office_md plan" in result.stdout
+
+    benchmark = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "benchmark"],
+        cwd=ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert benchmark.returncode == 0, benchmark.stderr or benchmark.stdout
+    assert "benchmark validation skipped" in benchmark.stdout
 
 
 def test_packaged_vaultwright_cli_init_from_source_checkout(tmp_path: Path) -> None:

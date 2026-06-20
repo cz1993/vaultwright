@@ -355,7 +355,7 @@ Current evidence is encouraging but limited.
 
 | Evidence | Current result | Interpretation |
 | --- | --- | --- |
-| Unit/integration tests | 102 tests passing locally on 2026-06-20 | Good engineering baseline; not product validation |
+| Unit/integration tests | 103 tests passing locally on 2026-06-20 | Good engineering baseline; not product validation |
 | Template lint | Clean in prior validation | Template schema is internally consistent |
 | Example regeneration | Northwind and government examples regenerate in temp copies | CI can verify mirrors without committing generated residue |
 | Government showcase | Canadian business registration, GST/HST, CRA account, and funding/support fixtures | Better demonstration of a consulting-relevant pain point |
@@ -371,7 +371,8 @@ Known gaps:
 - No quantitative conversion-quality score exists yet.
 - No retrieval task measures before/after usefulness.
 - No benchmark yet proves that AI agents perform better against Vaultwright-generated markdown than
-  against raw source folders or ad hoc document-chat outputs.
+  against raw source folders or ad hoc document-chat outputs; `docs/AGENT_READINESS_BENCHMARK.md`
+  defines the required comparison protocol.
 - No independent security review has been completed.
 - No distribution-quality package release exists.
 - No formal support model, pricing, or consulting statement of work exists.
@@ -642,7 +643,8 @@ Roadmap:
 - Better similarity/overlap scoring calibrated by design-partner corpora.
 - Typed links and richer evidence relationships.
 - Agent-readiness benchmarks comparing raw source folders, document-chat transcripts, and
-  Vaultwright-generated markdown for question answering, reconciliation, update, and audit tasks.
+  Vaultwright-generated markdown for question answering, reconciliation, update, and audit tasks,
+  using `docs/AGENT_READINESS_BENCHMARK.md`.
 - External design-partner evidence.
 
 ## 21. Bottom Line

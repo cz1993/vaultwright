@@ -26,13 +26,15 @@ weeks. Notable neighbors (stars approximate, mid-2026):
 
 Not found in any surveyed competitor:
 
-1. **Governed document-to-knowledge lifecycle** — original files remain authoritative while
+1. **Governed document-to-markdown lifecycle** — original files remain authoritative while
    generated mirrors, curated notes, schema, provenance, and safety checks stay inspectable.
 2. **The mirror layer** — hash-refreshed markdown mirrors of **Office files *and* GitHub repos**,
    editable-original-stays-source-of-truth, with curated/auto separation under `_mirrors/`.
-3. **Consulting/onboarding wedge** — the first buyer is a small consulting or advisory team
+3. **Agent-ready substrate** — generated markdown gives coding agents plain-text, linkable,
+   diffable context with manifests and sentinel boundaries instead of raw binary folders.
+4. **Consulting/onboarding wedge** — the first buyer is a small consulting or advisory team
    handling document-heavy client work, not the broad personal-PKM market.
-4. **Bases-driven index** — the dynamic index is generated from frontmatter, not hand-maintained.
+5. **Bases-driven index** — the dynamic index is generated from frontmatter, not hand-maintained.
 
 ## Interoperate, don't compete
 

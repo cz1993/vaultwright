@@ -30,6 +30,11 @@ the original stays the editable source of truth.
   sentinel line (regenerated). Edit the original, never the auto region.
 
 This is Vaultwright's core technical idea and its main differentiator — see `positioning.md`.
+The human-visible knowledge base is important, but the generated markdown layer is also an
+agent-facing substrate: agents can read headings, frontmatter, links, diffs, manifests, and
+sentinel boundaries directly with filesystem and Git tools. That makes the mirrors more useful
+than opaque binaries for many agent tasks, provided the agent still cites source-backed notes and
+respects provenance.
 
 ## 3. Linking-first (the retrieval engine)
 

@@ -65,6 +65,14 @@ def command_lint(args: argparse.Namespace) -> int:
     return run(python_cmd(root, "lint_vault.py"), root)
 
 
+def command_benchmark(args: argparse.Namespace) -> int:
+    root = args.root.resolve()
+    cmd = python_cmd(root, "benchmark_tasks.py")
+    if args.require_generated:
+        cmd.append("--require-generated")
+    return run(cmd, root)
+
+
 def command_doctor(args: argparse.Namespace) -> int:
     root = args.root.resolve()
     errors: list[str] = []
@@ -76,7 +84,7 @@ def command_doctor(args: argparse.Namespace) -> int:
     for rel in ("CLAUDE.md", "INDEX.md", "_meta/domain-map.yml", "_meta/mirror-config.yml"):
         if not (root / rel).exists():
             errors.append(f"Missing required vault file: {rel}")
-    for script in ("sync_office_md.py", "sync_github_repos.py", "lint_vault.py"):
+    for script in ("sync_office_md.py", "sync_github_repos.py", "lint_vault.py", "benchmark_tasks.py"):
         if not (root / "tools" / script).exists():
             errors.append(f"Missing tool: tools/{script}")
     for module in ("yaml", "markitdown"):
@@ -115,6 +123,9 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("sync", help="Run Office and repo mirror syncs.").set_defaults(func=command_sync)
     sub.add_parser("status", help="Report manifest-backed lifecycle status.").set_defaults(func=command_status)
     sub.add_parser("lint", help="Run vault health checks.").set_defaults(func=command_lint)
+    benchmark = sub.add_parser("benchmark", help="Validate the agent-readiness benchmark task pack.")
+    benchmark.add_argument("--require-generated", action="store_true", help="Require generated mirror paths to exist.")
+    benchmark.set_defaults(func=command_benchmark)
     sub.add_parser("doctor", help="Check runtime, dependencies, and vault structure.").set_defaults(func=command_doctor)
     init = sub.add_parser("init", help="Scaffold a new vault from the repository template.")
     init.add_argument("target", type=Path)

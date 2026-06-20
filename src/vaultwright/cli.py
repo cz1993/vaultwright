@@ -72,7 +72,7 @@ def command_delegate(args: argparse.Namespace) -> int:
     except FileNotFoundError as exc:
         print(str(exc), file=sys.stderr)
         return 1
-    return run([sys.executable, str(wrapper), args.command], root)
+    return run([sys.executable, str(wrapper), args.command, *getattr(args, "delegate_args", [])], root)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -90,13 +90,21 @@ def build_parser() -> argparse.ArgumentParser:
         ("lint", "Run vault health checks."),
         ("doctor", "Check required files, Python version, and dependencies."),
     ):
-        sub.add_parser(name, help=help_text).set_defaults(func=command_delegate)
+        sub.add_parser(name, help=help_text).set_defaults(func=command_delegate, delegate_args=[])
+    benchmark = sub.add_parser("benchmark", help="Validate the agent-readiness benchmark task pack.")
+    benchmark.add_argument("--require-generated", action="store_true", help="Require generated mirror paths to exist.")
+    benchmark.set_defaults(
+        func=command_delegate,
+        delegate_args=lambda args: ["--require-generated"] if args.require_generated else [],
+    )
     return parser
 
 
 def main() -> int:
     parser = build_parser()
     args = parser.parse_args()
+    if callable(getattr(args, "delegate_args", None)):
+        args.delegate_args = args.delegate_args(args)
     return int(args.func(args))
 
 

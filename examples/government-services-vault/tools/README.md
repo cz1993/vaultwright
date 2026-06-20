@@ -6,8 +6,9 @@ These keep your knowledge base current and healthy. See `../CLAUDE.md` §6 for t
 | --- | --- |
 | `sync_office_md.py` | markdown **mirror** under `_mirrors/` for every `.docx/.pptx/.xlsx` (Microsoft markitdown), refreshed on content change |
 | `sync_github_repos.py` | markdown **mirror** under `80_sources/repos/` for each repo in `repos.yml` (README + docs + metadata), refreshed on HEAD change |
-| `vaultwright.py` | thin operator wrapper: `plan`, `sync`, `status`, `lint`, `doctor`, and repo-root `init` |
+| `vaultwright.py` | thin operator wrapper: `plan`, `sync`, `status`, `lint`, `benchmark`, `doctor`, and repo-root `init` |
 | `lint_vault.py` | health check — frontmatter, broken wikilinks, orphans, overlap warnings, mirror gaps |
+| `benchmark_tasks.py` | validates `_meta/agent-readiness-tasks.yml` benchmark packs and referenced source/mirror paths |
 | `sync_all.sh` | run both syncs + the linter (for a cron/launchd job) |
 
 ## Install
@@ -26,6 +27,7 @@ python3.11 tools/vaultwright.py plan
 python3.11 tools/vaultwright.py sync
 python3.11 tools/vaultwright.py status
 python3.11 tools/vaultwright.py lint
+python3.11 tools/vaultwright.py benchmark
 python3.11 tools/vaultwright.py doctor
 ```
 
@@ -84,6 +86,19 @@ directory instead of calling GitHub.
 Successful repo syncs maintain `_meta/repo-manifest.json`. Office and repo syncs append
 machine-readable events to `_meta/sync-audit.jsonl`. These generated metadata files explain what
 changed, which source or repo identity was involved, and the lifecycle state after sync.
+
+## Agent-readiness benchmark tasks
+
+If `_meta/agent-readiness-tasks.yml` exists, validate it with:
+
+```bash
+python3.11 tools/vaultwright.py benchmark
+python3.11 tools/vaultwright.py benchmark --require-generated  # after running sync
+```
+
+The first command allows generated mirror paths to be planned but not present yet. The
+`--require-generated` variant is for synced working copies and fails when a referenced mirror path
+does not exist.
 
 ## Keep it fresh (unattended)
 

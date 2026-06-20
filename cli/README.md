@@ -13,6 +13,7 @@ Current wrapper commands:
 | `python3.11 tools/vaultwright.py sync` | run the Office + GitHub repo mirror syncs |
 | `python3.11 tools/vaultwright.py status` | report manifest-backed clean, stale, missing, conflicted, and unsupported states |
 | `python3.11 tools/vaultwright.py lint` | run the vault health check |
+| `python3.11 tools/vaultwright.py benchmark` | validate `_meta/agent-readiness-tasks.yml`; add `--require-generated` after sync |
 | `python3.11 tools/vaultwright.py doctor` | check required files, Python version, and Python dependencies; warn on missing repo config or token env |
 
 Use `--root <vault-dir>` before the subcommand to operate on another vault that has its own
@@ -23,6 +24,7 @@ For source/development installs:
 ```bash
 python3.11 -m pip install -e .
 vaultwright --root ~/client-vault plan
+vaultwright --root ~/client-vault benchmark
 vaultwright init ~/new-vault
 ```
 

@@ -25,6 +25,12 @@ Initial scaffold extracted and generalized from a real small-business vault.
   limitations, validation posture, dogfood results, and future roadmap.
 - Updated the whitepaper to frame Vaultwright's future direction as an agent-ready markdown
   substrate, not only a human-managed knowledge-base workflow.
+- Added `docs/AGENT_READINESS_BENCHMARK.md` and aligned public docs around proving agent value
+  against raw source folders and one-off document-chat outputs.
+- Added a source-linked government-services agent-readiness task pack under
+  `examples/government-services-vault/_meta/agent-readiness-tasks.yml`.
+- Added `tools/benchmark_tasks.py` and `vaultwright benchmark` to validate agent-readiness task
+  packs before and after generated mirrors exist.
 - Added `docs/PRODUCT.md`, `docs/SYNC_SPEC.md`, and `docs/SECURITY_MODEL.md` to narrow the first
   product promise and define release-critical lifecycle/security contracts.
 - Office mirror sync now supports non-mutating `--plan` and manifest-backed `--status` reporting,

@@ -1,0 +1,108 @@
+schema_version: 1
+corpus: government-services-vault
+description: Synthetic Canadian business-startup benchmark tasks for comparing raw source folders, document-chat transcripts, and Vaultwright markdown.
+comparison_modes:
+  - raw_source_folder
+  - document_chat_transcript
+  - vaultwright_markdown
+scoring:
+  scale: "0-2"
+  zero: wrong, uncited, unsafe, or not actionable
+  one: partially correct but missing caveats, citations, or audit/update evidence
+  two: correct, source-backed, and operationally useful
+tasks:
+  - id: gst-registration-readiness
+    family: answer
+    prompt: What should a small business owner gather before deciding whether to register for GST/HST?
+    source_paths:
+      - 60_finance/gst-hst/2026-06_gst_hst_registration_readiness.docx
+      - 30_customers/Small Business Owner Questions.md
+      - 10_governance/Canadian Business Source Notes.md
+    generated_mirror_paths:
+      - _mirrors/60_finance/gst-hst/2026-06_gst_hst_registration_readiness.md
+    curated_paths:
+      - 60_finance/GST HST Readiness Hub.md
+      - 30_customers/Small Business Owner Questions.md
+    success_criteria:
+      - cites source-backed GST/HST readiness material
+      - distinguishes mandatory registration triggers from voluntary preparation
+      - avoids presenting the synthetic fixture as official tax advice
+  - id: business-registration-sequence
+    family: answer
+    prompt: What sequence should an owner follow to get ready for CRA business registration and program accounts?
+    source_paths:
+      - 40_delivery/business-registration/2026-06_cra_business_registration_path.docx
+      - 10_governance/Canadian Business Source Notes.md
+    generated_mirror_paths:
+      - _mirrors/40_delivery/business-registration/2026-06_cra_business_registration_path.md
+    curated_paths:
+      - 40_delivery/CRA Business Registration Hub.md
+      - 30_customers/Small Business Owner Questions.md
+    success_criteria:
+      - cites the business-registration source or mirror path
+      - identifies business number and program-account readiness as separate decisions
+      - keeps official-source caveats visible
+  - id: funding-support-discovery
+    family: audit
+    prompt: What evidence trail shows where an owner should look for funding, advisory, or regional support?
+    source_paths:
+      - 60_finance/2026-06_business_support_and_funding_tracker.xlsx
+      - 10_governance/Canadian Business Source Notes.md
+    generated_mirror_paths:
+      - _mirrors/60_finance/2026-06_business_support_and_funding_tracker.md
+    curated_paths:
+      - 60_finance/Business Funding and Support Hub.md
+    success_criteria:
+      - cites both the funding tracker and provenance/source-notes page
+      - separates federal, provincial, regional, or sector-specific support sources
+      - states that examples are synthetic and not program eligibility advice
+  - id: registration-tax-funding-boundaries
+    family: reconcile
+    prompt: Which source-backed notes should an agent compare before claiming that CRA registration, GST/HST registration, and funding discovery are the same workflow?
+    source_paths:
+      - 40_delivery/business-registration/2026-06_cra_business_registration_path.docx
+      - 60_finance/gst-hst/2026-06_gst_hst_registration_readiness.docx
+      - 60_finance/2026-06_business_support_and_funding_tracker.xlsx
+    generated_mirror_paths:
+      - _mirrors/40_delivery/business-registration/2026-06_cra_business_registration_path.md
+      - _mirrors/60_finance/gst-hst/2026-06_gst_hst_registration_readiness.md
+      - _mirrors/60_finance/2026-06_business_support_and_funding_tracker.md
+    curated_paths:
+      - 40_delivery/CRA Business Registration Hub.md
+      - 60_finance/GST HST Readiness Hub.md
+      - 60_finance/Business Funding and Support Hub.md
+    success_criteria:
+      - compares the separate registration, GST/HST, and funding/support source families
+      - avoids collapsing tax registration and funding discovery into one official workflow
+      - cites specific source-backed notes before stating any conflict or dependency
+  - id: changed-source-refresh
+    family: update
+    prompt: If the GST/HST readiness source changes, which generated mirror and curated notes should be reviewed?
+    source_paths:
+      - 60_finance/gst-hst/2026-06_gst_hst_registration_readiness.docx
+    generated_mirror_paths:
+      - _mirrors/60_finance/gst-hst/2026-06_gst_hst_registration_readiness.md
+    curated_paths:
+      - 60_finance/GST HST Readiness Hub.md
+      - 30_customers/Small Business Owner Questions.md
+      - 10_governance/Canadian Business Source Notes.md
+    success_criteria:
+      - identifies the exact generated mirror path
+      - identifies linked curated notes that may need review
+      - does not suggest editing the original or generated region directly
+  - id: duplicate-note-avoidance
+    family: consolidate
+    prompt: A new note idea says "Questions before registering for tax and support programs." Where should it be added?
+    source_paths:
+      - 30_customers/Small Business Owner Questions.md
+      - 60_finance/GST HST Readiness Hub.md
+      - 60_finance/Business Funding and Support Hub.md
+    generated_mirror_paths: []
+    curated_paths:
+      - 30_customers/Small Business Owner Questions.md
+      - 60_finance/GST HST Readiness Hub.md
+      - 60_finance/Business Funding and Support Hub.md
+    success_criteria:
+      - recommends extending an existing hub or entity page before creating a new note
+      - identifies the likely canonical pages
+      - preserves the anti-proliferation rule
