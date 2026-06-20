@@ -64,6 +64,8 @@ successful sync time. `--plan` never writes mirrors or the manifest; `--status` 
 and current source tree to surface clean, planned, unsupported, missing, stale, conflicted, and
 manual-modification states. Plan/status output also prints `next actions` for lifecycle states that
 need review, sync, source recovery, or conflict resolution.
+If conversion fails, sync records an `error` state and leaves the previous mirror untouched; fix the
+converter/source issue and rerun sync to recover.
 If a source file changes while conversion is running, sync records an error and leaves the previous
 mirror untouched so generated markdown is not tied to stale source-hash metadata.
 If a source moves and the generated mirror path changes, sync reports `source_moved` while the

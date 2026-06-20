@@ -32,6 +32,11 @@ class SourceChangingConverter:
         return FakeConversion()
 
 
+class FailingConverter:
+    def convert(self, _path: str) -> FakeConversion:
+        raise RuntimeError("conversion exploded")
+
+
 def load_sync_module():
     spec = importlib.util.spec_from_file_location(
         "sync_github_repos_for_test",
@@ -1019,6 +1024,47 @@ def test_office_sync_aborts_when_source_changes_during_conversion(tmp_path: Path
     assert saved["lifecycle_state"] == "error"
     assert saved["last_successful_sync"] == first_record["last_successful_sync"]
     assert any("Source bytes changed during conversion" in error for error in saved["errors"])
+
+
+def test_office_sync_preserves_mirror_and_recovers_after_converter_failure(tmp_path: Path) -> None:
+    sync = load_office_sync_module()
+    vault = tmp_path / "vault"
+    source = vault / "40_delivery" / "registration.docx"
+    source.parent.mkdir(parents=True)
+    source.write_bytes(b"office bytes v1")
+    config = sync.load_mirror_config(vault)
+    manifest = sync.empty_manifest()
+    sync.sync_one(source, vault, FakeConverter(), False, False, config, {}, manifest, "markitdown", "test")
+    sync.write_source_manifest(vault, manifest)
+    mirror = vault / "_mirrors" / "40_delivery" / "registration.md"
+    first_mirror = mirror.read_text(encoding="utf-8")
+    first_record = sync.load_source_manifest(vault)["records"][0]
+
+    source.write_bytes(b"office bytes v2")
+    loaded = sync.load_source_manifest(vault)
+    failed = sync.sync_one(source, vault, FailingConverter(), False, False, config, {}, loaded, "markitdown", "test")
+    sync.write_source_manifest(vault, loaded)
+    failed_record = sync.load_source_manifest(vault)["records"][0]
+
+    assert failed == "error:RuntimeError: conversion exploded"
+    assert mirror.read_text(encoding="utf-8") == first_mirror
+    assert failed_record["lifecycle_state"] == "error"
+    assert failed_record["last_successful_sync"] == first_record["last_successful_sync"]
+    assert failed_record["generated_region_sha256"] == first_record["generated_region_sha256"]
+    assert any("RuntimeError: conversion exploded" in error for error in failed_record["errors"])
+
+    recoverable = sync.load_source_manifest(vault)
+    plan = sync.plan_one(source, vault, config, {}, recoverable, "markitdown", "test")
+    recovered = sync.sync_one(source, vault, FakeConverter(), False, False, config, {}, recoverable, "markitdown", "test")
+    sync.write_source_manifest(vault, recoverable)
+    recovered_record = sync.load_source_manifest(vault)["records"][0]
+
+    assert plan["action"] == "update"
+    assert recovered == "updated"
+    assert recovered_record["lifecycle_state"] == "clean"
+    assert recovered_record["errors"] == []
+    assert recovered_record["source_sha256"] == sync.sha256_of(source)
+    assert mirror.read_text(encoding="utf-8") != first_mirror
 
 
 def test_office_sync_reports_manual_generated_region_modification(tmp_path: Path) -> None:

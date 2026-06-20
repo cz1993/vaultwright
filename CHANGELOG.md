@@ -88,6 +88,8 @@ Initial scaffold extracted and generalized from a real small-business vault.
 - Office mirror sync now blocks moved-source regeneration while the previous generated mirror still
   exists, so operators must preserve, move, archive, or remove the old mirror before creating the
   new generated path.
+- Added regression coverage for converter failures: the previous mirror is preserved, the manifest
+  records `error`, and a later successful sync returns the record to `clean`.
 - GitHub repo sync now skips cleanly when the default `tools/repos.yml` is absent, while explicit
   missing configs fail.
 - `repos.example.yml` no longer contains an active placeholder that could resolve to a real

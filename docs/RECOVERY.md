@@ -101,6 +101,10 @@ If extraction quality is poor or a converter update produces worse markdown:
 4. Run `tools/vaultwright.py status` and inspect converter-related stale states.
 5. Record the decision in `log.md`.
 
+If conversion fails before writing, Vaultwright records an `error` lifecycle state and leaves the
+previous mirror untouched. Fix the converter/source issue, rerun `tools/vaultwright.py sync`, then
+confirm `tools/vaultwright.py status` returns the source to `clean`.
+
 ## Recover Curated Notes
 
 Curated notes are human-maintained records. Restore them from Git or filesystem backup, not from
@@ -132,6 +136,8 @@ Before public release, recovery must be tested on a copied vault:
 
 - delete `_mirrors/` and regenerate;
 - interrupt sync and rerun;
+- force a converter failure and verify the previous mirror is preserved, then fix the converter and
+  verify sync returns the record to `clean`;
 - remove one source and verify `source_missing`;
 - edit a generated region and verify `manual_modification`;
 - move one source and verify `source_moved` blocks new mirror generation while the previous mirror
@@ -143,7 +149,7 @@ Before public release, recovery must be tested on a copied vault:
 - run no-data scan and lint after recovery.
 
 The test suite now exercises the copied-vault regeneration path, source-byte preservation,
-conversion-race aborts that preserve the prior mirror, `source_missing`, `manual_modification`,
-lint, and generated-text no-data scan checks on the Northwind example. Operator backup/restore
-drills and full copied-vault no-data scans on pilot vaults are still required before production
-use.
+converter-failure recovery that preserves the prior mirror, conversion-race aborts that preserve
+the prior mirror, `source_missing`, `manual_modification`, lint, and generated-text no-data scan
+checks on the Northwind example. Operator backup/restore drills and full copied-vault no-data scans
+on pilot vaults are still required before production use.
