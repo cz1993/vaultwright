@@ -49,8 +49,8 @@ Initial scaffold extracted and generalized from a real small-business vault.
   scaffold from an installed wheel without a source checkout or `VAULTWRIGHT_REPO`.
 - CI now builds a wheel, installs it into a clean environment, and smoke-tests packaged
   `vaultwright init`, `doctor`, `plan`, `benchmark`, and JSON `recovery` delegation.
-- `vaultwright doctor` now reports manifest lifecycle counts, sync audit presence, git backup
-  posture, and GitHub auth posture as read-only preflight context.
+- `vaultwright doctor` now reports manifest lifecycle counts, sync audit presence, recovery action
+  counts, git backup posture, and GitHub auth posture as read-only preflight context.
 - Added `tools/recovery_report.py` and `vaultwright recovery`, a read-only recovery checklist for
   non-clean source/repo manifest records and missing generated paths.
 - Recovery reports now attach the latest matching sync-audit status, lifecycle state, warnings, and

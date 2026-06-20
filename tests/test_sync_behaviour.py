@@ -72,6 +72,7 @@ def test_vaultwright_cli_doctor_passes_on_template() -> None:
     assert "info: source-manifest.json: not generated yet" in result.stdout
     assert "info: repo-manifest.json: not generated yet" in result.stdout
     assert "info: sync-audit.jsonl: not generated yet" in result.stdout
+    assert "info: recovery: no action items" in result.stdout
     assert "GitHub auth:" in result.stdout
     assert (ROOT / "template/tools/benchmark_tasks.py").exists()
     assert (ROOT / "template/tools/recovery_report.py").exists()
@@ -113,6 +114,7 @@ def test_vaultwright_cli_doctor_reports_manifest_lifecycle_counts(tmp_path: Path
     assert "source-manifest.json: 2 records (clean=1, source_missing=1)" in result.stdout
     assert "repo-manifest.json: 1 records (clean=1)" in result.stdout
     assert "sync-audit.jsonl: 2 events" in result.stdout
+    assert "warning: recovery: 1 item needs operator action (office=1, repo=0, temp=0)" in result.stdout
     assert "vaultwright doctor: OK" in result.stdout
 
 
@@ -420,7 +422,7 @@ def test_vaultwright_recovery_reports_stale_atomic_temp_files(tmp_path: Path) ->
     )
 
     assert result.returncode == 0, result.stderr or result.stdout
-    assert "recovery: 1 items need operator action (office=0, repo=0, temp=1)" in result.stdout
+    assert "recovery: 1 item needs operator action (office=0, repo=0, temp=1)" in result.stdout
     assert "[temp:interrupted_write" in result.stdout
     assert "_mirrors/40_delivery/.registration.md.12345.tmp" in result.stdout
     assert "Rerun status/sync to confirm the canonical generated file is complete" in result.stdout

@@ -154,6 +154,41 @@ def github_auth_preflight(root: Path) -> tuple[list[str], list[str]]:
     return info, warnings
 
 
+def recovery_preflight(root: Path) -> tuple[list[str], list[str]]:
+    info: list[str] = []
+    warnings: list[str] = []
+    script = root / "tools" / "recovery_report.py"
+    if not script.exists():
+        return info, warnings
+    try:
+        spec = importlib.util.spec_from_file_location("vaultwright_recovery_report_for_doctor", script)
+        if not spec or not spec.loader:
+            raise ImportError("cannot load recovery_report.py")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        items, report_warnings, report_errors = module.build_report(root)
+        summary = module.summary_counts(items)
+    except Exception as exc:
+        detail = f"{exc.__class__.__name__}: {str(exc)[:120]}"
+        warnings.append(f"recovery: unavailable ({detail})")
+        return info, warnings
+    warnings.extend(f"recovery: {warning}" for warning in report_warnings)
+    warnings.extend(f"recovery: {error}" for error in report_errors)
+    total = int(summary.get("total", 0))
+    if total:
+        item_word = "item" if total == 1 else "items"
+        verb = "needs" if total == 1 else "need"
+        warnings.append(
+            "recovery: "
+            f"{total} {item_word} {verb} operator action "
+            f"(office={summary.get('office', 0)}, repo={summary.get('repo', 0)}, temp={summary.get('temp', 0)}); "
+            "run `vaultwright recovery`."
+        )
+    else:
+        info.append("recovery: no action items")
+    return info, warnings
+
+
 def command_doctor(args: argparse.Namespace) -> int:
     root = args.root.resolve()
     info: list[str] = []
@@ -198,8 +233,11 @@ def command_doctor(args: argparse.Namespace) -> int:
         info.append("sync-audit.jsonl: not generated yet")
     if not (root / "tools" / "repos.yml").exists():
         warnings.append("No tools/repos.yml found; repo sync will skip until configured.")
+    recovery_info, recovery_warnings = recovery_preflight(root)
     git_info, git_warnings = git_preflight(root)
     gh_info, gh_warnings = github_auth_preflight(root)
+    info.extend(recovery_info)
+    warnings.extend(recovery_warnings)
     info.extend(git_info)
     warnings.extend(git_warnings)
     info.extend(gh_info)

@@ -34,9 +34,9 @@ python3.11 tools/vaultwright.py doctor
 ```
 
 `doctor` is read-only. It checks required files and copied tools, Python dependencies, source/repo
-manifest lifecycle counts, sync audit presence, git backup posture, and GitHub auth posture. A fresh
-vault may warn that manifests, audit logs, or repo config are not generated yet; those warnings are
-preflight context, not sync failures.
+manifest lifecycle counts, sync audit presence, recovery action counts, git backup posture, and
+GitHub auth posture. A fresh vault may warn that manifests, audit logs, or repo config are not
+generated yet; those warnings are preflight context, not sync failures.
 
 `recovery` is also read-only. It reads `_meta/source-manifest.json`, `_meta/repo-manifest.json`, and
 the latest matching `_meta/sync-audit.jsonl` events, then prints only records that need operator

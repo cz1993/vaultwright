@@ -299,7 +299,9 @@ def print_human(root: Path, items: list[dict], warnings: list[str], errors: list
     office_count = sum(1 for item in items if item["kind"] == "office")
     repo_count = sum(1 for item in items if item["kind"] == "repo")
     temp_count = sum(1 for item in items if item["kind"] == "temp")
-    print(f"recovery: {len(items)} items need operator action (office={office_count}, repo={repo_count}, temp={temp_count})")
+    item_word = "item" if len(items) == 1 else "items"
+    verb = "needs" if len(items) == 1 else "need"
+    print(f"recovery: {len(items)} {item_word} {verb} operator action (office={office_count}, repo={repo_count}, temp={temp_count})")
     for item in items:
         label = f"{item['kind']}:{item['state']}"
         print(f"  [{label:<28}] {item['source']} -> {item['target']}")
