@@ -190,8 +190,11 @@ def office_item(root: Path, record: dict) -> dict | None:
     state = str(record.get("lifecycle_state", "unknown"))
     source_path = record.get("current_source_path") or record.get("source_path") or record.get("source")
     mirror_path = record.get("mirror_path")
+    previous_mirror_path = record.get("previous_mirror_path")
+    previous_mirror_reason = record.get("previous_mirror_reason")
     source_exists = rel_exists(root, source_path)
     mirror_exists = rel_exists(root, mirror_path)
+    previous_mirror_exists = rel_exists(root, previous_mirror_path)
     reasons: list[str] = []
     if state not in CLEAN_STATES:
         reasons.append(f"state={state}")
@@ -209,6 +212,9 @@ def office_item(root: Path, record: dict) -> dict | None:
         "target": mirror_path or "",
         "source_exists": source_exists,
         "target_exists": mirror_exists,
+        "previous_target": previous_mirror_path if isinstance(previous_mirror_path, str) else "",
+        "previous_target_exists": previous_mirror_exists,
+        "previous_target_reason": previous_mirror_reason if isinstance(previous_mirror_reason, str) else "",
         "reasons": reasons,
         "action": OFFICE_ACTIONS.get(state, "Review the manifest record, then rerun plan/status before syncing."),
         "warnings": record.get("warnings") if isinstance(record.get("warnings"), list) else [],
@@ -297,6 +303,13 @@ def print_human(root: Path, items: list[dict], warnings: list[str], errors: list
     for item in items:
         label = f"{item['kind']}:{item['state']}"
         print(f"  [{label:<28}] {item['source']} -> {item['target']}")
+        previous_target = item.get("previous_target")
+        if isinstance(previous_target, str) and previous_target:
+            previous_exists = item.get("previous_target_exists")
+            exists_label = "exists" if previous_exists is True else "missing" if previous_exists is False else "unknown"
+            reason = item.get("previous_target_reason")
+            reason_suffix = f" reason={reason}" if isinstance(reason, str) and reason else ""
+            print(f"    previous target: {previous_target} ({exists_label}{reason_suffix})")
         print(f"    reasons: {', '.join(item['reasons'])}")
         print(f"    action: {item['action']}")
         for warning in item["warnings"][:3]:

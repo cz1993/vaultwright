@@ -42,6 +42,8 @@ preflight context, not sync failures.
 the latest matching `_meta/sync-audit.jsonl` events, then prints only records that need operator
 action, such as missing sources, manual generated-region edits, conflicts, unreachable repos,
 missing mirrors, stale atomic temp files from interrupted writes, or error states.
+For moved sources and mirror-root conflicts, it also prints the previous generated mirror path that
+must be reviewed before regeneration.
 
 ```bash
 python3.11 tools/sync_office_md.py              # sync the whole vault

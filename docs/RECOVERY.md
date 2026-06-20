@@ -88,6 +88,9 @@ move, delete, regenerate, or archive anything. Treat it as a triage checklist fo
 The JSON form includes `summary.total`, `summary.office`, `summary.repo`, and `summary.temp`
 counts for automation, plus the same item-level reasons, actions, warnings, errors, and latest
 audit context as the human report.
+For Office move and mirror-root conflict records, the report also includes `previous_target`,
+`previous_target_exists`, and `previous_target_reason` so operators can identify the retained
+generated mirror that must be preserved, moved, archived, or removed before syncing again.
 
 For each item with audit history, the report includes the latest audit timestamp, status, lifecycle
 state, and structured warnings/errors. This is diagnostic metadata only; it should not contain raw

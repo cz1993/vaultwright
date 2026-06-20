@@ -289,6 +289,15 @@ def test_vaultwright_recovery_reports_manifest_actions(tmp_path: Path) -> None:
                         "previous_mirror_reason": "source_moved",
                         "lifecycle_state": "source_moved",
                     },
+                    {
+                        "source_id": "src-root-conflict",
+                        "current_source_path": "40_delivery/registration.docx",
+                        "mirror_path": "_generated/40_delivery/registration.md",
+                        "previous_mirror_path": "_mirrors/40_delivery/registration.md",
+                        "previous_mirror_reason": "mirror_location_changed",
+                        "lifecycle_state": "conflict",
+                        "errors": ["Configured mirror location changed while the previous generated mirror still exists."],
+                    },
                 ],
             }
         ),
@@ -356,13 +365,15 @@ def test_vaultwright_recovery_reports_manifest_actions(tmp_path: Path) -> None:
     )
 
     assert result.returncode == 0, result.stderr or result.stdout
-    assert "recovery: 4 items need operator action (office=3, repo=1, temp=0)" in result.stdout
+    assert "recovery: 5 items need operator action (office=4, repo=1, temp=0)" in result.stdout
     assert "[office:source_missing" in result.stdout
     assert "Locate, restore, or intentionally archive the source" in result.stdout
     assert "[office:manual_modification" in result.stdout
     assert "Preserve human edits below the sentinel" in result.stdout
     assert "[office:source_moved" in result.stdout
     assert "preserve/archive any old mirror" in result.stdout
+    assert "previous target: _mirrors/40_delivery/registration.md (exists reason=source_moved)" in result.stdout
+    assert "previous target: _mirrors/40_delivery/registration.md (exists reason=mirror_location_changed)" in result.stdout
     assert "[repo:conflict" in result.stdout
     assert "Resolve the target note/repo identity conflict" in result.stdout
     assert "latest audit: 2026-06-20T00:01:00Z status=skipped:manual_modification" in result.stdout
@@ -379,8 +390,14 @@ def test_vaultwright_recovery_reports_manifest_actions(tmp_path: Path) -> None:
 
     assert json_result.returncode == 0, json_result.stderr or json_result.stdout
     report = json.loads(json_result.stdout)
-    assert report["summary"] == {"office": 3, "repo": 1, "temp": 0, "total": 4}
+    assert report["summary"] == {"office": 4, "repo": 1, "temp": 0, "total": 5}
     by_id = {item["id"]: item for item in report["items"]}
+    assert by_id["src-moved"]["previous_target"] == "_mirrors/40_delivery/registration.md"
+    assert by_id["src-moved"]["previous_target_exists"] is True
+    assert by_id["src-moved"]["previous_target_reason"] == "source_moved"
+    assert by_id["src-root-conflict"]["previous_target"] == "_mirrors/40_delivery/registration.md"
+    assert by_id["src-root-conflict"]["previous_target_exists"] is True
+    assert by_id["src-root-conflict"]["previous_target_reason"] == "mirror_location_changed"
     assert by_id["src-manual"]["latest_audit"]["timestamp"] == "2026-06-20T00:01:00Z"
     assert by_id["src-manual"]["latest_audit"]["status"] == "skipped:manual_modification"
     assert by_id["repo-conflict"]["latest_audit"]["errors"] == ["Target note belongs to another repo_id."]
