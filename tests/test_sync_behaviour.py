@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 from pathlib import Path
 import importlib.util
+import json
 import os
 import shutil
 import stat
@@ -54,7 +55,50 @@ def test_vaultwright_cli_doctor_passes_on_template() -> None:
 
     assert result.returncode == 0, result.stderr or result.stdout
     assert "vaultwright doctor: OK" in result.stdout
+    assert "info: source-manifest.json: not generated yet" in result.stdout
+    assert "info: repo-manifest.json: not generated yet" in result.stdout
+    assert "info: sync-audit.jsonl: not generated yet" in result.stdout
+    assert "GitHub auth:" in result.stdout
     assert (ROOT / "template/tools/benchmark_tasks.py").exists()
+
+
+def test_vaultwright_cli_doctor_reports_manifest_lifecycle_counts(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    (vault / "_meta" / "source-manifest.json").write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "records": [
+                    {"source_id": "src-clean", "lifecycle_state": "clean"},
+                    {"source_id": "src-missing", "lifecycle_state": "source_missing"},
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (vault / "_meta" / "repo-manifest.json").write_text(
+        json.dumps({"version": 1, "records": [{"repo_id": "repo-clean", "lifecycle_state": "clean"}]}),
+        encoding="utf-8",
+    )
+    (vault / "_meta" / "sync-audit.jsonl").write_text(
+        '{"tool":"sync_office_md","status":"created"}\n'
+        '{"tool":"sync_github_repos","status":"updated"}\n',
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "vaultwright.py"), "doctor"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+    assert "source-manifest.json: 2 records (clean=1, source_missing=1)" in result.stdout
+    assert "repo-manifest.json: 1 records (clean=1)" in result.stdout
+    assert "sync-audit.jsonl: 2 events" in result.stdout
+    assert "vaultwright doctor: OK" in result.stdout
 
 
 def test_vaultwright_cli_root_uses_target_vault_tools(tmp_path: Path) -> None:

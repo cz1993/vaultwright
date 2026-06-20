@@ -31,6 +31,11 @@ python3.11 tools/vaultwright.py benchmark
 python3.11 tools/vaultwright.py doctor
 ```
 
+`doctor` is read-only. It checks required files and copied tools, Python dependencies, source/repo
+manifest lifecycle counts, sync audit presence, git backup posture, and GitHub auth posture. A fresh
+vault may warn that manifests, audit logs, or repo config are not generated yet; those warnings are
+preflight context, not sync failures.
+
 ```bash
 python3.11 tools/sync_office_md.py              # sync the whole vault
 python3.11 tools/sync_office_md.py --plan       # non-mutating inventory + proposed actions

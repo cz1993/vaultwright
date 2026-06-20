@@ -14,7 +14,7 @@ Current wrapper commands:
 | `python3.11 tools/vaultwright.py status` | report manifest-backed clean, stale, missing, conflicted, and unsupported states |
 | `python3.11 tools/vaultwright.py lint` | run the vault health check |
 | `python3.11 tools/vaultwright.py benchmark` | validate `_meta/agent-readiness-tasks.yml`; add `--require-generated` after sync |
-| `python3.11 tools/vaultwright.py doctor` | check required files, Python version, and Python dependencies; warn on missing repo config or token env |
+| `python3.11 tools/vaultwright.py doctor` | read-only preflight for required files/tools, Python dependencies, manifest lifecycle counts, sync audit presence, git backup posture, and GitHub auth posture |
 
 Use `--root <vault-dir>` before the subcommand to operate on another vault that has its own
 `tools/` directory, for example `python3.11 tools/vaultwright.py --root ~/client-vault plan`.
@@ -34,5 +34,7 @@ Vaultwright checkout so it can copy the template.
 Design notes:
 - Keep it dependency-light (Python stdlib + PyYAML + markitdown).
 - The wrapper calls the existing scripts as the source of truth; do not fork sync/lint logic.
-- Future release packaging should include the same commands without changing the underlying
-  sync/lint implementations.
+- `doctor` is a preflight signal, not a substitute for `plan`, `status`, `lint`, backups, or human
+  review before source moves/deletions.
+- Future release packaging should keep these commands delegating to vault-local tools unless the
+  underlying sync/lint implementations are intentionally moved into the package.

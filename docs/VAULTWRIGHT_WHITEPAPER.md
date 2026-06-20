@@ -342,7 +342,7 @@ Professional-services use should begin with a conservative operating model:
 | Mirror storage | Office mirrors and optional text-based PDF mirrors live under `_mirrors/` | Fixes messy source-folder problem |
 | Office sync | Plan/sync/status, manifest, audit events, manual-edit detection | Useful alpha foundation |
 | Repo sync | Plan/sync/status, repo manifest, audit events, manual-edit detection | Useful for code/source repositories |
-| CLI | Vault-local wrapper and source-installable `vaultwright` entry point | Good developer ergonomics; distribution packaging not final |
+| CLI | Vault-local wrapper and source-installable `vaultwright` entry point; doctor reports dependency, manifest, audit, git, and GitHub-auth posture | Better operator ergonomics; distribution packaging not final |
 | Examples | Government-services showcase plus Northwind regression fixture | Better demo plus stable tests |
 | Provenance | Public fixture ledger with source URLs, licence posture, and review date | Good discipline; must be maintained |
 | Safety | No-data scanner, pre-commit hook, CI checks | Strong for repository hygiene |
@@ -439,7 +439,7 @@ Goal: make one trained operator able to run Vaultwright on a permission-cleared 
 Deliverables:
 
 - packaged install path that does not depend on source-checkout assumptions;
-- richer `doctor` output;
+- continued `doctor` expansion for Obsidian/plugin and backup-recovery checks;
 - improved lifecycle status wording;
 - dry-run migration report for legacy folder layouts;
 - conversion spot-check guide;

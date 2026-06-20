@@ -43,6 +43,8 @@ Initial scaffold extracted and generalized from a real small-business vault.
   `doctor`, plus repo-root `init`.
 - Added `pyproject.toml` and the source-installable `vaultwright` console entry point, which
   delegates to vault-local tools instead of forking sync/lint behavior.
+- `vaultwright doctor` now reports manifest lifecycle counts, sync audit presence, git backup
+  posture, and GitHub auth posture as read-only preflight context.
 - GitHub repo sync now supports non-mutating `--plan` and manifest-backed `--status` reporting,
   and writes `_meta/repo-manifest.json` with stable repo IDs, configured/resolved repo, note path,
   local-tree or remote-HEAD hash, lifecycle state, warnings, and last successful sync.
