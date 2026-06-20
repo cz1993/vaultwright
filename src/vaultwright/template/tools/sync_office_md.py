@@ -638,6 +638,28 @@ def plan_one(
     mirror_rel = as_posix_rel(mirror.relative_to(root)) if mirror.is_relative_to(root) else str(mirror)
     mirror_mode = str(mirror_config["mode"])
     mirror_root = mirror_config["root"].as_posix() if isinstance(mirror_config["root"], Path) else str(mirror_config["root"])
+    previous_mirror_rel = None
+    for candidate in (
+        (existing_record or {}).get("mirror_path"),
+        (existing_record or {}).get("previous_mirror_path"),
+    ):
+        if not isinstance(candidate, str) or not candidate or candidate == mirror_rel:
+            continue
+        previous_path = Path(candidate)
+        if previous_path.is_absolute() or ".." in previous_path.parts:
+            continue
+        if (root / previous_path).exists():
+            previous_mirror_rel = candidate
+            break
+    mirror_location_changed = bool(
+        existing_record
+        and previous_mirror_rel
+        and (
+            existing_record.get("mirror_mode") != mirror_mode
+            or existing_record.get("mirror_root") != mirror_root
+            or existing_record.get("previous_mirror_path")
+        )
+    )
     existing_fm = None
     existing_generated_hash = None
     if mirror.exists():
@@ -661,7 +683,16 @@ def plan_one(
     warnings = unique_list(warnings + source_risk_warnings(src.relative_to(root), source_size))
 
     if not errors and action != "skip":
-        if moved_from:
+        if mirror_location_changed:
+            action = "review"
+            lifecycle_state = "conflict"
+            errors.append(
+                "Configured mirror location changed while the previous generated mirror still exists."
+            )
+            warnings.append(
+                "Archive or remove the previous mirror before syncing the new mirror path."
+            )
+        elif moved_from:
             action = "update"
             lifecycle_state = "source_moved"
             warnings.append("Source path changed; stable source ID was reused from the manifest.")
@@ -729,6 +760,7 @@ def plan_one(
         "current_source_path": source_rel,
         "previous_source_paths": previous_paths,
         "mirror_path": mirror_rel,
+        "previous_mirror_path": previous_mirror_rel if mirror_location_changed else None,
         "source_format": src.suffix.lstrip(".").lower(),
         "source_size": source_size,
         "source_modified": source_mtime,
@@ -753,6 +785,8 @@ def plan_one(
         "warnings": unique_list(warnings),
         "errors": unique_list(errors),
     }
+    if not record.get("previous_mirror_path"):
+        record.pop("previous_mirror_path", None)
     return {
         "source": src,
         "mirror": mirror,

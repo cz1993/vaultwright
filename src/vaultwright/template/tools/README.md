@@ -66,6 +66,8 @@ manual-modification states. Plan/status output also prints `next actions` for li
 need review, sync, source recovery, or conflict resolution.
 If a source file changes while conversion is running, sync records an error and leaves the previous
 mirror untouched so generated markdown is not tied to stale source-hash metadata.
+If the configured mirror root or mode changes, sync reports `conflict` while the previous generated
+mirror still exists. Review and archive/remove the old mirror before generating the new path.
 
 The Office plan also reports warning counts for:
 

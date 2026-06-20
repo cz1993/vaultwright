@@ -34,7 +34,8 @@ Current implementation status:
   marking, non-mutating plan/status reports, sensitive-name warnings, duplicate-byte warnings, and
   format-specific conversion-quality warnings, plus lifecycle next-action guidance in plan/status
   output, and post-conversion source hash checks that abort mirror writes if the source changes
-  while conversion is running;
+  while conversion is running, plus mirror-root-change conflict detection when the old generated
+  mirror still exists;
 - implemented for repo mirrors: stable repo IDs, configured/resolved repo, note path, local-tree or
   remote HEAD hash, lifecycle state, warnings/errors, non-mutating plan/status reports, and
   generated-region manual-edit detection, plus lifecycle next-action guidance in plan/status output;

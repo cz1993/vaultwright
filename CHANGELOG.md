@@ -82,6 +82,9 @@ Initial scaffold extracted and generalized from a real small-business vault.
   preflight steps.
 - Office mirror sync now aborts the mirror write if source bytes change during conversion, records
   an error lifecycle state, and preserves the previous mirror.
+- Office mirror sync now reports a conflict when the configured mirror root or mode changes while
+  the previous generated mirror still exists, preventing duplicate generated mirrors for one
+  source.
 - GitHub repo sync now skips cleanly when the default `tools/repos.yml` is absent, while explicit
   missing configs fail.
 - `repos.example.yml` no longer contains an active placeholder that could resolve to a real

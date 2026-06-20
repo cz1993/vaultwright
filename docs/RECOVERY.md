@@ -79,6 +79,11 @@ triage checklist for:
 - `unreachable`, `repo_changed`, `manual_modification`, `conflict`, and `error` repo records;
 - missing repo mirror notes.
 
+For Office `conflict` records caused by a mirror-root or mirror-mode change, archive or remove the
+previous generated mirror after review. Vaultwright will not write the new mirror path while the
+old generated mirror still exists, because that would leave two generated notes claiming the same
+source.
+
 If a manifest is missing, restore it from backup when possible. Without manifest evidence,
 Vaultwright cannot safely prove whether an existing generated region is pristine.
 
@@ -125,6 +130,8 @@ Before public release, recovery must be tested on a copied vault:
 - interrupt sync and rerun;
 - remove one source and verify `source_missing`;
 - edit a generated region and verify `manual_modification`;
+- change the Office mirror root with the old mirror present and verify `conflict`, then remove the
+  old mirror and verify the new mirror can be generated;
 - run `tools/vaultwright.py recovery` and verify the checklist matches the manifest states;
 - restore a curated note from Git;
 - run no-data scan and lint after recovery.
