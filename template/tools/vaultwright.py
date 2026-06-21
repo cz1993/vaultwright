@@ -120,6 +120,8 @@ def command_migration(args: argparse.Namespace) -> int:
     cmd = python_cmd(root, "migration_report.py")
     if args.json:
         cmd.append("--json")
+    if args.worksheet:
+        cmd.append("--worksheet")
     return run(cmd, root)
 
 
@@ -552,7 +554,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     conversion.set_defaults(func=command_conversion)
     migration = sub.add_parser("migration", help="Print a read-only legacy folder migration report.")
-    migration.add_argument("--json", action="store_true", help="Print machine-readable migration JSON.")
+    migration_output = migration.add_mutually_exclusive_group()
+    migration_output.add_argument("--json", action="store_true", help="Print machine-readable migration JSON.")
+    migration_output.add_argument("--worksheet", action="store_true", help="Print a Markdown migration review worksheet.")
     migration.set_defaults(func=command_migration)
     pilot = sub.add_parser("pilot", help="Print a read-only design-partner pilot evidence report.")
     pilot_output = pilot.add_mutually_exclusive_group()

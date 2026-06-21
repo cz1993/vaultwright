@@ -137,10 +137,15 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     migration = sub.add_parser("migration", help="Print a read-only legacy folder migration report.")
-    migration.add_argument("--json", action="store_true", help="Print machine-readable migration JSON.")
+    migration_output = migration.add_mutually_exclusive_group()
+    migration_output.add_argument("--json", action="store_true", help="Print machine-readable migration JSON.")
+    migration_output.add_argument("--worksheet", action="store_true", help="Print a Markdown migration review worksheet.")
     migration.set_defaults(
         func=command_delegate,
-        delegate_args=lambda args: ["--json"] if args.json else [],
+        delegate_args=lambda args: (
+            (["--json"] if args.json else [])
+            + (["--worksheet"] if args.worksheet else [])
+        ),
     )
     pilot = sub.add_parser("pilot", help="Print a read-only design-partner pilot evidence report.")
     pilot_output = pilot.add_mutually_exclusive_group()

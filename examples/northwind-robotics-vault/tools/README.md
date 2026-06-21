@@ -41,6 +41,7 @@ python3.11 tools/vaultwright.py status
 python3.11 tools/vaultwright.py catalog
 python3.11 tools/vaultwright.py conversion --guide
 python3.11 tools/vaultwright.py migration
+python3.11 tools/vaultwright.py migration --worksheet
 python3.11 tools/vaultwright.py pilot
 python3.11 tools/vaultwright.py recovery
 python3.11 tools/vaultwright.py sandbox --source-root /path/to/original-documents
@@ -74,7 +75,7 @@ folders that need human classification before any manual move. Non-reserved hidd
 underscore-prefixed folders are reported too, because they may contain staged imports or legacy
 source material. It also scans note frontmatter for legacy alias domains such as
 `domain: marketing` or `domain: clients` and reports the canonical domain/folder recommendation without
-rewriting files.
+rewriting files. Use `--worksheet` to print a Markdown review checklist for a migration batch.
 
 `pilot` is read-only. It summarizes aggregate pilot evidence from manifests, audit events,
 conversion priorities, recovery action counts, benchmark tasks, and optional benchmark result

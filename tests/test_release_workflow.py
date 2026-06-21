@@ -60,6 +60,7 @@ def test_release_workflow_verifies_built_wheel_before_release() -> None:
     assert "test -f \"$tmp_vault/tools/sandbox_report.py\"" in text
     assert "sandbox --source-root" in text
     assert "conversion --guide --json" in text
+    assert "migration --worksheet" in text
     assert "pilot --worksheet" in text
     assert "actions/upload-artifact@v7" in text
 
@@ -73,6 +74,7 @@ def test_ci_workflow_smokes_sandbox_command() -> None:
     assert "template/tools/sandbox_report.py" in text
     assert "test -f \"$tmp_vault/tools/sandbox_report.py\"" in text
     assert "sandbox --source-root" in text
+    assert "migration --worksheet" in text
 
 
 def test_release_workflow_isolates_write_token_to_publish_job() -> None:

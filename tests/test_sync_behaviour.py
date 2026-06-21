@@ -350,6 +350,19 @@ def test_packaged_vaultwright_cli_delegates_to_target_vault(tmp_path: Path) -> N
     assert migration.returncode == 0, migration.stderr or migration.stdout
     assert "migration: no legacy or unknown top-level folders found" in migration.stdout
 
+    migration_worksheet = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "migration", "--worksheet"],
+        cwd=ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert migration_worksheet.returncode == 0, migration_worksheet.stderr or migration_worksheet.stdout
+    assert "# Vaultwright Migration Review Worksheet" in migration_worksheet.stdout
+    assert "No legacy or unknown top-level folders found" in migration_worksheet.stdout
+    assert "No legacy frontmatter domains found" in migration_worksheet.stdout
+
     recovery = subprocess.run(
         [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "recovery"],
         cwd=ROOT,
@@ -1604,6 +1617,12 @@ def test_vaultwright_migration_reports_legacy_and_unknown_folders(tmp_path: Path
         text=True,
         capture_output=True,
     )
+    worksheet_result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "vaultwright.py"), "migration", "--worksheet"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
 
     assert result.returncode == 0, result.stderr or result.stdout
     assert "migration: dry-run only; no files were moved" in result.stdout
@@ -1655,6 +1674,15 @@ def test_vaultwright_migration_reports_legacy_and_unknown_folders(tmp_path: Path
     assert by_path["marketing/campaign.md"]["recommended_folder"] == "20_market"
     assert by_path["client_uploads/unknown-domain.md"]["kind"] == "frontmatter_domain_unknown"
     assert by_path["client_uploads/unknown-domain.md"]["current_domain"] == "special-projects"
+
+    assert worksheet_result.returncode == 0, worksheet_result.stderr or worksheet_result.stdout
+    assert "# Vaultwright Migration Review Worksheet" in worksheet_result.stdout
+    assert "Dry-run only; no files were moved." in worksheet_result.stdout
+    assert "Top-level folders needing review: 4 (alias=1, unknown=3)" in worksheet_result.stdout
+    assert "Note frontmatter domains needing review: 2 (alias=1, unknown=1)" in worksheet_result.stdout
+    assert "- [ ] `marketing` -> `20_market`" in worksheet_result.stdout
+    assert "- [ ] `marketing/campaign.md`: `marketing` -> `market`" in worksheet_result.stdout
+    assert "- [ ] `client_uploads/unknown-domain.md`: `special-projects` -> `manual classification`" in worksheet_result.stdout
 
 
 def test_vaultwright_recovery_reports_manifest_actions(tmp_path: Path) -> None:
