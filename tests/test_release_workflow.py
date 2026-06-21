@@ -55,9 +55,19 @@ def test_release_workflow_verifies_built_wheel_before_release() -> None:
     assert "dist/vaultwright-*.whl" in text
     assert "vaultwright-release-venv" in text
     assert "vaultwright\" init" in text
+    assert "test -f \"$tmp_vault/tools/sandbox_report.py\"" in text
+    assert "sandbox --source-root" in text
     assert "conversion --guide --json" in text
     assert "pilot --worksheet" in text
     assert "actions/upload-artifact@v7" in text
+
+
+def test_ci_workflow_smokes_sandbox_command() -> None:
+    text = CI_WORKFLOW.read_text(encoding="utf-8")
+
+    assert "template/tools/sandbox_report.py" in text
+    assert "test -f \"$tmp_vault/tools/sandbox_report.py\"" in text
+    assert "sandbox --source-root" in text
 
 
 def test_release_workflow_isolates_write_token_to_publish_job() -> None:
@@ -103,5 +113,6 @@ def test_release_checklist_documents_owner_review_and_limitations() -> None:
     assert "draft, prerelease GitHub Release" in text
     assert "owner should publish it only after reviewing" in text
     assert "This repository does not publish to PyPI yet." in text
+    assert "`sandbox`" in text
     assert "conversion quality" in text
     assert "external pilot evidence" in text

@@ -34,11 +34,14 @@ jobs:
           python -m venv "$RUNNER_TEMP/vaultwright-release-venv"
           "$RUNNER_TEMP/vaultwright-release-venv/bin/python" -m pip install dist/vaultwright-*.whl
           tmp_vault="$RUNNER_TEMP/vaultwright-release-vault"
+          mkdir -p "$RUNNER_TEMP/vaultwright-release-original-documents"
           "$RUNNER_TEMP/vaultwright-release-venv/bin/vaultwright" init "$tmp_vault"
           test -f "$tmp_vault/CLAUDE.md"
           test -f "$tmp_vault/tools/conversion_report.py"
+          test -f "$tmp_vault/tools/sandbox_report.py"
           "$RUNNER_TEMP/vaultwright-release-venv/bin/vaultwright" --root "$tmp_vault" doctor
           "$RUNNER_TEMP/vaultwright-release-venv/bin/vaultwright" --root "$tmp_vault" plan
+          "$RUNNER_TEMP/vaultwright-release-venv/bin/vaultwright" --root "$tmp_vault" sandbox --source-root "$RUNNER_TEMP/vaultwright-release-original-documents" --json
           "$RUNNER_TEMP/vaultwright-release-venv/bin/vaultwright" --root "$tmp_vault" benchmark
           "$RUNNER_TEMP/vaultwright-release-venv/bin/vaultwright" --root "$tmp_vault" conversion --guide --json
           "$RUNNER_TEMP/vaultwright-release-venv/bin/vaultwright" --root "$tmp_vault" migration --json

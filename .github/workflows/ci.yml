@@ -20,7 +20,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e . pytest
       - name: Compile Python tools
-        run: python -m py_compile template/tools/lint_vault.py template/tools/sync_office_md.py template/tools/sync_github_repos.py template/tools/benchmark_tasks.py template/tools/conversion_report.py template/tools/migration_report.py template/tools/pilot_report.py template/tools/recovery_report.py template/tools/vaultwright.py src/vaultwright/cli.py src/vaultwright/__init__.py scripts/no_data_scan.py scripts/sync_template_copies.py
+        run: python -m py_compile template/tools/lint_vault.py template/tools/sync_office_md.py template/tools/sync_github_repos.py template/tools/benchmark_tasks.py template/tools/conversion_report.py template/tools/migration_report.py template/tools/pilot_report.py template/tools/recovery_report.py template/tools/sandbox_report.py template/tools/vaultwright.py src/vaultwright/cli.py src/vaultwright/__init__.py scripts/no_data_scan.py scripts/sync_template_copies.py
       - name: Shell syntax
         run: bash -n scripts/init.sh template/tools/sync_all.sh .githooks/pre-commit
       - name: Template copy drift check
@@ -40,13 +40,16 @@ jobs:
           python -m venv "$tmp_build/venv"
           "$tmp_build/venv/bin/python" -m pip install "$tmp_build"/wheelhouse/vaultwright-*.whl
           tmp_vault="$tmp_build/vault"
+          mkdir -p "$tmp_build/original-documents"
           "$tmp_build/venv/bin/vaultwright" init "$tmp_vault"
           test -f "$tmp_vault/CLAUDE.md"
           test -f "$tmp_vault/tools/conversion_report.py"
           test -f "$tmp_vault/tools/pilot_report.py"
           test -f "$tmp_vault/tools/recovery_report.py"
+          test -f "$tmp_vault/tools/sandbox_report.py"
           "$tmp_build/venv/bin/vaultwright" --root "$tmp_vault" doctor
           "$tmp_build/venv/bin/vaultwright" --root "$tmp_vault" plan
+          "$tmp_build/venv/bin/vaultwright" --root "$tmp_vault" sandbox --source-root "$tmp_build/original-documents" --json
           "$tmp_build/venv/bin/vaultwright" --root "$tmp_vault" benchmark
           "$tmp_build/venv/bin/vaultwright" --root "$tmp_vault" conversion --json
           "$tmp_build/venv/bin/vaultwright" --root "$tmp_vault" migration --json
