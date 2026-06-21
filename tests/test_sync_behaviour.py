@@ -93,6 +93,7 @@ def test_vaultwright_cli_doctor_passes_on_template() -> None:
     assert (ROOT / "template/tools/benchmark_tasks.py").exists()
     assert (ROOT / "template/tools/catalog_report.py").exists()
     assert (ROOT / "template/tools/conversion_report.py").exists()
+    assert (ROOT / "template/tools/m365_report.py").exists()
     assert (ROOT / "template/tools/migration_report.py").exists()
     assert (ROOT / "template/tools/pilot_report.py").exists()
     assert (ROOT / "template/tools/recovery_report.py").exists()
@@ -386,6 +387,31 @@ def test_packaged_vaultwright_cli_delegates_to_target_vault(tmp_path: Path) -> N
     report = json.loads(recovery_json.stdout)
     assert report["items"] == []
     assert report["summary"]["total"] == 0
+
+    m365 = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "m365"],
+        cwd=ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert m365.returncode == 0, m365.stderr or m365.stdout
+    assert "m365 handoff: read-only readiness report; no source content was printed" in m365.stdout
+    assert "Run `vaultwright sync` before handoff" in m365.stdout
+
+    m365_json = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "m365", "--json"],
+        cwd=ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert m365_json.returncode == 0, m365_json.stderr or m365_json.stdout
+    m365_report = json.loads(m365_json.stdout)
+    assert m365_report["report"]["catalogs"]["markdown"]["path"] == "CATALOG.md"
+    assert "CATALOG.html" in m365_report["report"]["handoff_bundle"]
 
     catalog = subprocess.run(
         [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "catalog"],
@@ -961,6 +987,7 @@ def test_packaged_vaultwright_cli_init_from_packaged_template(tmp_path: Path) ->
     assert (target / "CLAUDE.md").exists()
     assert (target / ".gitignore").exists()
     assert (target / "tools" / "conversion_report.py").exists()
+    assert (target / "tools" / "m365_report.py").exists()
     assert (target / "tools" / "migration_report.py").exists()
     assert (target / "tools" / "pilot_report.py").exists()
     assert (target / "tools" / "recovery_report.py").exists()
@@ -1341,6 +1368,102 @@ def test_vaultwright_pilot_report_summarizes_evidence_without_content(tmp_path: 
     assert source.read_bytes() == before_source
     assert mirror.read_text(encoding="utf-8") == before_mirror
     assert repo_note.read_text(encoding="utf-8") == before_repo_note
+
+
+def test_vaultwright_m365_report_summarizes_handoff_without_content(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    source = vault / "40_delivery" / "client-plan.docx"
+    mirror = vault / "_mirrors" / "40_delivery" / "client-plan.md"
+    repo_note = vault / "80_sources" / "repos" / "fixture.md"
+    source.parent.mkdir(parents=True, exist_ok=True)
+    mirror.parent.mkdir(parents=True, exist_ok=True)
+    repo_note.parent.mkdir(parents=True, exist_ok=True)
+    source.write_bytes(b"confidential source bytes")
+    mirror.write_text("---\ntype: source-mirror\n---\nGenerated mirror text that should not appear\n", encoding="utf-8")
+    repo_note.write_text("---\ntype: repo-mirror\n---\nGenerated repo mirror text that should not appear\n", encoding="utf-8")
+    (vault / "CATALOG.md").write_text("# Documentation Catalog\n", encoding="utf-8")
+    (vault / "CATALOG.html").write_text("<!doctype html><title>Documentation Catalog</title>\n", encoding="utf-8")
+    (vault / "_meta" / "source-manifest.json").write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "records": [
+                    {
+                        "source_id": "src-plan",
+                        "current_source_path": "40_delivery/client-plan.docx",
+                        "mirror_path": "_mirrors/40_delivery/client-plan.md",
+                        "source_format": "docx",
+                        "lifecycle_state": "clean",
+                        "warnings": [],
+                        "errors": [],
+                    },
+                    {
+                        "source_id": "src-legacy",
+                        "current_source_path": "40_delivery/legacy.doc",
+                        "source_format": "doc",
+                        "lifecycle_state": "unsupported",
+                        "warnings": ["legacy format"],
+                        "errors": [],
+                    },
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (vault / "_meta" / "repo-manifest.json").write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "records": [
+                    {
+                        "repo_id": "repo-fixture",
+                        "configured_repo": "local/fixture",
+                        "note_path": "80_sources/repos/fixture.md",
+                        "lifecycle_state": "clean",
+                        "warnings": [],
+                        "errors": [],
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (vault / "_meta" / "sync-audit.jsonl").write_text(
+        json.dumps({"tool": "sync_office_md", "status": "unchanged", "lifecycle_state": "clean"}) + "\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "vaultwright.py"), "m365"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+    json_result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "vaultwright.py"), "m365", "--json"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+    assert "m365 handoff: read-only readiness report; no source content was printed" in result.stdout
+    assert "generated source mirrors: 1" in result.stdout
+    assert "repo mirrors: 1" in result.stdout
+    assert "1 source manifest record(s) need lifecycle review before handoff" in result.stdout
+    assert "confidential source bytes" not in result.stdout
+    assert "Generated mirror text" not in result.stdout
+    assert "Generated repo mirror text" not in result.stdout
+
+    assert json_result.returncode == 0, json_result.stderr or json_result.stdout
+    report = json.loads(json_result.stdout)
+    assert report["report"]["catalogs"]["html"]["present"] is True
+    assert report["report"]["inventory"]["source_mirrors"] == 1
+    assert report["report"]["inventory"]["repo_mirrors"] == 1
+    assert report["report"]["source_manifest"]["states"]["unsupported"] == 1
+    assert "confidential source bytes" not in json_result.stdout
+    assert "Generated mirror text" not in json_result.stdout
 
 
 def test_vaultwright_sandbox_report_checks_copied_boundary_without_content(tmp_path: Path) -> None:

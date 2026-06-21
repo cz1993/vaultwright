@@ -49,6 +49,9 @@ This work has made material progress:
   source/mirror links, lifecycle states, domain counts, unmanaged-source candidates,
   aggregate visual inventory charts, and legacy-folder inventory without copying source document
   text.
+- A new Microsoft 365 handoff guide and `vaultwright m365` readiness report describe how to review
+  the generated mirror/catalog layer before storing it in approved SharePoint, OneDrive, Copilot
+  Studio, Dataverse, or connector paths.
 - A new public-service example vault demonstrates familiar Canadian business-startup workflows:
   business registration, CRA program accounts, GST/HST readiness, account access, and
   funding/support discovery.
@@ -377,7 +380,7 @@ Professional-services use should begin with a conservative operating model:
 | Office sync | Plan/sync/status, manifest, audit events, manual-edit detection, lifecycle next-action guidance | Useful alpha foundation |
 | Repo sync | Plan/sync/status, repo manifest, audit events, manual-edit detection, lifecycle next-action guidance | Useful for code/source repositories |
 | Catalog gateway | `vaultwright catalog` writes generated `CATALOG.md`; `vaultwright catalog --html` writes generated `CATALOG.html` with static aggregate charts; both include source/mirror links, lifecycle states, format/domain counts, repo mirrors, unmanaged source candidates, and legacy-folder inventory | Useful for non-Obsidian review and agent preflight orientation |
-| CLI | Vault-local wrapper and source-installable `vaultwright` entry point; CI now installs the built wheel and verifies packaged init, doctor, plan, benchmark, Markdown/HTML catalog generation/check, conversion, migration, migration worksheet, pilot, redacted pilot worksheet output, and JSON recovery delegation; tag workflow builds artifacts under read-only permissions, verifies the released wheel, and creates draft prereleases for owner review while refusing to overwrite non-draft releases; doctor reports dependency, manifest, audit, recovery-action counts, git/GitHub backup posture, optional Obsidian config/plugin posture, and `.gitignore` backup guard coverage; benchmark validates task packs and optional aggregate result packs; catalog writes the inventory gateway; conversion, migration, pilot, and recovery print read-only operator reports | Better operator ergonomics; first alpha draft release is intended for owner review, not stable distribution |
+| CLI | Vault-local wrapper and source-installable `vaultwright` entry point; CI now installs the built wheel and verifies packaged init, doctor, plan, benchmark, Markdown/HTML catalog generation/check, conversion, Microsoft 365 handoff readiness, migration, migration worksheet, pilot, redacted pilot worksheet output, and JSON recovery delegation; tag workflow builds artifacts under read-only permissions, verifies the released wheel, and creates draft prereleases for owner review while refusing to overwrite non-draft releases; doctor reports dependency, manifest, audit, recovery-action counts, git/GitHub backup posture, optional Obsidian config/plugin posture, and `.gitignore` backup guard coverage; benchmark validates task packs and optional aggregate result packs; catalog writes the inventory gateway; conversion, m365, migration, pilot, and recovery print read-only operator reports | Better operator ergonomics; first alpha draft release is intended for owner review, not stable distribution |
 | Examples | Government-services showcase plus Northwind regression fixture | Better demo plus stable tests |
 | Provenance | Public fixture ledger with source URLs, licence posture, and review date | Good discipline; must be maintained |
 | Safety | No-data scanner, pre-commit hook, CI checks | Strong for repository hygiene |
@@ -397,6 +400,7 @@ Current evidence is encouraging but limited.
 | Office source manifest | Stable source IDs, hashes, mirror paths, lifecycle states, audit events, missing/manual-edit detection | Important lifecycle foundation, not finished operator UX |
 | Conversion spot-check report | Read-only manifest report prioritizes high/medium/low conversion review items from states, warnings, errors, formats, and source/mirror existence; `conversion --guide` adds a format-aware operator checklist | Useful pilot checklist; not a quantitative conversion-quality score |
 | Catalog gateway | Generated `CATALOG.md` and `CATALOG.html` summarize the manifest and workspace inventory using paths, metadata, and aggregate visual counts only | Useful review surfaces for agents, consultants, and non-Obsidian stakeholders; not a replacement for conversion review |
+| Microsoft 365 handoff | `docs/MICROSOFT_365_HANDOFF.md` and `vaultwright m365` define a read-only readiness report and handoff bundle for SharePoint, OneDrive, Copilot Studio, Dataverse, and connector review paths | Clarifies complement strategy; does not verify tenant permissions or production Copilot behavior |
 | Pilot evidence report | Read-only aggregate report summarizes corpus shape, manifest states, audit counts, conversion priorities, recovery counts, benchmark tasks, optional benchmark result scores, and a redacted Markdown worksheet summary without source content or source paths | Useful for private design-partner worksheets; not external validation by itself |
 | Repo source manifest | Stable repo IDs, local-tree/remote-HEAD hashes, audit events, manual-edit detection | Useful coverage for repo mirrors |
 | Source-installable CLI | Console entry point delegates to vault-local tools and supports source-checkout `init` | Good development ergonomics |
@@ -492,8 +496,9 @@ Deliverables:
 - continued calibration of the conversion spot-check report and operator guide on pilot corpora;
 - Markdown and HTML catalog freshness checks in pilot runbooks so reviewers and agents begin from
   current inventory;
-- explicit Copilot/SharePoint handoff guidance for enterprises that want to store or expose the
-  markdown mirror layer through approved Microsoft 365 governance boundaries;
+- pilot evidence from Microsoft 365 handoff exercises that use `docs/MICROSOFT_365_HANDOFF.md` and
+  `vaultwright m365` against approved SharePoint, OneDrive, Copilot Studio, Dataverse, or connector
+  review paths;
 - pilot worksheet and aggregate `vaultwright pilot` evidence report based on
   `docs/DESIGN_PARTNER_PROTOCOL.md`;
 - sample statement-of-work outline for consulting delivery.
@@ -676,6 +681,7 @@ Available today:
 - Recovery guide and design-partner validation protocol.
 - Copilot/SharePoint/Dataverse positioning documented as a complement strategy rather than a
   replacement claim.
+- Microsoft 365/Copilot handoff guide plus `vaultwright m365` readiness report.
 - Domain map and mirror config.
 - Linter for frontmatter, domain/folder placement, mirror presence, mirror layout, and metadata
   consistency.

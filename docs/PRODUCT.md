@@ -19,8 +19,11 @@ The first workflow is:
 3. Generate mirrors for supported files without modifying originals.
 4. Run a read-only conversion spot-check report for unsupported, stale, conflicted, risky, or
    potentially low-quality conversions.
-5. Create a small number of curated hubs and entity pages.
-6. Refresh the workspace over time with auditable sync/status output.
+5. Generate Markdown/HTML catalog gateways for operator, reviewer, and agent orientation.
+6. If the customer uses Microsoft 365, run a read-only Microsoft 365/Copilot handoff readiness
+   report before moving derived content into approved tenant boundaries.
+7. Create a small number of curated hubs and entity pages.
+8. Refresh the workspace over time with auditable sync/status output.
 
 ## Supported Corpus Range
 
@@ -46,7 +49,10 @@ A successful first workflow produces:
 - original files unchanged;
 - generated mirrors under `_mirrors/`;
 - repo mirrors under `80_sources/repos/`;
+- generated `CATALOG.md` and `CATALOG.html` inventory gateways;
 - source/repo manifests, audit events, and lifecycle status reports;
+- a Microsoft 365 handoff readiness report when the target workflow involves SharePoint, OneDrive,
+  Copilot Studio, Dataverse, or Copilot connectors;
 - aggregate pilot evidence reports that avoid source or mirror content;
 - curated hubs for the highest-value document clusters;
 - an agent-readable markdown substrate with source links, frontmatter, headings, manifests, and
@@ -62,6 +68,8 @@ A successful first workflow produces:
 - Not a guarantee that conversion output fully represents every table, image, formula, scan, or
   comment.
 - Not an autonomous agent that silently rewrites human-maintained business knowledge.
+- Not a verifier of Microsoft 365 tenant permissions, sensitivity labels, retention, or Copilot
+  indexing behavior.
 
 ## Role of Obsidian
 

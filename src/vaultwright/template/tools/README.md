@@ -6,11 +6,12 @@ These keep your knowledge base current and healthy. See `../CLAUDE.md` §6 for t
 | --- | --- |
 | `sync_office_md.py` | markdown **mirror** under `_mirrors/` for every `.docx/.pptx/.xlsx` (Microsoft markitdown), refreshed on content change |
 | `sync_github_repos.py` | markdown **mirror** under `80_sources/repos/` for each repo in `repos.yml` (README + docs + metadata), refreshed on HEAD change |
-| `vaultwright.py` | thin operator wrapper: `plan`, `sync`, `status`, `catalog`, `conversion`, `migration`, `pilot`, `recovery`, `sandbox`, `lint`, `benchmark`, `doctor`, and repo-root `init` |
+| `vaultwright.py` | thin operator wrapper: `plan`, `sync`, `status`, `catalog`, `conversion`, `m365`, `migration`, `pilot`, `recovery`, `sandbox`, `lint`, `benchmark`, `doctor`, and repo-root `init` |
 | `lint_vault.py` | health check — frontmatter, broken wikilinks, orphans, overlap warnings, mirror gaps, configured repo mirror gaps, stale generated mirrors |
 | `benchmark_tasks.py` | validates `_meta/agent-readiness-tasks.yml` task packs and optional aggregate result packs |
 | `catalog_report.py` | writes source-path-only `CATALOG.md` or `CATALOG.html` inventory gateways for reviewers and agents |
 | `conversion_report.py` | prints a read-only conversion spot-check report from the source manifest |
+| `m365_report.py` | prints a read-only Microsoft 365/Copilot handoff readiness report |
 | `migration_report.py` | prints a read-only migration report for legacy or unknown top-level folders |
 | `pilot_report.py` | prints a read-only aggregate pilot evidence report without source content |
 | `recovery_report.py` | prints a read-only recovery checklist from source/repo manifest lifecycle states |
@@ -40,6 +41,7 @@ python3.11 tools/vaultwright.py sync
 python3.11 tools/vaultwright.py status
 python3.11 tools/vaultwright.py catalog
 python3.11 tools/vaultwright.py catalog --html
+python3.11 tools/vaultwright.py m365
 python3.11 tools/vaultwright.py conversion --guide
 python3.11 tools/vaultwright.py migration
 python3.11 tools/vaultwright.py migration --worksheet
@@ -71,6 +73,12 @@ does not claim a quantitative quality score; operators still review high-risk fo
 slides, PDFs, source links, and generated-region boundaries before relying on mirrors.
 Use `--guide` to append a manifest-aware operator checklist; see
 `docs/CONVERSION_REVIEW_GUIDE.md` in the source repository for the durable review protocol.
+
+`m365` is read-only. It checks whether the local mirror/catalog layer has the basic artifacts needed
+for a Microsoft 365, SharePoint, OneDrive, Copilot Studio, or connector handoff review. It does not
+query Microsoft 365, verify tenant permissions, inspect sensitivity labels, or print source content.
+See `docs/MICROSOFT_365_HANDOFF.md` in the source repository for the current guidance and
+Microsoft Learn references.
 
 `migration` is read-only. It scans top-level folders, reports old aliases from
 `_meta/domain-map.yml` such as `marketing/`, `legal/`, `clients/`, or `hr/`, and flags unknown

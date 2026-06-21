@@ -49,6 +49,7 @@ python3.11 tools/vaultwright.py sync            # mirrors -> _mirrors/ and 80_so
 python3.11 tools/vaultwright.py status          # review manifest-backed lifecycle state
 python3.11 tools/vaultwright.py catalog         # write CATALOG.md inventory gateway
 python3.11 tools/vaultwright.py catalog --html  # write CATALOG.html visual inventory gateway
+python3.11 tools/vaultwright.py m365            # Microsoft 365/Copilot handoff readiness
 python3.11 tools/vaultwright.py conversion --guide # read-only conversion spot-check and guide
 python3.11 tools/vaultwright.py migration       # dry-run report for legacy/unknown folders
 python3.11 tools/vaultwright.py migration --worksheet # Markdown cleanup checklist
@@ -85,3 +86,6 @@ vault:
 - **Agent-readiness pilot?** Use `docs/AGENT_READINESS_BENCHMARK.md` and
   `tools/vaultwright.py benchmark --results _meta/agent-readiness-results.yml` to compare
   raw-source, document-chat, and Vaultwright-markdown performance on the same questions.
+- **Microsoft 365 handoff?** Use `docs/MICROSOFT_365_HANDOFF.md` and
+  `tools/vaultwright.py m365` to check whether the generated mirror/catalog layer is ready for a
+  governed SharePoint, OneDrive, Copilot Studio, or connector review.

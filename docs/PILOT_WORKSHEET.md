@@ -60,8 +60,11 @@ python3.11 tools/vaultwright.py doctor
 python3.11 tools/vaultwright.py plan
 python3.11 tools/vaultwright.py sync
 python3.11 tools/vaultwright.py status
+python3.11 tools/vaultwright.py catalog
+python3.11 tools/vaultwright.py catalog --html
 python3.11 tools/vaultwright.py conversion --guide
 python3.11 tools/vaultwright.py recovery
+python3.11 tools/vaultwright.py m365
 python3.11 tools/vaultwright.py pilot --json
 python3.11 tools/vaultwright.py pilot --worksheet
 python3.11 tools/vaultwright.py benchmark --require-generated

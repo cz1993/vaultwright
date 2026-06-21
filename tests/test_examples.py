@@ -45,6 +45,7 @@ COPIED_TOOL_FILES = [
     "catalog_report.py",
     "conversion_report.py",
     "lint_vault.py",
+    "m365_report.py",
     "pilot_report.py",
     "recovery_report.py",
     "sandbox_report.py",

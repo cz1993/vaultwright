@@ -33,6 +33,7 @@ REQUIRED_TOOLS = (
     "sync_github_repos.py",
     "lint_vault.py",
     "conversion_report.py",
+    "m365_report.py",
     "migration_report.py",
     "pilot_report.py",
     "recovery_report.py",

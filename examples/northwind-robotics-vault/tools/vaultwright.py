@@ -143,6 +143,14 @@ def command_recovery(args: argparse.Namespace) -> int:
     return run(cmd, root)
 
 
+def command_m365(args: argparse.Namespace) -> int:
+    root = args.root.resolve()
+    cmd = python_cmd(root, "m365_report.py")
+    if args.json:
+        cmd.append("--json")
+    return run(cmd, root)
+
+
 def command_catalog(args: argparse.Namespace) -> int:
     root = args.root.resolve()
     cmd = python_cmd(root, "catalog_report.py")
@@ -457,6 +465,7 @@ def command_doctor(args: argparse.Namespace) -> int:
         "benchmark_tasks.py",
         "catalog_report.py",
         "conversion_report.py",
+        "m365_report.py",
         "migration_report.py",
         "pilot_report.py",
         "recovery_report.py",
@@ -572,6 +581,9 @@ def build_parser() -> argparse.ArgumentParser:
     recovery = sub.add_parser("recovery", help="Print a read-only manifest recovery checklist.")
     recovery.add_argument("--json", action="store_true", help="Print machine-readable recovery JSON.")
     recovery.set_defaults(func=command_recovery)
+    m365 = sub.add_parser("m365", help="Print a read-only Microsoft 365/Copilot handoff report.")
+    m365.add_argument("--json", action="store_true", help="Print machine-readable handoff JSON.")
+    m365.set_defaults(func=command_m365)
     catalog = sub.add_parser("catalog", help="Generate a source-path-only documentation catalog.")
     catalog.add_argument("--json", action="store_true", help="Print machine-readable catalog JSON.")
     catalog.add_argument("--html", action="store_true", help="Write or print an HTML catalog instead of Markdown.")

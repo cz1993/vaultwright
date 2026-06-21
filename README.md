@@ -93,6 +93,7 @@ python3.11 tools/vaultwright.py recovery             # read-only recovery checkl
 python3.11 tools/vaultwright.py sandbox --source-root /path/to/original-documents
 python3.11 tools/vaultwright.py catalog              # generate CATALOG.md inventory gateway
 python3.11 tools/vaultwright.py catalog --html       # generate CATALOG.html visual inventory gateway
+python3.11 tools/vaultwright.py m365                 # Microsoft 365/Copilot handoff readiness
 python3.11 tools/vaultwright.py pilot                # aggregate pilot evidence, no source content
 python3.11 tools/vaultwright.py pilot --worksheet    # redacted Markdown private-pilot summary
 python3.11 tools/vaultwright.py benchmark            # validate agent-readiness task pack, if present

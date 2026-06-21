@@ -27,6 +27,7 @@ def test_packaged_template_matches_repository_template() -> None:
     assert ".gitignore" in package_files
     assert "tools/catalog_report.py" in package_files
     assert "tools/conversion_report.py" in package_files
+    assert "tools/m365_report.py" in package_files
     assert "tools/migration_report.py" in package_files
     assert "tools/pilot_report.py" in package_files
     assert "tools/recovery_report.py" in package_files

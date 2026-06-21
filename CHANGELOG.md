@@ -13,6 +13,8 @@ All notable changes to Vaultwright are documented here. Format loosely follows
   `CATALOG.html` gateway with aggregate charts for reviewers who prefer a browser surface.
 - CI and release smoke checks now compile and exercise `catalog`, including packaged-template
   installation coverage and Markdown/HTML `catalog --check` freshness validation.
+- Added `docs/MICROSOFT_365_HANDOFF.md` and `vaultwright m365`, a read-only handoff readiness
+  report for Microsoft 365, SharePoint, OneDrive, Copilot Studio, and connector review paths.
 - `vaultwright migration` now reports legacy or unknown note frontmatter domains using
   `_meta/domain-map.yml` aliases, giving operators a read-only cleanup queue before moving notes.
 - `vaultwright migration --worksheet` now prints a Markdown review checklist for legacy folder and

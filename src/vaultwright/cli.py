@@ -168,6 +168,12 @@ def build_parser() -> argparse.ArgumentParser:
         func=command_delegate,
         delegate_args=lambda args: ["--json"] if args.json else [],
     )
+    m365 = sub.add_parser("m365", help="Print a read-only Microsoft 365/Copilot handoff report.")
+    m365.add_argument("--json", action="store_true", help="Print machine-readable handoff JSON.")
+    m365.set_defaults(
+        func=command_delegate,
+        delegate_args=lambda args: ["--json"] if args.json else [],
+    )
     catalog = sub.add_parser("catalog", help="Generate a source-path-only documentation catalog.")
     catalog.add_argument("--json", action="store_true", help="Print machine-readable catalog JSON.")
     catalog.add_argument("--html", action="store_true", help="Write or print an HTML catalog instead of Markdown.")

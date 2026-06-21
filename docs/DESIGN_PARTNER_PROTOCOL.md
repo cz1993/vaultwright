@@ -32,13 +32,15 @@ Each pilot should use a copied, permission-cleared corpus:
    mirrors before relying on generated content.
 5. Review exceptions: unsupported, stale, missing, unreachable, conflicted, or manual-modification
    states.
-6. Curate the first hubs and entity pages.
-7. Answer a fixed set of operational questions with citations.
-8. Capture aggregate evidence: run `tools/vaultwright.py pilot --json` and
+6. Catalog review: run `tools/vaultwright.py catalog`, `tools/vaultwright.py catalog --html`, and
+   `tools/vaultwright.py m365` if the participant expects Microsoft 365 handoff.
+7. Curate the first hubs and entity pages.
+8. Answer a fixed set of operational questions with citations.
+9. Capture aggregate evidence: run `tools/vaultwright.py pilot --json` and
    `tools/vaultwright.py pilot --worksheet`, then store the outputs with the private pilot
    worksheet.
-9. Modify or move selected sources, rerun status/sync, and verify lifecycle reporting.
-10. One-week follow-up: determine whether the participant returned to the vault.
+10. Modify or move selected sources, rerun status/sync, and verify lifecycle reporting.
+11. One-week follow-up: determine whether the participant returned to the vault.
 
 ## Required Metrics
 
