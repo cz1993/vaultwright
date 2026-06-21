@@ -158,7 +158,7 @@ def test_template_linter_keeps_warning_only_orphans_zero_exit(tmp_path: Path) ->
     assert "Orphan notes (no inbound links): 1" in result.stdout
 
 
-def test_template_linter_blocks_unknown_domain(tmp_path: Path) -> None:
+def test_template_linter_reports_domain_alias_recommendation(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     shutil.copytree(ROOT / "template", vault)
     note = vault / "10_governance" / "bad-domain.md"
@@ -184,7 +184,36 @@ def test_template_linter_blocks_unknown_domain(tmp_path: Path) -> None:
 
     assert result.returncode == 1
     assert "Invalid domain: 1" in result.stdout
-    assert "bad-domain.md  [marketing]" in result.stdout
+    assert "bad-domain.md  [marketing -> market (20_market/)]" in result.stdout
+
+
+def test_template_linter_blocks_unknown_domain(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    note = vault / "10_governance" / "bad-domain.md"
+    note.write_text(
+        "---\n"
+        "title: Bad Domain\n"
+        "type: note\n"
+        "status: active\n"
+        "domain: special-projects\n"
+        "created: 2026-01-01\n"
+        "updated: 2026-01-01\n"
+        "---\n"
+        "# Bad Domain\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "lint_vault.py")],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 1
+    assert "Invalid domain: 1" in result.stdout
+    assert "bad-domain.md  [special-projects]" in result.stdout
 
 
 def test_template_linter_blocks_missing_domain_map(tmp_path: Path) -> None:

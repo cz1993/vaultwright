@@ -77,6 +77,9 @@ All notable changes to Vaultwright are documented here. Format loosely follows
   repo manifest's configured or resolved repo identity.
 - Lint now skips generated `_meta/*.md` reports and the generated `CATALOG.md` gateway for note
   frontmatter/orphan checks, keeping copied-vault review output focused on curated-note issues.
+- Lint now reports legacy frontmatter domain aliases with canonical recommendations, for example
+  `marketing -> market (20_market/)`, so copied-vault cleanup queues align with `vaultwright
+  migration`.
 
 ### Known TODO before stable release hardening
 - Decide CLA vs DCO; secure the "Vaultwright" name; draft the commercial agreement.

@@ -416,6 +416,7 @@ def resolve(target: str) -> bool:
     return bool(target_paths(target))
 
 DOMAIN_FOLDERS, DOMAIN_FOLDER_ALIASES, domain_map_errors = domain_folders()
+DOMAIN_BY_FOLDER = {folder: domain for domain, folder in DOMAIN_FOLDERS.items()}
 MIRROR_CONFIG, mirror_config_errors = mirror_config()
 LINT_CONFIG, lint_config_errors = lint_config()
 CONFIGURED_REPOS, repo_config_errors = repo_config()
@@ -437,6 +438,14 @@ source_paths: dict[Path, str] = {}
 managed_generated_mirrors: set[Path] = set()
 repo_mirror_ids: dict[Path, str] = {}
 inbound: dict[Path, int] = {p: 0 for p in md_notes}
+
+def domain_lint_message(value: object) -> str:
+    domain = str(value)
+    canonical_folder = DOMAIN_FOLDER_ALIASES.get(domain)
+    canonical_domain = DOMAIN_BY_FOLDER.get(canonical_folder or "")
+    if canonical_domain and canonical_domain != domain:
+        return f"{domain} -> {canonical_domain} ({canonical_folder}/)"
+    return domain
 
 def in_mirror_root(rel: Path) -> bool:
     return bool(MIRROR_ROOT.parts) and rel.parts[:len(MIRROR_ROOT.parts)] == MIRROR_ROOT.parts
@@ -622,7 +631,7 @@ for p in md_notes:
         if fm.get("status") not in STATUSES:
             bad_status.append((rels, str(fm.get("status"))))
         if DOMAINS and fm.get("domain") not in DOMAINS:
-            bad_domain.append((rels, str(fm.get("domain"))))
+            bad_domain.append((rels, domain_lint_message(fm.get("domain"))))
         expected_folder = DOMAIN_FOLDERS.get(str(fm.get("domain")))
         if expected_folder and rel.parts:
             if in_mirror_root(rel):
