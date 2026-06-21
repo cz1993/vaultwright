@@ -1212,6 +1212,38 @@ def test_vaultwright_benchmark_init_results_refuses_existing_pack_without_force(
     assert "_meta/agent-readiness-results.yml already exists; use --force to overwrite" in result.stderr
 
 
+def test_vaultwright_benchmark_worksheet_prints_private_run_sheet_without_paths(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    write_agent_benchmark_fixture(vault)
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(vault / "tools" / "vaultwright.py"),
+            "benchmark",
+            "--worksheet",
+        ],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+    assert "# Agent-Readiness Benchmark Worksheet" in result.stdout
+    assert "## Run Checklist" in result.stdout
+    assert "### answer-1" in result.stdout
+    assert "What should the answer task prove?" in result.stdout
+    assert "#### raw_source_folder" in result.stdout
+    assert "#### document_chat_transcript" in result.stdout
+    assert "#### vaultwright_markdown" in result.stdout
+    assert "Score (0-2)" in result.stdout
+    assert "Evidence refs: sources=1, generated_mirrors=1, curated=0" in result.stdout
+    assert "40_delivery/client-plan.docx" not in result.stdout
+    assert "_mirrors/40_delivery/client-plan.md" not in result.stdout
+    assert "Synthetic mirror" not in result.stdout
+
+
 def test_packaged_vaultwright_cli_delegates_benchmark_result_args(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     shutil.copytree(ROOT / "template", vault)
@@ -1320,6 +1352,33 @@ def test_packaged_vaultwright_cli_delegates_benchmark_init_tasks(tmp_path: Path)
         "source_paths": 1,
         "tasks": 5,
     }
+
+
+def test_packaged_vaultwright_cli_delegates_benchmark_worksheet(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    write_agent_benchmark_fixture(vault)
+    env = {**os.environ, "PYTHONPATH": str(ROOT / "src")}
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "vaultwright.cli",
+            "--root",
+            str(vault),
+            "benchmark",
+            "--worksheet",
+        ],
+        cwd=ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+    assert "# Agent-Readiness Benchmark Worksheet" in result.stdout
+    assert "40_delivery/client-plan.docx" not in result.stdout
 
 
 def test_packaged_vaultwright_cli_init_from_source_checkout(tmp_path: Path) -> None:

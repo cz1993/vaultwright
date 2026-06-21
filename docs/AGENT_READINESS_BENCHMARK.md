@@ -133,6 +133,7 @@ Validate and summarize results with:
 
 ```bash
 python3.11 tools/vaultwright.py benchmark --init-tasks
+python3.11 tools/vaultwright.py benchmark --worksheet
 python3.11 tools/vaultwright.py benchmark --init-results
 python3.11 tools/vaultwright.py benchmark --results _meta/agent-readiness-results.yml
 python3.11 tools/vaultwright.py benchmark --results _meta/agent-readiness-results.yml --require-results
@@ -144,6 +145,10 @@ python3.11 tools/vaultwright.py benchmark --results _meta/agent-readiness-result
 manifest metadata. It references relative source and generated-mirror paths only; it does not read
 or copy source text, mirror text, answers, or reviewer notes. Treat the scaffold as a starting
 point: edit prompts, success criteria, and selected paths before scoring a real pilot.
+
+`--worksheet` prints a private Markdown run sheet from the task pack. It includes task prompts,
+success criteria, evidence-reference counts, scoring guidance, and per-mode scoring fields, but it
+does not print source paths, mirror paths, source text, answer text, or reviewer notes.
 
 `--init-results` creates a private `_meta/agent-readiness-results.yml` scaffold with one entry for
 every task and comparison mode. It leaves scores and correction counts as `null` so an untouched

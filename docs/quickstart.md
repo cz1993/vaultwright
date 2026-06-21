@@ -90,6 +90,7 @@ vault:
   `docs/methodology.md` §4.
 - **Agent-readiness pilot?** Use `docs/AGENT_READINESS_BENCHMARK.md` and
   `tools/vaultwright.py benchmark --init-tasks` to create a private task scaffold after sync, then
+  `tools/vaultwright.py benchmark --worksheet` to run the comparison, then
   `tools/vaultwright.py benchmark --init-results` and
   `tools/vaultwright.py benchmark --results _meta/agent-readiness-results.yml` to compare raw-source,
   document-chat, and Vaultwright-markdown performance on the same questions.

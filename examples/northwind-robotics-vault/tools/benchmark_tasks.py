@@ -462,6 +462,101 @@ def result_scaffold_text(task_data: dict) -> tuple[str, int]:
     return "\n".join(lines) + "\n", entry_count
 
 
+def md_escape(value: object) -> str:
+    text = str(value)
+    return text.replace("\\", "\\\\").replace("|", "\\|")
+
+
+def task_values(task: dict, field: str) -> list[str]:
+    values = task.get(field, [])
+    if not isinstance(values, list):
+        return []
+    return [str(value) for value in values]
+
+
+def benchmark_worksheet_text(task_data: dict, summary: dict) -> str:
+    tasks = [task for task in task_data.get("tasks", []) if isinstance(task, dict)]
+    modes = task_data.get("comparison_modes")
+    mode_names = [str(mode) for mode in modes] if isinstance(modes, list) else list(MODE_ORDER)
+    lines = [
+        "# Agent-Readiness Benchmark Worksheet",
+        "",
+        "> Private pilot worksheet. Do not commit completed answers, reviewer notes, or client evidence.",
+        "",
+        "## Scope",
+        "",
+        f"- Corpus: {md_escape(task_data.get('corpus', ''))}",
+        f"- Tasks: {summary.get('tasks', len(tasks))}",
+        f"- Modes: {', '.join(md_escape(mode) for mode in mode_names)}",
+        (
+            "- Evidence reference counts: "
+            f"sources={summary.get('source_paths', 0)}, "
+            f"generated_mirrors={summary.get('generated_mirror_paths', 0)}, "
+            f"curated={summary.get('curated_paths', 0)}"
+        ),
+        "",
+        "## Scoring",
+        "",
+        "- 0: wrong, uncited, unsafe, or not actionable",
+        "- 1: partially correct but missing caveats, citations, or audit/update evidence",
+        "- 2: correct, source-backed, and operationally useful",
+        "",
+        "## Run Checklist",
+        "",
+        "- Run each task independently for each comparison mode.",
+        "- Do not mix evidence between modes.",
+        "- Keep answer text and reviewer notes outside aggregate result packs.",
+        "- Record only scores, correction counts, elapsed seconds, citations, and privacy/provenance flags in `_meta/agent-readiness-results.yml`.",
+        "",
+        "## Tasks",
+        "",
+    ]
+
+    for task in tasks:
+        task_id = str(task.get("id", "")).strip() or "(missing id)"
+        family = str(task.get("family", "")).strip() or "(missing family)"
+        prompt = str(task.get("prompt", "")).strip()
+        criteria = task.get("success_criteria", [])
+        criteria_values = [str(item) for item in criteria] if isinstance(criteria, list) else []
+        source_count = len(task_values(task, "source_paths"))
+        mirror_count = len(task_values(task, "generated_mirror_paths"))
+        curated_count = len(task_values(task, "curated_paths"))
+        lines.extend(
+            [
+                f"### {md_escape(task_id)}",
+                "",
+                f"- Family: {md_escape(family)}",
+                f"- Evidence refs: sources={source_count}, generated_mirrors={mirror_count}, curated={curated_count}",
+                "",
+                "**Prompt**",
+                "",
+                prompt or "(missing prompt)",
+                "",
+                "**Success Criteria**",
+                "",
+            ]
+        )
+        if criteria_values:
+            lines.extend(f"- {md_escape(item)}" for item in criteria_values)
+        else:
+            lines.append("- (missing success criteria)")
+        lines.extend(["", "**Mode Score Sheet**", ""])
+        for mode in mode_names:
+            lines.extend(
+                [
+                    f"#### {md_escape(mode)}",
+                    "",
+                    "- Score (0-2):",
+                    "- Reviewer corrections:",
+                    "- Elapsed seconds:",
+                    "- Citation paths recorded in result pack:",
+                    "- Privacy/provenance violation (true/false):",
+                    "",
+                ]
+            )
+    return "\n".join(lines).rstrip() + "\n"
+
+
 def task_path_refs_from_pack(data: dict) -> dict[str, dict[str, set[str]]]:
     refs: dict[str, dict[str, set[str]]] = {}
     tasks = data.get("tasks", [])
@@ -732,6 +827,11 @@ def build_parser() -> argparse.ArgumentParser:
         default=5,
         help="Maximum existing curated markdown notes to reference when initializing a task scaffold.",
     )
+    parser.add_argument(
+        "--worksheet",
+        action="store_true",
+        help="Print a private Markdown run worksheet from the task pack without source paths or answers.",
+    )
     parser.add_argument("--require-generated", action="store_true", help="Require generated mirror paths to exist.")
     parser.add_argument("--require-results", action="store_true", help="Require benchmark results for every task/mode pair.")
     parser.add_argument(
@@ -750,6 +850,12 @@ def main() -> int:
         return 1
     if args.init_tasks and args.init_results:
         print("benchmark_tasks: choose either --init-tasks or --init-results, not both", file=sys.stderr)
+        return 1
+    if args.worksheet and (args.init_tasks or args.init_results or args.results or args.require_results or args.require_citations or args.json):
+        print(
+            "benchmark_tasks: --worksheet cannot be combined with init, result, citation, or JSON output flags",
+            file=sys.stderr,
+        )
         return 1
     if args.init_tasks and (args.results or args.require_results or args.require_citations):
         print(
@@ -822,6 +928,24 @@ def main() -> int:
         return 1
 
     summary, errors, warnings = validate_task_pack(task_path, require_generated=args.require_generated)
+    if args.worksheet:
+        if errors:
+            for error in errors:
+                print(f"  error: {error}", file=sys.stderr)
+            return 1
+        task_data, task_errors = load_tasks(task_path)
+        if task_errors:
+            for error in task_errors:
+                print(f"  error: {error}", file=sys.stderr)
+            return 1
+        print(benchmark_worksheet_text(task_data, summary), end="")
+        if warnings:
+            print(
+                f"benchmark_tasks: worksheet omitted {len(warnings)} validation warning(s); run benchmark for details",
+                file=sys.stderr,
+            )
+        return 0
+
     if args.init_results:
         result_summary: dict = {}
         scaffold_written = False

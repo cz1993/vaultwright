@@ -250,6 +250,15 @@ This writes `_meta/agent-readiness-tasks.yml` from manifest paths only. It does 
 source text, mirror text, answers, or reviewer notes. Edit the generated prompts, criteria, and
 selected paths before scoring.
 
+After editing the task pack, print a private reviewer run sheet:
+
+```bash
+python3.11 tools/vaultwright.py benchmark --worksheet
+```
+
+The worksheet includes prompts, rubric, evidence-reference counts, and per-mode scoring fields
+without printing source paths, mirror paths, source text, answer text, or reviewer notes.
+
 If a private pilot records comparison scores in `_meta/agent-readiness-results.yml`, summarize the
 aggregate results with:
 

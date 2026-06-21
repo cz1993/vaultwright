@@ -102,6 +102,8 @@ def command_benchmark(args: argparse.Namespace) -> int:
         cmd.extend(["--scaffold-sources", str(args.scaffold_sources)])
     if args.scaffold_curated != 5:
         cmd.extend(["--scaffold-curated", str(args.scaffold_curated)])
+    if args.worksheet:
+        cmd.append("--worksheet")
     if args.require_generated:
         cmd.append("--require-generated")
     if args.require_results:
@@ -636,6 +638,7 @@ def build_parser() -> argparse.ArgumentParser:
     benchmark.add_argument("--force", action="store_true", help="Overwrite an existing task or result scaffold.")
     benchmark.add_argument("--scaffold-sources", type=int, default=5, help="Maximum source/mirror pairs for --init-tasks.")
     benchmark.add_argument("--scaffold-curated", type=int, default=5, help="Maximum curated markdown notes for --init-tasks.")
+    benchmark.add_argument("--worksheet", action="store_true", help="Print a private benchmark run worksheet.")
     benchmark.add_argument("--require-generated", action="store_true", help="Require generated mirror paths to exist.")
     benchmark.add_argument("--require-results", action="store_true", help="Require benchmark results for every task/mode pair.")
     benchmark.add_argument(
