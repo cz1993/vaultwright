@@ -43,7 +43,8 @@ Current implementation status:
   blocking lint checks for generated Office mirrors whose source bytes changed or whose manifest
   lifecycle state is no longer current, plus Office sync/status detection and repair for managed
   source frontmatter metadata drift, plus conservative `.xlsx` mirror cleanup for obvious `NaN`
-  placeholders and empty `Unnamed:*` table columns;
+  placeholders and empty `Unnamed:*` table columns, plus ambiguous same-hash move detection that
+  blocks sync as `conflict` when multiple missing manifest records could match one new source;
 - implemented for repo mirrors: stable repo IDs, configured/resolved repo, note path, local-tree or
   remote HEAD hash, lifecycle state, warnings/errors, non-mutating plan/status reports, and
   generated-region manual-edit detection, plus lifecycle next-action guidance in plan/status
@@ -54,7 +55,8 @@ Current implementation status:
   unmanaged, and for generated repo mirrors whose manifest lifecycle state is no longer current,
   whose frontmatter repo or commit drifts from the manifest, or whose local source tree changed,
   plus repo sync/status detection and repair for managed repo frontmatter identity drift;
-- partially implemented: move detection by unique hash match when the old manifest path is absent;
+- partially implemented: full move/rename UX beyond unique hash matching and ambiguous-move
+  conflict detection;
 - not complete: full rename/move UX, rollback automation, quantitative conversion-quality scoring
   beyond checklist-based spot checks, and exhaustive conflict-resolution flows.
 
@@ -87,6 +89,11 @@ Every release-ready state must have:
 
 - Rename/move should be detected by stable source ID and source hash where possible, not treated
   only as delete plus create.
+- If a new source's bytes match multiple missing manifest records, sync must not choose a source
+  history automatically. It should report `conflict` with the candidate paths so an operator can
+  choose the correct history or treat the file as a deliberate duplicate/new source.
+- If multiple non-synthetic manifest records claim the same current source path, sync must report
+  `conflict` with the duplicate source IDs rather than choosing one manifest record silently.
 - When a source move changes the generated mirror path, sync should not create the new mirror while
   the previous generated mirror still exists. The operator must preserve, move, archive, or remove
   the old mirror first so curated notes are not stranded and duplicate generated mirrors are not
@@ -102,6 +109,9 @@ Sync must flag conflict when:
 - the generated region was manually edited;
 - a mirror exists at the target path but does not belong to the source ID;
 - the configured mirror root changes and an old mirror still exists;
+- a source's bytes match multiple missing manifest records and the correct move history is
+  ambiguous;
+- multiple non-synthetic manifest records claim the same current source path;
 - source and curated note changes require human reconciliation;
 - a previous sync failed after partial output.
 

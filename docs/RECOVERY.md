@@ -93,6 +93,15 @@ audit context as the human report.
 For Office move and mirror-root conflict records, the report also includes `previous_target`,
 `previous_target_exists`, and `previous_target_reason` so operators can identify the retained
 generated mirror that must be preserved, moved, archived, or removed before syncing again.
+For ambiguous move conflicts, the report and Office manifest record include
+`ambiguous_move_candidates` with the missing source paths whose bytes match the new source. Choose
+the correct history manually, or preserve/archive the old mirrors and treat the new file as a
+deliberate duplicate or new source before rerunning sync. The human report shows a bounded
+candidate summary with a total count; use `vaultwright recovery --json` when the full candidate list
+is longer than the human summary.
+For manifest repair mistakes where multiple non-synthetic records claim the same current source
+path, the report includes `duplicate_source_ids`. Correct the duplicate manifest records before
+syncing; Vaultwright will not choose one source history silently.
 
 For each item with audit history, the report includes the latest audit timestamp, status, lifecycle
 state, and structured warnings/errors. This is diagnostic metadata only; it should not contain raw
@@ -110,6 +119,22 @@ source.
 For Office `source_moved` records with `previous_mirror_path`, preserve any curated notes in the
 old mirror, then move, archive, or remove that previous generated mirror. Vaultwright will not
 write the new mirror path while the old generated mirror still exists.
+
+For Office `conflict` records with `ambiguous_move_candidates`, do not force sync. Multiple missing
+manifest records have identical bytes, so Vaultwright cannot prove which prior source path moved.
+Use the candidate paths, old mirrors, and Git history/backups to choose the correct source record;
+if you want to preserve one candidate's source history, edit or restore the manifest deliberately.
+If the new file should be treated as a deliberate new or duplicate source, either restore the
+candidate source files to their manifest paths so they are no longer missing, or deliberately edit
+or remove the old candidate manifest records after preserving their old mirrors. Simply moving the
+old files to an archive path without manifest resolution leaves the original manifest paths missing
+and the conflict active. Rerun status after the resolution; the conflict clears once fewer than two
+matching missing candidates remain.
+
+For Office `conflict` records with `duplicate_source_ids`, do not sync until the manifest has a
+single non-synthetic source record for that current source path. Keep the source ID whose history is
+correct, restore the other source files to their actual paths or archive their mirrors deliberately,
+then rerun status.
 
 If a manifest is missing, restore it from backup when possible. Without manifest evidence,
 Vaultwright cannot safely prove whether an existing generated region is pristine.

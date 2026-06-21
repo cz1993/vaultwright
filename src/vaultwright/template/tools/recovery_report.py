@@ -47,6 +47,7 @@ TEMP_ACTION = (
     "Rerun status/sync to confirm the canonical generated file is complete, then remove the stale "
     "temp file after backup review."
 )
+AMBIGUOUS_CANDIDATE_DISPLAY_LIMIT = 5
 
 
 def rel_exists(root: Path, value: object) -> bool | None:
@@ -56,6 +57,18 @@ def rel_exists(root: Path, value: object) -> bool | None:
     if path.is_absolute() or ".." in path.parts:
         return None
     return (root / path).exists()
+
+
+def ambiguous_candidate_summary(candidates: list[str], limit: int = AMBIGUOUS_CANDIDATE_DISPLAY_LIMIT) -> str:
+    shown = candidates[:limit]
+    suffix = f" (+{len(candidates) - len(shown)} more; use --json for full list)" if len(candidates) > len(shown) else ""
+    return f"{len(candidates)} candidate(s): " + ", ".join(shown) + suffix
+
+
+def source_id_summary(source_ids: list[str], limit: int = AMBIGUOUS_CANDIDATE_DISPLAY_LIMIT) -> str:
+    shown = source_ids[:limit]
+    suffix = f" (+{len(source_ids) - len(shown)} more; use --json for full list)" if len(source_ids) > len(shown) else ""
+    return f"{len(source_ids)} source_id(s): " + ", ".join(shown) + suffix
 
 
 def load_manifest(root: Path, rel: Path) -> tuple[list[dict], list[str]]:
@@ -192,6 +205,14 @@ def office_item(root: Path, record: dict) -> dict | None:
     mirror_path = record.get("mirror_path")
     previous_mirror_path = record.get("previous_mirror_path")
     previous_mirror_reason = record.get("previous_mirror_reason")
+    ambiguous_move_candidates = record.get("ambiguous_move_candidates")
+    if not isinstance(ambiguous_move_candidates, list):
+        ambiguous_move_candidates = []
+    ambiguous_move_candidates = [str(candidate) for candidate in ambiguous_move_candidates if str(candidate)]
+    duplicate_source_ids = record.get("duplicate_source_ids")
+    if not isinstance(duplicate_source_ids, list):
+        duplicate_source_ids = []
+    duplicate_source_ids = [str(source_id) for source_id in duplicate_source_ids if str(source_id)]
     source_exists = rel_exists(root, source_path)
     mirror_exists = rel_exists(root, mirror_path)
     previous_mirror_exists = rel_exists(root, previous_mirror_path)
@@ -215,6 +236,8 @@ def office_item(root: Path, record: dict) -> dict | None:
         "previous_target": previous_mirror_path if isinstance(previous_mirror_path, str) else "",
         "previous_target_exists": previous_mirror_exists,
         "previous_target_reason": previous_mirror_reason if isinstance(previous_mirror_reason, str) else "",
+        "ambiguous_move_candidates": ambiguous_move_candidates,
+        "duplicate_source_ids": duplicate_source_ids,
         "reasons": reasons,
         "action": OFFICE_ACTIONS.get(state, "Review the manifest record, then rerun plan/status before syncing."),
         "warnings": record.get("warnings") if isinstance(record.get("warnings"), list) else [],
@@ -312,6 +335,12 @@ def print_human(root: Path, items: list[dict], warnings: list[str], errors: list
             reason = item.get("previous_target_reason")
             reason_suffix = f" reason={reason}" if isinstance(reason, str) and reason else ""
             print(f"    previous target: {previous_target} ({exists_label}{reason_suffix})")
+        candidates = item.get("ambiguous_move_candidates")
+        if isinstance(candidates, list) and candidates:
+            print(f"    ambiguous move candidates: {ambiguous_candidate_summary([str(candidate) for candidate in candidates])}")
+        duplicate_source_ids = item.get("duplicate_source_ids")
+        if isinstance(duplicate_source_ids, list) and duplicate_source_ids:
+            print(f"    duplicate source IDs: {source_id_summary([str(source_id) for source_id in duplicate_source_ids])}")
         print(f"    reasons: {', '.join(item['reasons'])}")
         print(f"    action: {item['action']}")
         for warning in item["warnings"][:3]:

@@ -6,6 +6,10 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 ## [Unreleased]
 
 ### Added
+- Office sync now blocks ambiguous same-hash source moves as `conflict` when multiple missing
+  manifest records could match one new source path.
+- Office sync now exits nonzero for review-blocking sync states and flags duplicate exact
+  source-path manifest records as `conflict` instead of choosing one source history silently.
 - Added `scripts/sync_template_copies.py` plus CI/release drift checks so the packaged template and
   example vault tool copies stay aligned with the canonical `template/` sources.
 - `vaultwright benchmark` now reports citation counts and supports `--require-citations` so scored

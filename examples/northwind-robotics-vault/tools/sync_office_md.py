@@ -96,6 +96,15 @@ MANAGED_SOURCE_FRONTMATTER_DRIFT_WARNING = (
     "sync will rewrite managed frontmatter."
 )
 MIRROR_CONFIGURATION_CHANGED_WARNING = "Mirror configuration changed; mirror should be regenerated."
+AMBIGUOUS_SOURCE_MOVE_ERROR = (
+    "Source bytes match multiple missing manifest records; Vaultwright cannot choose the correct "
+    "source history automatically."
+)
+DUPLICATE_SOURCE_PATH_ERROR = (
+    "Multiple manifest records claim this source path; resolve duplicate source IDs before syncing."
+)
+AMBIGUOUS_CANDIDATE_DISPLAY_LIMIT = 5
+REVIEW_BLOCKING_SKIPPED_STATES = {"conflict", "manual_modification", "source_moved"}
 
 # Frontmatter keys the script owns and overwrites on every sync.
 MANAGED_KEYS = {
@@ -635,18 +644,97 @@ def source_id_for(source_rel: str, source_sha256: str) -> str:
     return f"src_{digest}"
 
 
-def manifest_record_for_source(manifest: dict, root: Path, source_rel: str, source_sha256: str, source_size: int) -> tuple[dict | None, list[str]]:
+def missing_manifest_records_for_hash(manifest: dict, root: Path, source_sha256: str, source_size: int) -> list[dict]:
     records = [r for r in manifest.get("records", []) if isinstance(r, dict)]
-    for record in records:
-        if record.get("current_source_path") == source_rel:
-            return record, []
-    candidates = []
+    candidates: list[dict] = []
     for record in records:
         if record.get("source_sha256") != source_sha256 or record.get("source_size") != source_size:
             continue
         old_path = record.get("current_source_path")
         if isinstance(old_path, str) and old_path and not (root / old_path).exists():
             candidates.append(record)
+    candidates.sort(key=lambda r: str(r.get("current_source_path", "")))
+    return candidates
+
+
+def active_ambiguous_move_candidates(
+    manifest: dict,
+    root: Path,
+    candidate_paths: list,
+    source_sha256: str,
+    source_size: int,
+) -> list[str]:
+    records = [r for r in manifest.get("records", []) if isinstance(r, dict)]
+    by_path = {
+        str(record.get("current_source_path")): record
+        for record in records
+        if isinstance(record.get("current_source_path"), str)
+    }
+    active: list[str] = []
+    for candidate in candidate_paths:
+        candidate_path = str(candidate)
+        if not candidate_path:
+            continue
+        rel = Path(candidate_path)
+        if rel.is_absolute() or ".." in rel.parts:
+            continue
+        record = by_path.get(candidate_path)
+        if not record:
+            continue
+        if record.get("source_sha256") != source_sha256 or record.get("source_size") != source_size:
+            continue
+        if not (root / rel).exists():
+            active.append(candidate_path)
+    return unique_list(active)
+
+
+def duplicate_exact_source_ids(manifest: dict, source_rel: str) -> list[str]:
+    records = [r for r in manifest.get("records", []) if isinstance(r, dict)]
+    source_ids: list[str] = []
+    for index, record in enumerate(records):
+        if record.get("current_source_path") != source_rel:
+            continue
+        if record.get("ambiguous_move_candidates"):
+            continue
+        source_id = record.get("source_id")
+        source_ids.append(str(source_id) if source_id else f"<missing source_id #{index}>")
+    return source_ids if len(source_ids) > 1 else []
+
+
+def ambiguous_candidate_summary(candidates: list[str], limit: int = AMBIGUOUS_CANDIDATE_DISPLAY_LIMIT) -> str:
+    shown = candidates[:limit]
+    suffix = f" (+{len(candidates) - len(shown)} more)" if len(candidates) > len(shown) else ""
+    return f"{len(candidates)} candidate(s): " + ", ".join(shown) + suffix
+
+
+def source_id_summary(source_ids: list[str], limit: int = AMBIGUOUS_CANDIDATE_DISPLAY_LIMIT) -> str:
+    shown = source_ids[:limit]
+    suffix = f" (+{len(source_ids) - len(shown)} more)" if len(source_ids) > len(shown) else ""
+    return f"{len(source_ids)} source_id(s): " + ", ".join(shown) + suffix
+
+
+def manifest_record_for_source(manifest: dict, root: Path, source_rel: str, source_sha256: str, source_size: int) -> tuple[dict | None, list[str]]:
+    records = [r for r in manifest.get("records", []) if isinstance(r, dict)]
+    exact_records = [record for record in records if record.get("current_source_path") == source_rel]
+    for record in exact_records:
+        if not record.get("ambiguous_move_candidates"):
+            return record, []
+    for record in exact_records:
+        persisted_candidates = record.get("ambiguous_move_candidates")
+        if isinstance(persisted_candidates, list) and persisted_candidates:
+            active_candidates = active_ambiguous_move_candidates(
+                manifest,
+                root,
+                persisted_candidates,
+                source_sha256,
+                source_size,
+            )
+            if len(active_candidates) == 1:
+                for candidate_record in records:
+                    if candidate_record.get("current_source_path") == active_candidates[0]:
+                        return candidate_record, active_candidates
+        return record, []
+    candidates = missing_manifest_records_for_hash(manifest, root, source_sha256, source_size)
     if len(candidates) == 1:
         previous = candidates[0].get("current_source_path")
         return candidates[0], [previous] if isinstance(previous, str) else []
@@ -655,6 +743,17 @@ def manifest_record_for_source(manifest: dict, root: Path, source_rel: str, sour
 
 def upsert_manifest_record(manifest: dict, record: dict) -> None:
     records = [r for r in manifest.get("records", []) if isinstance(r, dict)]
+    record_path = record.get("current_source_path")
+    source_id = record.get("source_id")
+    records = [
+        existing for existing in records
+        if not (
+            record_path
+            and existing.get("current_source_path") == record_path
+            and existing.get("source_id") != source_id
+            and existing.get("ambiguous_move_candidates")
+        )
+    ]
     for i, existing in enumerate(records):
         if existing.get("source_id") == record.get("source_id"):
             records[i] = record
@@ -786,10 +885,19 @@ def plan_one(
         errors.append(f"Mirror path is unsafe: {exc}")
 
     existing_record, moved_from = (None, [])
+    ambiguous_move_candidates: list[str] = []
+    duplicate_source_ids: list[str] = []
     if source_sha256:
+        duplicate_source_ids = duplicate_exact_source_ids(manifest, source_rel)
         existing_record, moved_from = manifest_record_for_source(
             manifest, root, source_rel, source_sha256, source_size,
         )
+        if existing_record is None:
+            ambiguous_move_candidates = [
+                str(record.get("current_source_path"))
+                for record in missing_manifest_records_for_hash(manifest, root, source_sha256, source_size)
+                if isinstance(record.get("current_source_path"), str)
+            ]
     source_id = (
         str(existing_record.get("source_id"))
         if existing_record and existing_record.get("source_id")
@@ -799,6 +907,15 @@ def plan_one(
     if not isinstance(previous_paths, list):
         previous_paths = []
     previous_paths = unique_list([*previous_paths, *moved_from])
+    persisted_ambiguous_candidates = (existing_record or {}).get("ambiguous_move_candidates")
+    if isinstance(persisted_ambiguous_candidates, list) and persisted_ambiguous_candidates:
+        ambiguous_move_candidates = active_ambiguous_move_candidates(
+            manifest,
+            root,
+            persisted_ambiguous_candidates,
+            source_sha256,
+            source_size,
+        )
 
     mirror_rel = as_posix_rel(mirror.relative_to(root)) if mirror.is_relative_to(root) else str(mirror)
     mirror_mode = str(mirror_config["mode"])
@@ -846,6 +963,18 @@ def plan_one(
     if errors:
         action = "error"
         lifecycle_state = "error"
+    elif duplicate_source_ids:
+        action = "review"
+        lifecycle_state = "conflict"
+        errors.append(DUPLICATE_SOURCE_PATH_ERROR)
+        warnings.append("Duplicate source IDs for current path: " + source_id_summary(duplicate_source_ids))
+    elif len(ambiguous_move_candidates) > 1:
+        action = "review"
+        lifecycle_state = "conflict"
+        errors.append(AMBIGUOUS_SOURCE_MOVE_ERROR)
+        warnings.append(
+            "Ambiguous move candidates: " + ambiguous_candidate_summary(ambiguous_move_candidates)
+        )
     elif src.suffix.lower() == ".doc":
         action = "skip"
         lifecycle_state = "unsupported"
@@ -949,6 +1078,8 @@ def plan_one(
         "source_id": source_id,
         "current_source_path": source_rel,
         "previous_source_paths": previous_paths,
+        "ambiguous_move_candidates": ambiguous_move_candidates if len(ambiguous_move_candidates) > 1 else [],
+        "duplicate_source_ids": duplicate_source_ids,
         "mirror_path": mirror_rel,
         "previous_mirror_path": previous_mirror_rel if (mirror_location_changed or moved_source_has_previous_mirror) else None,
         "previous_mirror_reason": (
@@ -983,6 +1114,10 @@ def plan_one(
     if not record.get("previous_mirror_path"):
         record.pop("previous_mirror_path", None)
         record.pop("previous_mirror_reason", None)
+    if not record.get("ambiguous_move_candidates"):
+        record.pop("ambiguous_move_candidates", None)
+    if not record.get("duplicate_source_ids"):
+        record.pop("duplicate_source_ids", None)
     return {
         "source": src,
         "mirror": mirror,
@@ -1008,6 +1143,19 @@ def status_for_plan(plan: dict) -> str:
     if action == "error":
         return "error:plan"
     return state
+
+
+def plan_detail_lines(record: dict) -> list[str]:
+    details: list[str] = []
+    candidates = record.get("ambiguous_move_candidates")
+    if isinstance(candidates, list) and candidates:
+        summary = ambiguous_candidate_summary([str(candidate) for candidate in candidates if str(candidate)])
+        details.append(f"ambiguous move candidates: {summary}")
+    duplicate_source_ids = record.get("duplicate_source_ids")
+    if isinstance(duplicate_source_ids, list) and duplicate_source_ids:
+        summary = source_id_summary([str(source_id) for source_id in duplicate_source_ids if str(source_id)])
+        details.append(f"duplicate source IDs: {summary}")
+    return details
 
 
 def lifecycle_guidance_lines(state_counts: dict[str, int]) -> list[str]:
@@ -1209,12 +1357,21 @@ def count_status(status: str, counts: dict[str, int]) -> None:
         counts["updated"] += 1
     elif status.startswith("unchanged"):
         counts["unchanged"] += 1
+    elif review_blocking_status(status):
+        counts["review"] += 1
     elif status.startswith("skipped"):
         counts["skipped"] += 1
     elif status.startswith("error"):
         counts["error"] += 1
     else:
         counts["skipped"] += 1
+
+
+def review_blocking_status(status: str) -> bool:
+    if not status.startswith("skipped:"):
+        return False
+    reason = status.split(":", 1)[1].split(" ", 1)[0]
+    return reason in REVIEW_BLOCKING_SKIPPED_STATES
 
 
 def print_plan_or_status(
@@ -1248,6 +1405,8 @@ def print_plan_or_status(
             warning_count = len(plan["record"].get("warnings", []))
             suffix = f"  warnings={warning_count}" if warning_count else ""
             print(f"  [{status_for_plan(plan):<28}] {source_rel} -> {mirror_rel}{suffix}")
+            for detail in plan_detail_lines(plan["record"]):
+                print(f"    {detail}")
 
     missing = 0
     for record in manifest.get("records", []):
@@ -1333,7 +1492,7 @@ def main():
 
     converter = MarkItDown()
 
-    counts = {"created": 0, "updated": 0, "unchanged": 0, "skipped": 0, "error": 0}
+    counts = {"created": 0, "updated": 0, "unchanged": 0, "skipped": 0, "review": 0, "error": 0}
     changed = []
     seen_source_ids: set[str] = set()
     for src in files:
@@ -1355,6 +1514,8 @@ def main():
         if not args.quiet:
             rel = src.relative_to(root)
             print(f"  [{status:<10}] {rel}")
+            for detail in plan_detail_lines(plan["record"]):
+                print(f"    {detail}")
         if status.startswith(("created", "updated")):
             changed.append(src.relative_to(root))
         if not args.dry_run:
@@ -1368,7 +1529,7 @@ def main():
 
     summary = (f"{counts['created']} created, {counts['updated']} updated, "
                f"{counts['unchanged']} unchanged, {counts['skipped']} skipped, "
-               f"{counts['error']} error, {missing} missing")
+               f"{counts['review']} review, {counts['error']} error, {missing} missing")
     print(f"\nsync_office_md: {len(files)} sources → {summary}"
           + (" [dry-run]" if args.dry_run else "")
           + (" [manifest updated]" if manifest_changed else ""))
@@ -1379,7 +1540,7 @@ def main():
         with log.open("a", encoding="utf-8") as f:
             f.write(line)
 
-    return 1 if counts["error"] else 0
+    return 1 if counts["error"] or counts["review"] else 0
 
 
 if __name__ == "__main__":

@@ -1419,12 +1419,15 @@ def test_vaultwright_recovery_reports_manifest_actions(tmp_path: Path) -> None:
     moved_source = vault / "50_operations" / "registration.docx"
     mirror = vault / "_mirrors" / "40_delivery" / "registration.md"
     note = vault / "80_sources" / "repos" / "fixture.md"
+    ambiguous_source = vault / "60_finance" / "registration.docx"
     source.parent.mkdir(parents=True, exist_ok=True)
     moved_source.parent.mkdir(parents=True, exist_ok=True)
+    ambiguous_source.parent.mkdir(parents=True, exist_ok=True)
     mirror.parent.mkdir(parents=True, exist_ok=True)
     note.parent.mkdir(parents=True, exist_ok=True)
     source.write_bytes(b"office bytes")
     moved_source.write_bytes(b"moved office bytes")
+    ambiguous_source.write_bytes(b"ambiguous office bytes")
     mirror.write_text("Generated mirror\n", encoding="utf-8")
     note.write_text("Generated repo mirror\n", encoding="utf-8")
     (vault / "_meta" / "source-manifest.json").write_text(
@@ -1468,6 +1471,23 @@ def test_vaultwright_recovery_reports_manifest_actions(tmp_path: Path) -> None:
                         "previous_mirror_reason": "mirror_location_changed",
                         "lifecycle_state": "conflict",
                         "errors": ["Configured mirror location changed while the previous generated mirror still exists."],
+                    },
+                    {
+                        "source_id": "src-ambiguous",
+                        "current_source_path": "60_finance/registration.docx",
+                        "mirror_path": "_mirrors/60_finance/registration.md",
+                        "ambiguous_move_candidates": [
+                            "40_delivery/duplicate-a.docx",
+                            "50_operations/duplicate-b.docx",
+                            "50_operations/duplicate-c.docx",
+                            "50_operations/duplicate-d.docx",
+                            "50_operations/duplicate-e.docx",
+                            "50_operations/duplicate-f.docx",
+                        ],
+                        "lifecycle_state": "conflict",
+                        "errors": [
+                            "Source bytes match multiple missing manifest records; Vaultwright cannot choose the correct source history automatically."
+                        ],
                     },
                 ],
             }
@@ -1536,7 +1556,7 @@ def test_vaultwright_recovery_reports_manifest_actions(tmp_path: Path) -> None:
     )
 
     assert result.returncode == 0, result.stderr or result.stdout
-    assert "recovery: 5 items need operator action (office=4, repo=1, temp=0)" in result.stdout
+    assert "recovery: 6 items need operator action (office=5, repo=1, temp=0)" in result.stdout
     assert "[office:source_missing" in result.stdout
     assert "Locate, restore, or intentionally archive the source" in result.stdout
     assert "[office:manual_modification" in result.stdout
@@ -1545,6 +1565,12 @@ def test_vaultwright_recovery_reports_manifest_actions(tmp_path: Path) -> None:
     assert "preserve/archive any old mirror" in result.stdout
     assert "previous target: _mirrors/40_delivery/registration.md (exists reason=source_moved)" in result.stdout
     assert "previous target: _mirrors/40_delivery/registration.md (exists reason=mirror_location_changed)" in result.stdout
+    assert (
+        "ambiguous move candidates: 6 candidate(s): 40_delivery/duplicate-a.docx, "
+        "50_operations/duplicate-b.docx, 50_operations/duplicate-c.docx, "
+        "50_operations/duplicate-d.docx, 50_operations/duplicate-e.docx "
+        "(+1 more; use --json for full list)"
+    ) in result.stdout
     assert "[repo:conflict" in result.stdout
     assert "Resolve the target note/repo identity conflict" in result.stdout
     assert "latest audit: 2026-06-20T00:01:00Z status=skipped:manual_modification" in result.stdout
@@ -1561,7 +1587,7 @@ def test_vaultwright_recovery_reports_manifest_actions(tmp_path: Path) -> None:
 
     assert json_result.returncode == 0, json_result.stderr or json_result.stdout
     report = json.loads(json_result.stdout)
-    assert report["summary"] == {"office": 4, "repo": 1, "temp": 0, "total": 5}
+    assert report["summary"] == {"office": 5, "repo": 1, "temp": 0, "total": 6}
     by_id = {item["id"]: item for item in report["items"]}
     assert by_id["src-moved"]["previous_target"] == "_mirrors/40_delivery/registration.md"
     assert by_id["src-moved"]["previous_target_exists"] is True
@@ -1569,6 +1595,14 @@ def test_vaultwright_recovery_reports_manifest_actions(tmp_path: Path) -> None:
     assert by_id["src-root-conflict"]["previous_target"] == "_mirrors/40_delivery/registration.md"
     assert by_id["src-root-conflict"]["previous_target_exists"] is True
     assert by_id["src-root-conflict"]["previous_target_reason"] == "mirror_location_changed"
+    assert by_id["src-ambiguous"]["ambiguous_move_candidates"] == [
+        "40_delivery/duplicate-a.docx",
+        "50_operations/duplicate-b.docx",
+        "50_operations/duplicate-c.docx",
+        "50_operations/duplicate-d.docx",
+        "50_operations/duplicate-e.docx",
+        "50_operations/duplicate-f.docx",
+    ]
     assert by_id["src-manual"]["latest_audit"]["timestamp"] == "2026-06-20T00:01:00Z"
     assert by_id["src-manual"]["latest_audit"]["status"] == "skipped:manual_modification"
     assert by_id["repo-conflict"]["latest_audit"]["errors"] == ["Target note belongs to another repo_id."]
@@ -3766,6 +3800,406 @@ def test_office_sync_detects_moved_source_by_manifest_hash(tmp_path: Path) -> No
     assert resolved["previous_source_paths"] == ["40_delivery/registration.docx"]
     assert "previous_mirror_path" not in resolved
     assert "previous_mirror_reason" not in resolved
+
+
+def test_office_sync_conflicts_on_ambiguous_hash_move_candidates(tmp_path: Path, capsys) -> None:
+    sync = load_office_sync_module()
+    vault = tmp_path / "vault"
+    first = vault / "40_delivery" / "registration-a.docx"
+    second = vault / "50_operations" / "registration-b.docx"
+    moved = vault / "60_finance" / "registration.docx"
+    first.parent.mkdir(parents=True)
+    second.parent.mkdir(parents=True)
+    moved.parent.mkdir(parents=True)
+    first.write_bytes(b"same office bytes")
+    second.write_bytes(b"same office bytes")
+    config = sync.load_mirror_config(vault)
+    manifest = sync.empty_manifest()
+    sync.sync_one(first, vault, FakeConverter(), False, False, config, {}, manifest, "markitdown", "test")
+    sync.sync_one(second, vault, FakeConverter(), False, False, config, {}, manifest, "markitdown", "test")
+    sync.write_source_manifest(vault, manifest)
+    old_ids = {record["source_id"] for record in manifest["records"]}
+    old_id_by_path = {record["current_source_path"]: record["source_id"] for record in manifest["records"]}
+
+    moved.write_bytes(first.read_bytes())
+    first.unlink()
+    second.unlink()
+    loaded = sync.load_source_manifest(vault)
+    plan = sync.plan_one(moved, vault, config, {}, loaded, "markitdown", "test")
+    skipped = sync.sync_one(moved, vault, FakeConverter(), False, False, config, {}, loaded, "markitdown", "test")
+    forced = sync.sync_one(moved, vault, FakeConverter(), True, False, config, {}, loaded, "markitdown", "test")
+    sync.write_source_manifest(vault, loaded)
+    repeated_plan = sync.plan_one(moved, vault, config, {}, sync.load_source_manifest(vault), "markitdown", "test")
+
+    assert plan["action"] == "review"
+    assert plan["record"]["lifecycle_state"] == "conflict"
+    assert plan["record"]["source_id"] not in old_ids
+    assert plan["record"]["ambiguous_move_candidates"] == [
+        "40_delivery/registration-a.docx",
+        "50_operations/registration-b.docx",
+    ]
+    sync.print_plan_or_status(
+        vault,
+        [moved],
+        config,
+        {},
+        sync.load_source_manifest(vault),
+        "markitdown",
+        "test",
+        mode="plan",
+        quiet=False,
+    )
+    plan_output = capsys.readouterr().out
+    assert "ambiguous move candidates: 2 candidate(s): 40_delivery/registration-a.docx, 50_operations/registration-b.docx" in plan_output
+    assert plan["record"]["previous_source_paths"] == []
+    assert any("Source bytes match multiple missing manifest records" in error for error in plan["record"]["errors"])
+    assert any("Ambiguous move candidates" in warning for warning in plan["record"]["warnings"])
+    assert skipped == "skipped:conflict"
+    assert forced == "skipped:conflict"
+    assert not (vault / "_mirrors" / "60_finance" / "registration.md").exists()
+    assert repeated_plan["action"] == "review"
+    assert repeated_plan["record"]["lifecycle_state"] == "conflict"
+    assert repeated_plan["record"]["ambiguous_move_candidates"] == [
+        "40_delivery/registration-a.docx",
+        "50_operations/registration-b.docx",
+    ]
+
+    second.write_bytes(b"same office bytes")
+    selected_history = sync.load_source_manifest(vault)
+    selected_plan = sync.plan_one(moved, vault, config, {}, selected_history, "markitdown", "test")
+    selected_status = sync.sync_one(
+        moved,
+        vault,
+        FakeConverter(),
+        False,
+        False,
+        config,
+        {},
+        selected_history,
+        "markitdown",
+        "test",
+    )
+    sync.write_source_manifest(vault, selected_history)
+    selected_records = sync.load_source_manifest(vault)["records"]
+
+    assert selected_plan["action"] == "review"
+    assert selected_plan["record"]["lifecycle_state"] == "source_moved"
+    assert selected_plan["record"]["source_id"] == old_id_by_path["40_delivery/registration-a.docx"]
+    assert selected_plan["record"]["previous_source_paths"] == ["40_delivery/registration-a.docx"]
+    assert selected_status == "skipped:source_moved"
+    assert not any(record["source_id"] == plan["record"]["source_id"] for record in selected_records)
+    assert any(
+        record["source_id"] == old_id_by_path["40_delivery/registration-a.docx"]
+        and record["current_source_path"] == "60_finance/registration.docx"
+        for record in selected_records
+    )
+
+    assert sync.ambiguous_candidate_summary(["a", "b", "c", "d", "e", "f"]) == (
+        "6 candidate(s): a, b, c, d, e (+1 more)"
+    )
+    assert sync.plan_detail_lines(plan["record"]) == [
+        "ambiguous move candidates: 2 candidate(s): "
+        "40_delivery/registration-a.docx, 50_operations/registration-b.docx"
+    ]
+
+
+def test_office_sync_main_exits_nonzero_for_ambiguous_conflict(
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+) -> None:
+    sync = load_office_sync_module()
+    vault = tmp_path / "vault"
+    first = vault / "40_delivery" / "registration-a.docx"
+    second = vault / "50_operations" / "registration-b.docx"
+    moved = vault / "60_finance" / "registration.docx"
+    first.parent.mkdir(parents=True)
+    second.parent.mkdir(parents=True)
+    moved.parent.mkdir(parents=True)
+    first.write_bytes(b"same office bytes")
+    second.write_bytes(b"same office bytes")
+    config = sync.load_mirror_config(vault)
+    manifest = sync.empty_manifest()
+    sync.sync_one(first, vault, FakeConverter(), False, False, config, {}, manifest, "markitdown", "test")
+    sync.sync_one(second, vault, FakeConverter(), False, False, config, {}, manifest, "markitdown", "test")
+    sync.write_source_manifest(vault, manifest)
+
+    moved.write_bytes(first.read_bytes())
+    first.unlink()
+    second.unlink()
+    monkeypatch.setattr(sync, "MarkItDown", lambda: FakeConverter())
+    monkeypatch.setattr(sync, "markitdown_version", lambda: "test")
+    monkeypatch.setattr(sys, "argv", ["sync_office_md.py", "--root", str(vault)])
+
+    exit_code = sync.main()
+    output = capsys.readouterr().out
+
+    assert exit_code == 1
+    assert "[skipped:conflict" in output
+    assert "ambiguous move candidates: 2 candidate(s): 40_delivery/registration-a.docx, 50_operations/registration-b.docx" in output
+    assert "0 skipped, 1 review, 0 error" in output
+    assert not (vault / "_mirrors" / "60_finance" / "registration.md").exists()
+
+
+def test_office_sync_prefers_manual_exact_record_over_persisted_ambiguous_conflict(tmp_path: Path) -> None:
+    sync = load_office_sync_module()
+    vault = tmp_path / "vault"
+    first = vault / "40_delivery" / "registration-a.docx"
+    second = vault / "50_operations" / "registration-b.docx"
+    moved = vault / "60_finance" / "registration.docx"
+    first.parent.mkdir(parents=True)
+    second.parent.mkdir(parents=True)
+    moved.parent.mkdir(parents=True)
+    first.write_bytes(b"same office bytes")
+    second.write_bytes(b"same office bytes")
+    config = sync.load_mirror_config(vault)
+    manifest = sync.empty_manifest()
+    sync.sync_one(first, vault, FakeConverter(), False, False, config, {}, manifest, "markitdown", "test")
+    sync.sync_one(second, vault, FakeConverter(), False, False, config, {}, manifest, "markitdown", "test")
+    sync.write_source_manifest(vault, manifest)
+    old_id_by_path = {record["current_source_path"]: record["source_id"] for record in manifest["records"]}
+
+    moved.write_bytes(first.read_bytes())
+    first.unlink()
+    second.unlink()
+    ambiguous = sync.load_source_manifest(vault)
+    first_conflict = sync.sync_one(
+        moved,
+        vault,
+        FakeConverter(),
+        False,
+        False,
+        config,
+        {},
+        ambiguous,
+        "markitdown",
+        "test",
+    )
+    sync.write_source_manifest(vault, ambiguous)
+    persisted_records = sync.load_source_manifest(vault)["records"]
+    synthetic_id = next(
+        record["source_id"]
+        for record in persisted_records
+        if record.get("current_source_path") == "60_finance/registration.docx"
+        and record.get("ambiguous_move_candidates")
+    )
+
+    assert first_conflict == "skipped:conflict"
+
+    manually_resolved = sync.load_source_manifest(vault)
+    for record in manually_resolved["records"]:
+        if record["source_id"] == old_id_by_path["40_delivery/registration-a.docx"]:
+            record["current_source_path"] = "60_finance/registration.docx"
+            record["previous_source_paths"] = ["40_delivery/registration-a.docx"]
+            record["mirror_path"] = "_mirrors/60_finance/registration.md"
+
+    plan = sync.plan_one(moved, vault, config, {}, manually_resolved, "markitdown", "test")
+    status = sync.sync_one(
+        moved,
+        vault,
+        FakeConverter(),
+        False,
+        False,
+        config,
+        {},
+        manually_resolved,
+        "markitdown",
+        "test",
+    )
+    sync.write_source_manifest(vault, manually_resolved)
+    resolved_records = sync.load_source_manifest(vault)["records"]
+
+    assert plan["record"]["source_id"] == old_id_by_path["40_delivery/registration-a.docx"]
+    assert plan["record"]["source_id"] != old_id_by_path["50_operations/registration-b.docx"]
+    assert "ambiguous_move_candidates" not in plan["record"]
+    assert status == "created"
+    assert not any(record["source_id"] == synthetic_id for record in resolved_records)
+    assert any(
+        record["source_id"] == old_id_by_path["40_delivery/registration-a.docx"]
+        and record["current_source_path"] == "60_finance/registration.docx"
+        and "ambiguous_move_candidates" not in record
+        for record in resolved_records
+    )
+    assert (vault / "_mirrors" / "60_finance" / "registration.md").exists()
+
+
+def test_office_sync_conflicts_on_duplicate_exact_manifest_source_path(tmp_path: Path) -> None:
+    sync = load_office_sync_module()
+    vault = tmp_path / "vault"
+    source = vault / "60_finance" / "registration.docx"
+    source.parent.mkdir(parents=True)
+    source.write_bytes(b"office bytes")
+    config = sync.load_mirror_config(vault)
+    manifest = sync.empty_manifest()
+    sync.sync_one(source, vault, FakeConverter(), False, False, config, {}, manifest, "markitdown", "test")
+    source_id = manifest["records"][0]["source_id"]
+    duplicate = dict(manifest["records"][0])
+    duplicate["source_id"] = "src_duplicate_manual_edit"
+    duplicate["previous_source_paths"] = ["40_delivery/registration.docx"]
+    manifest["records"].append(duplicate)
+    sync.write_source_manifest(vault, manifest)
+    loaded = sync.load_source_manifest(vault)
+
+    plan = sync.plan_one(source, vault, config, {}, loaded, "markitdown", "test")
+    status = sync.sync_one(source, vault, FakeConverter(), False, False, config, {}, loaded, "markitdown", "test")
+    forced = sync.sync_one(source, vault, FakeConverter(), True, False, config, {}, loaded, "markitdown", "test")
+
+    assert plan["action"] == "review"
+    assert plan["record"]["lifecycle_state"] == "conflict"
+    assert set(plan["record"]["duplicate_source_ids"]) == {source_id, "src_duplicate_manual_edit"}
+    assert any("Multiple manifest records claim this source path" in error for error in plan["record"]["errors"])
+    assert any("Duplicate source IDs for current path" in warning for warning in plan["record"]["warnings"])
+    assert any(line.startswith("duplicate source IDs: 2 source_id(s):") for line in sync.plan_detail_lines(plan["record"]))
+    assert status == "skipped:conflict"
+    assert forced == "skipped:conflict"
+
+
+def test_office_sync_conflicts_before_unsupported_legacy_doc_skip(tmp_path: Path) -> None:
+    sync = load_office_sync_module()
+    vault = tmp_path / "vault"
+    first = vault / "40_delivery" / "legacy-a.doc"
+    second = vault / "50_operations" / "legacy-b.doc"
+    moved = vault / "60_finance" / "legacy.doc"
+    first.parent.mkdir(parents=True)
+    second.parent.mkdir(parents=True)
+    moved.parent.mkdir(parents=True)
+    first.write_bytes(b"same legacy office bytes")
+    second.write_bytes(b"same legacy office bytes")
+    config = sync.load_mirror_config(vault)
+    manifest = sync.empty_manifest()
+    sync.sync_one(first, vault, FakeConverter(), False, False, config, {}, manifest, "markitdown", "test")
+    sync.sync_one(second, vault, FakeConverter(), False, False, config, {}, manifest, "markitdown", "test")
+    sync.write_source_manifest(vault, manifest)
+
+    moved.write_bytes(first.read_bytes())
+    first.unlink()
+    second.unlink()
+    loaded = sync.load_source_manifest(vault)
+    plan = sync.plan_one(moved, vault, config, {}, loaded, "markitdown", "test")
+    status = sync.sync_one(moved, vault, FakeConverter(), False, False, config, {}, loaded, "markitdown", "test")
+
+    assert plan["action"] == "review"
+    assert plan["record"]["lifecycle_state"] == "conflict"
+    assert plan["record"]["ambiguous_move_candidates"] == [
+        "40_delivery/legacy-a.doc",
+        "50_operations/legacy-b.doc",
+    ]
+    assert any("Source bytes match multiple missing manifest records" in error for error in plan["record"]["errors"])
+    assert status == "skipped:conflict"
+
+    duplicate_manifest = sync.empty_manifest()
+    duplicate_manifest["records"] = [
+        {
+            "source_id": "src_legacy_one",
+            "current_source_path": "60_finance/legacy.doc",
+            "source_sha256": plan["record"]["source_sha256"],
+            "source_size": plan["record"]["source_size"],
+            "mirror_path": "_mirrors/60_finance/legacy.md",
+            "lifecycle_state": "unsupported",
+        },
+        {
+            "source_id": "src_legacy_two",
+            "current_source_path": "60_finance/legacy.doc",
+            "source_sha256": plan["record"]["source_sha256"],
+            "source_size": plan["record"]["source_size"],
+            "mirror_path": "_mirrors/60_finance/legacy.md",
+            "lifecycle_state": "unsupported",
+        },
+    ]
+    duplicate_plan = sync.plan_one(moved, vault, config, {}, duplicate_manifest, "markitdown", "test")
+    duplicate_status = sync.sync_one(
+        moved,
+        vault,
+        FakeConverter(),
+        False,
+        False,
+        config,
+        {},
+        duplicate_manifest,
+        "markitdown",
+        "test",
+    )
+
+    assert duplicate_plan["action"] == "review"
+    assert duplicate_plan["record"]["lifecycle_state"] == "conflict"
+    assert duplicate_plan["record"]["duplicate_source_ids"] == ["src_legacy_one", "src_legacy_two"]
+    assert any("Multiple manifest records claim this source path" in error for error in duplicate_plan["record"]["errors"])
+    assert duplicate_status == "skipped:conflict"
+
+
+def test_office_sync_can_treat_resolved_ambiguity_as_new_duplicate_source(tmp_path: Path) -> None:
+    sync = load_office_sync_module()
+    vault = tmp_path / "vault"
+    first = vault / "40_delivery" / "registration-a.docx"
+    second = vault / "50_operations" / "registration-b.docx"
+    duplicate = vault / "60_finance" / "registration.docx"
+    first.parent.mkdir(parents=True)
+    second.parent.mkdir(parents=True)
+    duplicate.parent.mkdir(parents=True)
+    first.write_bytes(b"same office bytes")
+    second.write_bytes(b"same office bytes")
+    config = sync.load_mirror_config(vault)
+    manifest = sync.empty_manifest()
+    sync.sync_one(first, vault, FakeConverter(), False, False, config, {}, manifest, "markitdown", "test")
+    sync.sync_one(second, vault, FakeConverter(), False, False, config, {}, manifest, "markitdown", "test")
+    sync.write_source_manifest(vault, manifest)
+    original_ids = {record["current_source_path"]: record["source_id"] for record in manifest["records"]}
+
+    duplicate.write_bytes(first.read_bytes())
+    first.unlink()
+    second.unlink()
+    ambiguous = sync.load_source_manifest(vault)
+    conflict_status = sync.sync_one(
+        duplicate,
+        vault,
+        FakeConverter(),
+        False,
+        False,
+        config,
+        {},
+        ambiguous,
+        "markitdown",
+        "test",
+    )
+    sync.write_source_manifest(vault, ambiguous)
+    synthetic_id = next(
+        record["source_id"]
+        for record in sync.load_source_manifest(vault)["records"]
+        if record.get("current_source_path") == "60_finance/registration.docx"
+        and record.get("ambiguous_move_candidates")
+    )
+
+    first.write_bytes(b"same office bytes")
+    second.write_bytes(b"same office bytes")
+    resolved = sync.load_source_manifest(vault)
+    plan = sync.plan_one(duplicate, vault, config, {}, resolved, "markitdown", "test")
+    status = sync.sync_one(
+        duplicate,
+        vault,
+        FakeConverter(),
+        False,
+        False,
+        config,
+        {},
+        resolved,
+        "markitdown",
+        "test",
+    )
+    sync.write_source_manifest(vault, resolved)
+    saved = {record["source_id"]: record for record in sync.load_source_manifest(vault)["records"]}
+
+    assert conflict_status == "skipped:conflict"
+    assert plan["action"] == "create"
+    assert plan["record"]["source_id"] == synthetic_id
+    assert plan["record"]["lifecycle_state"] == "planned"
+    assert "ambiguous_move_candidates" not in plan["record"]
+    assert status == "created"
+    assert saved[synthetic_id]["lifecycle_state"] == "clean"
+    assert saved[synthetic_id]["current_source_path"] == "60_finance/registration.docx"
+    assert "ambiguous_move_candidates" not in saved[synthetic_id]
+    assert saved[original_ids["40_delivery/registration-a.docx"]]["current_source_path"] == "40_delivery/registration-a.docx"
+    assert saved[original_ids["50_operations/registration-b.docx"]]["current_source_path"] == "50_operations/registration-b.docx"
+    assert (vault / "_mirrors" / "60_finance" / "registration.md").exists()
 
 
 def test_office_sync_conflicts_when_mirror_root_changes_with_old_mirror(tmp_path: Path) -> None:
