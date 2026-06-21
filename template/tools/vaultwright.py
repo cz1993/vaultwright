@@ -148,6 +148,8 @@ def command_catalog(args: argparse.Namespace) -> int:
     cmd = python_cmd(root, "catalog_report.py")
     if args.json:
         cmd.append("--json")
+    if args.html:
+        cmd.append("--html")
     if args.stdout:
         cmd.append("--stdout")
     if args.check:
@@ -572,9 +574,15 @@ def build_parser() -> argparse.ArgumentParser:
     recovery.set_defaults(func=command_recovery)
     catalog = sub.add_parser("catalog", help="Generate a source-path-only documentation catalog.")
     catalog.add_argument("--json", action="store_true", help="Print machine-readable catalog JSON.")
-    catalog.add_argument("--stdout", action="store_true", help="Print catalog Markdown instead of writing CATALOG.md.")
-    catalog.add_argument("--check", action="store_true", help="Fail if CATALOG.md is missing or stale.")
-    catalog.add_argument("--output", type=Path, default=Path("CATALOG.md"), help="Catalog path relative to the vault root.")
+    catalog.add_argument("--html", action="store_true", help="Write or print an HTML catalog instead of Markdown.")
+    catalog.add_argument("--stdout", action="store_true", help="Print catalog output instead of writing a file.")
+    catalog.add_argument("--check", action="store_true", help="Fail if the catalog output is missing or stale.")
+    catalog.add_argument(
+        "--output",
+        type=Path,
+        default=Path("CATALOG.md"),
+        help="Catalog path relative to the vault root. Defaults to CATALOG.html when --html is used.",
+    )
     catalog.add_argument(
         "--max-items",
         type=int,

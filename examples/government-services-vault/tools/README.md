@@ -9,7 +9,7 @@ These keep your knowledge base current and healthy. See `../CLAUDE.md` §6 for t
 | `vaultwright.py` | thin operator wrapper: `plan`, `sync`, `status`, `catalog`, `conversion`, `migration`, `pilot`, `recovery`, `sandbox`, `lint`, `benchmark`, `doctor`, and repo-root `init` |
 | `lint_vault.py` | health check — frontmatter, broken wikilinks, orphans, overlap warnings, mirror gaps, configured repo mirror gaps, stale generated mirrors |
 | `benchmark_tasks.py` | validates `_meta/agent-readiness-tasks.yml` task packs and optional aggregate result packs |
-| `catalog_report.py` | writes a source-path-only `CATALOG.md` inventory gateway for reviewers and agents |
+| `catalog_report.py` | writes source-path-only `CATALOG.md` or `CATALOG.html` inventory gateways for reviewers and agents |
 | `conversion_report.py` | prints a read-only conversion spot-check report from the source manifest |
 | `migration_report.py` | prints a read-only migration report for legacy or unknown top-level folders |
 | `pilot_report.py` | prints a read-only aggregate pilot evidence report without source content |
@@ -39,6 +39,7 @@ python3.11 tools/vaultwright.py plan
 python3.11 tools/vaultwright.py sync
 python3.11 tools/vaultwright.py status
 python3.11 tools/vaultwright.py catalog
+python3.11 tools/vaultwright.py catalog --html
 python3.11 tools/vaultwright.py conversion --guide
 python3.11 tools/vaultwright.py migration
 python3.11 tools/vaultwright.py migration --worksheet
@@ -56,11 +57,11 @@ GitHub auth posture. It also reports optional Obsidian config/plugin posture and
 guard coverage. A fresh vault may warn that manifests, audit logs, repo config, git history, or
 Obsidian UI config are not generated yet; those warnings are preflight context, not sync failures.
 
-`catalog` writes `CATALOG.md` by default. It is a generated source-path and manifest inventory,
-not a content extraction layer: it lists counts, lifecycle states, source/mirror links, repo mirror
-links, unmanaged source candidates, and legacy top-level folders without copying document text.
-Use `--stdout` to preview, `--json` for automation, and `--check` in CI or review scripts to fail
-when the catalog is stale.
+`catalog` writes `CATALOG.md` by default, and `CATALOG.html` when called with `--html`. Both are
+generated source-path and manifest inventories, not content extraction layers: they list counts,
+lifecycle states, source/mirror links, repo mirror links, unmanaged source candidates, and legacy
+top-level folders without copying document text. Use `--stdout` to preview, `--json` for
+automation, and `--check` in CI or review scripts to fail when the selected catalog is stale.
 
 `conversion` is read-only. It reads `_meta/source-manifest.json` and turns lifecycle states,
 format risks, warnings, errors, and source/mirror existence into a prioritized spot-check list. It

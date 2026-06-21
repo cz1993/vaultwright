@@ -9,8 +9,10 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 - Added `tools/catalog_report.py` and `vaultwright catalog`, which writes a generated
   source-path-only `CATALOG.md` inventory gateway with domain, format, lifecycle, mirror, repo,
   unmanaged-source, and legacy-folder summaries.
+- `vaultwright catalog --html` now writes the same path-and-metadata-only inventory as a static
+  `CATALOG.html` gateway for reviewers who prefer a browser surface.
 - CI and release smoke checks now compile and exercise `catalog`, including packaged-template
-  installation coverage and `catalog --check` freshness validation.
+  installation coverage and Markdown/HTML `catalog --check` freshness validation.
 - `vaultwright migration` now reports legacy or unknown note frontmatter domains using
   `_meta/domain-map.yml` aliases, giving operators a read-only cleanup queue before moving notes.
 - `vaultwright migration --worksheet` now prints a Markdown review checklist for legacy folder and

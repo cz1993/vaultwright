@@ -45,9 +45,9 @@ This work has made material progress:
   dedicated `_mirrors/` storage.
 - The tool now has plan/sync/status/lint/doctor commands, source manifests, repo manifests, audit
   logs, no-data safeguards, CI regeneration tests, and example vaults.
-- A generated `CATALOG.md` now provides a non-Obsidian gateway with source/mirror links,
-  lifecycle states, domain counts, unmanaged-source candidates, and legacy-folder inventory without
-  copying source document text.
+- Generated `CATALOG.md` and `CATALOG.html` now provide non-Obsidian gateways with
+  source/mirror links, lifecycle states, domain counts, unmanaged-source candidates, and
+  legacy-folder inventory without copying source document text.
 - A new public-service example vault demonstrates familiar Canadian business-startup workflows:
   business registration, CRA program accounts, GST/HST readiness, account access, and
   funding/support discovery.
@@ -138,9 +138,10 @@ The differentiators are:
 - **Linking-first retrieval:** maps of content, entity pages, backlinks, and frontmatter remain the
   durable retrieval layer. Vector or semantic indexes can be optional later; they should not become
   the source of truth.
-- **Catalog gateway:** generated `CATALOG.md` gives reviewers and agents a concise inventory of
-  source records, generated mirrors, lifecycle states, repo mirrors, unmanaged source candidates,
-  and legacy folders without requiring Obsidian or exposing document text.
+- **Catalog gateway:** generated `CATALOG.md` and `CATALOG.html` give reviewers and agents a
+  concise inventory of source records, generated mirrors, lifecycle states, repo mirrors,
+  unmanaged source candidates, and legacy folders without requiring Obsidian or exposing document
+  text.
 - **Agent-ready substrate:** generated markdown gives agents a transparent, file-native working
   layer with headings, frontmatter, links, diffs, and manifests instead of forcing them to reason
   directly over opaque binaries or transient chat answers.
@@ -374,8 +375,8 @@ Professional-services use should begin with a conservative operating model:
 | Mirror storage | Office mirrors and optional text-based PDF mirrors live under `_mirrors/` | Fixes messy source-folder problem |
 | Office sync | Plan/sync/status, manifest, audit events, manual-edit detection, lifecycle next-action guidance | Useful alpha foundation |
 | Repo sync | Plan/sync/status, repo manifest, audit events, manual-edit detection, lifecycle next-action guidance | Useful for code/source repositories |
-| Catalog gateway | `vaultwright catalog` writes generated `CATALOG.md` with source/mirror links, lifecycle states, format/domain counts, repo mirrors, unmanaged source candidates, and legacy-folder inventory | Useful for non-Obsidian review and agent preflight orientation |
-| CLI | Vault-local wrapper and source-installable `vaultwright` entry point; CI now installs the built wheel and verifies packaged init, doctor, plan, benchmark, catalog generation/check, conversion, migration, migration worksheet, pilot, redacted pilot worksheet output, and JSON recovery delegation; tag workflow builds artifacts under read-only permissions, verifies the released wheel, and creates draft prereleases for owner review while refusing to overwrite non-draft releases; doctor reports dependency, manifest, audit, recovery-action counts, git/GitHub backup posture, optional Obsidian config/plugin posture, and `.gitignore` backup guard coverage; benchmark validates task packs and optional aggregate result packs; catalog writes the inventory gateway; conversion, migration, pilot, and recovery print read-only operator reports | Better operator ergonomics; first alpha draft release is intended for owner review, not stable distribution |
+| Catalog gateway | `vaultwright catalog` writes generated `CATALOG.md`; `vaultwright catalog --html` writes generated `CATALOG.html`; both include source/mirror links, lifecycle states, format/domain counts, repo mirrors, unmanaged source candidates, and legacy-folder inventory | Useful for non-Obsidian review and agent preflight orientation |
+| CLI | Vault-local wrapper and source-installable `vaultwright` entry point; CI now installs the built wheel and verifies packaged init, doctor, plan, benchmark, Markdown/HTML catalog generation/check, conversion, migration, migration worksheet, pilot, redacted pilot worksheet output, and JSON recovery delegation; tag workflow builds artifacts under read-only permissions, verifies the released wheel, and creates draft prereleases for owner review while refusing to overwrite non-draft releases; doctor reports dependency, manifest, audit, recovery-action counts, git/GitHub backup posture, optional Obsidian config/plugin posture, and `.gitignore` backup guard coverage; benchmark validates task packs and optional aggregate result packs; catalog writes the inventory gateway; conversion, migration, pilot, and recovery print read-only operator reports | Better operator ergonomics; first alpha draft release is intended for owner review, not stable distribution |
 | Examples | Government-services showcase plus Northwind regression fixture | Better demo plus stable tests |
 | Provenance | Public fixture ledger with source URLs, licence posture, and review date | Good discipline; must be maintained |
 | Safety | No-data scanner, pre-commit hook, CI checks | Strong for repository hygiene |
@@ -394,7 +395,7 @@ Current evidence is encouraging but limited.
 | Government showcase | Canadian business registration, GST/HST, CRA account, and funding/support fixtures | Better demonstration of a consulting-relevant pain point |
 | Office source manifest | Stable source IDs, hashes, mirror paths, lifecycle states, audit events, missing/manual-edit detection | Important lifecycle foundation, not finished operator UX |
 | Conversion spot-check report | Read-only manifest report prioritizes high/medium/low conversion review items from states, warnings, errors, formats, and source/mirror existence; `conversion --guide` adds a format-aware operator checklist | Useful pilot checklist; not a quantitative conversion-quality score |
-| Catalog gateway | Generated `CATALOG.md` summarizes the manifest and workspace inventory using paths and metadata only | Useful review surface for agents, consultants, and non-Obsidian stakeholders; not a replacement for conversion review |
+| Catalog gateway | Generated `CATALOG.md` and `CATALOG.html` summarize the manifest and workspace inventory using paths and metadata only | Useful review surfaces for agents, consultants, and non-Obsidian stakeholders; not a replacement for conversion review |
 | Pilot evidence report | Read-only aggregate report summarizes corpus shape, manifest states, audit counts, conversion priorities, recovery counts, benchmark tasks, optional benchmark result scores, and a redacted Markdown worksheet summary without source content or source paths | Useful for private design-partner worksheets; not external validation by itself |
 | Repo source manifest | Stable repo IDs, local-tree/remote-HEAD hashes, audit events, manual-edit detection | Useful coverage for repo mirrors |
 | Source-installable CLI | Console entry point delegates to vault-local tools and supports source-checkout `init` | Good development ergonomics |
@@ -444,7 +445,7 @@ Recommended v0.1 gates:
 | Lifecycle | Rename, move, delete, stale, conflict, error, and manual-modification states are tested |
 | Provenance | Every mirror resolves to an identifiable source |
 | Auditability | Every generated change can be explained from manifest/log evidence |
-| Catalog | `CATALOG.md` regenerates cleanly and links to the current source/mirror inventory |
+| Catalog | `CATALOG.md` and `CATALOG.html` regenerate cleanly and link to the current source/mirror inventory |
 | Conversion | At least 95% of declared-supported pilot files complete without manual repair |
 | Usability | A new operator completes the golden path through CLI/docs |
 | Validation | At least three independent external users and multiple corpora |
@@ -488,7 +489,8 @@ Deliverables:
 - deeper lifecycle recovery UX beyond current read-only recovery checklist;
 - pilot-calibrated migration runbooks for legacy folder layouts;
 - continued calibration of the conversion spot-check report and operator guide on pilot corpora;
-- catalog freshness checks in pilot runbooks so reviewers and agents begin from current inventory;
+- Markdown and HTML catalog freshness checks in pilot runbooks so reviewers and agents begin from
+  current inventory;
 - explicit Copilot/SharePoint handoff guidance for enterprises that want to store or expose the
   markdown mirror layer through approved Microsoft 365 governance boundaries;
 - pilot worksheet and aggregate `vaultwright pilot` evidence report based on
@@ -649,7 +651,8 @@ Important unresolved questions:
 - For Microsoft 365 customers, when should mirrors be stored in SharePoint/OneDrive, exposed
   through Copilot connectors, or kept local for agent-only use?
 - How should source permissions and client data boundaries be represented in the vault?
-- Is generated `CATALOG.md` enough as the first non-Obsidian UI, or is an HTML catalog required?
+- When should reviewers use `CATALOG.html` rather than `CATALOG.md`, and what extra navigation
+  would justify a richer UI later?
 - What evidence will convince professional consulting reviewers that the workflow is repeatable?
 
 ## 20. Technical Implementation Appendix
@@ -663,7 +666,7 @@ Available today:
 - Repo mirrors under `80_sources/repos/`.
 - Repo source manifest at `_meta/repo-manifest.json`, plus repo `--plan` and `--status`.
 - Machine-readable sync audit events in `_meta/sync-audit.jsonl`.
-- Generated `CATALOG.md` inventory gateway through `vaultwright catalog`.
+- Generated `CATALOG.md` and `CATALOG.html` inventory gateways through `vaultwright catalog`.
 - Thin `tools/vaultwright.py` wrapper for `plan`, `sync`, `status`, `catalog`, `conversion`,
   `migration`, `pilot`, `recovery`, `sandbox`, `benchmark`, `lint`, and `doctor`.
 - Source-installable `vaultwright` console entry point via `pyproject.toml`.
@@ -694,7 +697,7 @@ Roadmap:
 - Full lifecycle transitions for rename, move, stale, conflict, converter change, and recovery.
 - Distribution-quality `vaultwright` packaging.
 - Richer quantitative conversion-quality scoring beyond checklist-based spot checks.
-- Optional HTML catalog if pilots prove markdown catalog navigation is insufficient.
+- Richer catalog UX only if pilots prove the static Markdown/HTML gateways are insufficient.
 - Recovery tests and external design-partner execution.
 - Higher-fidelity PDF/spreadsheet extraction tiers.
 - Better similarity/overlap scoring, using `_meta/lint-config.yml` as the pilot calibration surface

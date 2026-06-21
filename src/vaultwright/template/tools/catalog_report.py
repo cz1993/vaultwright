@@ -4,11 +4,13 @@
 from __future__ import annotations
 
 import argparse
+import html as html_lib
 import json
 import sys
 from collections import Counter
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
 try:
     import yaml
@@ -21,6 +23,7 @@ DOMAIN_MAP = Path("_meta/domain-map.yml")
 SOURCE_MANIFEST = Path("_meta/source-manifest.json")
 REPO_MANIFEST = Path("_meta/repo-manifest.json")
 DEFAULT_OUTPUT = Path("CATALOG.md")
+DEFAULT_HTML_OUTPUT = Path("CATALOG.html")
 SOURCE_EXTS = {".docx", ".pptx", ".xlsx", ".doc", ".pdf"}
 CONTENT_ROOTS = {
     "00_inbox",
@@ -48,7 +51,7 @@ RESERVED_TOP_LEVEL = {
     "tools",
 }
 EXCLUDED_PARTS = RESERVED_TOP_LEVEL | {"__pycache__"}
-GENERATED_CATALOGS = {"CATALOG.md"}
+GENERATED_CATALOGS = {"CATALOG.md", "CATALOG.html"}
 
 
 def relpath(path: Path, root: Path = ROOT) -> str:
@@ -71,6 +74,23 @@ def md_escape(value: object) -> str:
 def md_link(rel: str) -> str:
     text = md_escape(rel)
     return f"[{text}](<./{rel}>)"
+
+
+def html_escape(value: object) -> str:
+    return html_lib.escape(str(value), quote=True)
+
+
+def html_href(rel: str) -> str:
+    return "./" + quote(rel, safe="/._-~")
+
+
+def html_link(rel: str) -> str:
+    return f'<a href="{html_escape(html_href(rel))}">{html_escape(rel)}</a>'
+
+
+def css_class_fragment(value: object) -> str:
+    text = str(value).lower()
+    return "".join(ch if ch.isalnum() or ch in {"-", "_"} else "-" for ch in text).strip("-") or "unknown"
 
 
 def read_json_object(root: Path, rel: Path) -> tuple[dict[str, Any], list[str], list[str]]:
@@ -315,6 +335,22 @@ def table(headers: list[str], rows: list[list[object]]) -> list[str]:
     return lines
 
 
+def html_table(headers: list[str], rows: list[list[object]], raw_columns: set[int] | None = None) -> list[str]:
+    raw_columns = raw_columns or set()
+    lines = ["<table>", "<thead>", "<tr>"]
+    for header in headers:
+        lines.append(f"<th>{html_escape(header)}</th>")
+    lines.extend(["</tr>", "</thead>", "<tbody>"])
+    for row in rows:
+        lines.append("<tr>")
+        for index, value in enumerate(row):
+            cell = str(value) if index in raw_columns else html_escape(value)
+            lines.append(f"<td>{cell}</td>")
+        lines.append("</tr>")
+    lines.extend(["</tbody>", "</table>"])
+    return lines
+
+
 def limited(items: list[Any], max_items: int) -> tuple[list[Any], int]:
     if max_items <= 0 or len(items) <= max_items:
         return items, 0
@@ -446,11 +482,189 @@ def render_markdown(report: dict[str, Any], warnings: list[str], errors: list[st
     return "\n".join(lines)
 
 
-def safe_output_path(root: Path, value: Path) -> Path:
+def render_html(report: dict[str, Any], warnings: list[str], errors: list[str], max_items: int = 500) -> str:
+    summary = report["summary"]
+    source_items, hidden_sources = limited(report["source_items"], max_items)
+    unmanaged_sources, hidden_unmanaged = limited(report["unmanaged_sources"], max_items)
+    repo_items, hidden_repos = limited(report["repo_items"], max_items)
+
+    lines = [
+        "<!doctype html>",
+        '<html lang="en">',
+        "<head>",
+        '<meta charset="utf-8">',
+        '<meta name="viewport" content="width=device-width, initial-scale=1">',
+        "<title>Documentation Catalog</title>",
+        "<style>",
+        ":root { color-scheme: light; --bg: #f7f8fa; --panel: #ffffff; --text: #1f2933; --muted: #667085; --line: #d9dee7; --accent: #1f6feb; --warn: #9a6700; --error: #b42318; --ok: #067647; }",
+        "body { margin: 0; font: 14px/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); }",
+        "main { max-width: 1180px; margin: 0 auto; padding: 32px 20px 56px; }",
+        "header { margin-bottom: 24px; }",
+        "h1 { margin: 0 0 8px; font-size: 28px; line-height: 1.2; letter-spacing: 0; }",
+        "h2 { margin: 28px 0 10px; font-size: 18px; letter-spacing: 0; }",
+        "p { margin: 0 0 12px; }",
+        "a { color: var(--accent); text-decoration: none; }",
+        "a:hover { text-decoration: underline; }",
+        ".muted { color: var(--muted); }",
+        ".cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin: 18px 0 24px; }",
+        ".card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px; }",
+        ".card strong { display: block; font-size: 24px; line-height: 1.1; margin-bottom: 4px; }",
+        ".section { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px; margin-top: 14px; overflow-x: auto; }",
+        "table { width: 100%; border-collapse: collapse; min-width: 640px; }",
+        "th, td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }",
+        "th { color: var(--muted); font-weight: 600; background: #fbfcfe; }",
+        "tr:last-child td { border-bottom: 0; }",
+        "ul { margin: 8px 0 0 20px; padding: 0; }",
+        "li { margin: 4px 0; }",
+        ".warning { color: var(--warn); }",
+        ".error { color: var(--error); }",
+        ".empty { color: var(--muted); font-style: italic; }",
+        ".pill { display: inline-block; border: 1px solid var(--line); border-radius: 999px; padding: 1px 7px; background: #fbfcfe; white-space: nowrap; }",
+        ".state-clean { color: var(--ok); }",
+        ".state-unsupported, .state-unreachable, .state-error, .state-conflict { color: var(--warn); }",
+        "</style>",
+        "</head>",
+        "<body>",
+        "<main>",
+        "<header>",
+        "<h1>Documentation Catalog</h1>",
+        '<p class="muted">Generated by <code>vaultwright catalog --html</code>. This catalog lists paths and manifest metadata only; it does not copy source document text.</p>',
+        "</header>",
+        '<section class="cards" aria-label="Inventory summary">',
+    ]
+    summary_cards = [
+        ("Source manifest records", summary["source_records"]),
+        ("Repo manifest records", summary["repo_records"]),
+        ("Source candidates", summary["source_candidates"]),
+        ("Unmanaged sources", summary["unmanaged_source_candidates"]),
+        ("Generated mirrors", summary["generated_mirrors"]),
+        ("Curated markdown", summary["curated_markdown"]),
+        ("Legacy folders", summary["legacy_top_level_folders"]),
+    ]
+    for label, value in summary_cards:
+        lines.append(f'<div class="card"><strong>{html_escape(value)}</strong><span>{html_escape(label)}</span></div>')
+    lines.append("</section>")
+
+    if warnings or errors:
+        lines.extend(['<section class="section">', "<h2>Catalog Warnings</h2>", "<ul>"])
+        for warning in warnings:
+            lines.append(f'<li class="warning">Warning: {html_escape(warning)}</li>')
+        for error in errors:
+            lines.append(f'<li class="error">Error: {html_escape(error)}</li>')
+        lines.extend(["</ul>", "</section>"])
+
+    domain_rows = [
+        [
+            item["folder"] or item["domain"],
+            item["domain"],
+            item["source_records"],
+            item["source_candidates"],
+            item["markdown_files"],
+            item["purpose"],
+        ]
+        for item in report["domains"]
+    ]
+    lines.extend(['<section class="section">', "<h2>Domains</h2>"])
+    lines.extend(html_table(["Folder", "Domain", "Manifest Sources", "Source Candidates", "Markdown", "Purpose"], domain_rows))
+    lines.append("</section>")
+
+    if report["states"]:
+        state_rows = [[f'<span class="pill state-{css_class_fragment(state)}">{html_escape(state)}</span>', count] for state, count in report["states"].items()]
+        lines.extend(['<section class="section">', "<h2>Source Lifecycle States</h2>"])
+        lines.extend(html_table(["State", "Count"], state_rows, raw_columns={0}))
+        lines.append("</section>")
+    if report["formats"]:
+        lines.extend(['<section class="section">', "<h2>Source Formats</h2>"])
+        lines.extend(html_table(["Format", "Count"], [[fmt, count] for fmt, count in report["formats"].items()]))
+        lines.append("</section>")
+
+    lines.extend(['<section class="section">', "<h2>Generated Source Mirrors</h2>"])
+    if source_items:
+        rows = []
+        for item in source_items:
+            source = item["source"]
+            mirror = item["mirror"]
+            status = f"{item['format'] or 'unknown'}, {item['state']}"
+            if item["warnings"] or item["errors"]:
+                status += f", warnings={item['warnings']}, errors={item['errors']}"
+            rows.append([
+                html_link(source) if source else "(missing source path)",
+                html_link(mirror) if mirror else "(missing mirror path)",
+                status,
+            ])
+        lines.extend(html_table(["Source", "Mirror", "Status"], rows, raw_columns={0, 1}))
+        if hidden_sources:
+            lines.append(f'<p class="muted">{html_escape(hidden_sources)} additional source mirror records omitted by <code>--max-items</code>.</p>')
+    else:
+        lines.append('<p class="empty">No source manifest records yet. Run <code>vaultwright sync</code> after reviewing <code>vaultwright plan</code>.</p>')
+    lines.append("</section>")
+
+    lines.extend(['<section class="section">', "<h2>Unmanaged Source Candidates</h2>"])
+    if unmanaged_sources:
+        lines.append("<ul>")
+        for source in unmanaged_sources:
+            lines.append(f"<li>{html_link(source)}</li>")
+        if hidden_unmanaged:
+            lines.append(f"<li>{html_escape(hidden_unmanaged)} additional unmanaged source candidates omitted by <code>--max-items</code>.</li>")
+        lines.append("</ul>")
+    else:
+        lines.append('<p class="empty">No unmanaged source candidates detected.</p>')
+    lines.append("</section>")
+
+    lines.extend(['<section class="section">', "<h2>Repository Mirrors</h2>"])
+    if repo_items:
+        rows = []
+        for item in repo_items:
+            status = item["state"]
+            if item["warnings"] or item["errors"]:
+                status += f", warnings={item['warnings']}, errors={item['errors']}"
+            rows.append([
+                item["repo"],
+                html_link(item["note"]) if item["note"] else "(missing note path)",
+                status,
+            ])
+        lines.extend(html_table(["Repository", "Mirror Note", "Status"], rows, raw_columns={1}))
+        if hidden_repos:
+            lines.append(f'<p class="muted">{html_escape(hidden_repos)} additional repo mirror records omitted by <code>--max-items</code>.</p>')
+    else:
+        lines.append('<p class="empty">No repository mirrors configured or generated yet.</p>')
+    lines.append("</section>")
+
+    lines.extend(['<section class="section">', "<h2>Legacy Folders Needing Classification</h2>"])
+    if report["legacy_folders"]:
+        lines.append("<ul>")
+        for item in report["legacy_folders"]:
+            lines.append(f"<li>{html_link(item['folder'])}</li>")
+        lines.append("</ul>")
+    else:
+        lines.append('<p class="empty">No legacy top-level folders detected.</p>')
+    lines.append("</section>")
+
+    lines.extend(
+        [
+            '<section class="section">',
+            "<h2>Operator Next Steps</h2>",
+            "<ul>",
+            "<li>Run <code>vaultwright sandbox --source-root &lt;original-source-root&gt;</code> before using a copied pilot vault.</li>",
+            "<li>Run <code>vaultwright conversion --guide</code> after sync to spot-check high-risk formats.</li>",
+            "<li>Use <code>vaultwright migration</code> before moving legacy folders into canonical domains.</li>",
+            "<li>Keep this catalog regenerated after sync so reviewers and agents start from the current inventory.</li>",
+            "</ul>",
+            "</section>",
+            "</main>",
+            "</body>",
+            "</html>",
+            "",
+        ]
+    )
+    return "\n".join(lines)
+
+
+def safe_output_path(root: Path, value: Path, *, suffix: str) -> Path:
     if value.is_absolute() or ".." in value.parts:
         raise ValueError("output must stay inside the vault")
-    if value.suffix.lower() != ".md":
-        raise ValueError("output must be a .md file")
+    if value.suffix.lower() != suffix:
+        raise ValueError(f"output must be a {suffix} file")
     if any(part in {".git", ".github", ".githooks", "_meta", "_mirrors", "_tmp", "tools", "node_modules"} for part in value.parts):
         raise ValueError("output cannot live under a reserved folder")
     return root / value
@@ -459,9 +673,15 @@ def safe_output_path(root: Path, value: Path) -> Path:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Generate a Vaultwright documentation catalog.")
     parser.add_argument("--json", action="store_true", help="Print machine-readable catalog JSON.")
-    parser.add_argument("--stdout", action="store_true", help="Print catalog Markdown instead of writing CATALOG.md.")
+    parser.add_argument("--html", action="store_true", help="Write or print an HTML catalog instead of Markdown.")
+    parser.add_argument("--stdout", action="store_true", help="Print catalog output instead of writing a file.")
     parser.add_argument("--check", action="store_true", help="Fail if the output file is missing or stale.")
-    parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT, help="Catalog path relative to the vault root.")
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=DEFAULT_OUTPUT,
+        help="Catalog path relative to the vault root. Defaults to CATALOG.html when --html is used.",
+    )
     parser.add_argument(
         "--max-items",
         type=int,
@@ -477,27 +697,33 @@ def main() -> int:
     if args.json:
         print(json.dumps({"report": report, "warnings": warnings, "errors": errors}, indent=2, sort_keys=True))
         return 1 if errors else 0
+    default_output = DEFAULT_HTML_OUTPUT if args.html and args.output == DEFAULT_OUTPUT else args.output
+    suffix = ".html" if args.html else ".md"
     try:
-        output = safe_output_path(ROOT, args.output)
+        output = safe_output_path(ROOT, default_output, suffix=suffix)
     except ValueError as exc:
         print(f"catalog: {exc}", file=sys.stderr)
         return 1
-    content = render_markdown(report, warnings, errors, max_items=args.max_items)
+    content = (
+        render_html(report, warnings, errors, max_items=args.max_items)
+        if args.html else
+        render_markdown(report, warnings, errors, max_items=args.max_items)
+    )
     if args.stdout:
         print(content)
         return 1 if errors else 0
     if args.check:
         if not output.exists():
-            print(f"catalog: stale or missing: {args.output.as_posix()}", file=sys.stderr)
+            print(f"catalog: stale or missing: {default_output.as_posix()}", file=sys.stderr)
             return 1
         current = output.read_text(encoding="utf-8")
         if current != content:
-            print(f"catalog: stale or missing: {args.output.as_posix()}", file=sys.stderr)
+            print(f"catalog: stale or missing: {default_output.as_posix()}", file=sys.stderr)
             return 1
-        print(f"catalog: up to date: {args.output.as_posix()}")
+        print(f"catalog: up to date: {default_output.as_posix()}")
         return 1 if errors else 0
     output.write_text(content, encoding="utf-8")
-    print(f"catalog: wrote {args.output.as_posix()}")
+    print(f"catalog: wrote {default_output.as_posix()}")
     return 1 if errors else 0
 
 

@@ -54,6 +54,8 @@ jobs:
           "$tmp_build/venv/bin/vaultwright" --root "$tmp_vault" benchmark
           "$tmp_build/venv/bin/vaultwright" --root "$tmp_vault" catalog
           "$tmp_build/venv/bin/vaultwright" --root "$tmp_vault" catalog --check
+          "$tmp_build/venv/bin/vaultwright" --root "$tmp_vault" catalog --html
+          "$tmp_build/venv/bin/vaultwright" --root "$tmp_vault" catalog --html --check
           "$tmp_build/venv/bin/vaultwright" --root "$tmp_vault" conversion --json
           "$tmp_build/venv/bin/vaultwright" --root "$tmp_vault" migration --json
           "$tmp_build/venv/bin/vaultwright" --root "$tmp_vault" migration --worksheet
