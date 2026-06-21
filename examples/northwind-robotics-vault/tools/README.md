@@ -72,7 +72,9 @@ Use `--guide` to append a manifest-aware operator checklist; see
 `_meta/domain-map.yml` such as `marketing/`, `legal/`, `clients/`, or `hr/`, and flags unknown
 folders that need human classification before any manual move. Non-reserved hidden or
 underscore-prefixed folders are reported too, because they may contain staged imports or legacy
-source material.
+source material. It also scans note frontmatter for legacy alias domains such as
+`domain: marketing` or `domain: clients` and reports the canonical domain/folder recommendation without
+rewriting files.
 
 `pilot` is read-only. It summarizes aggregate pilot evidence from manifests, audit events,
 conversion priorities, recovery action counts, benchmark tasks, and optional benchmark result

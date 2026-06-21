@@ -1564,8 +1564,31 @@ def test_vaultwright_migration_reports_legacy_and_unknown_folders(tmp_path: Path
     custom.mkdir()
     underscored.mkdir()
     hidden.mkdir()
-    (marketing / "campaign.md").write_text("# Campaign\n", encoding="utf-8")
+    (marketing / "campaign.md").write_text(
+        "---\n"
+        "title: Campaign\n"
+        "type: note\n"
+        "status: active\n"
+        "domain: marketing\n"
+        "created: 2026-06-20\n"
+        "updated: 2026-06-20\n"
+        "---\n"
+        "# Campaign\n",
+        encoding="utf-8",
+    )
     (custom / "brief.docx").write_bytes(b"office bytes")
+    (custom / "unknown-domain.md").write_text(
+        "---\n"
+        "title: Unknown Domain\n"
+        "type: note\n"
+        "status: active\n"
+        "domain: special-projects\n"
+        "created: 2026-06-20\n"
+        "updated: 2026-06-20\n"
+        "---\n"
+        "# Unknown Domain\n",
+        encoding="utf-8",
+    )
     (underscored / "legacy.md").write_text("# Legacy\n", encoding="utf-8")
     (hidden / "import.pdf").write_bytes(b"pdf bytes")
 
@@ -1592,6 +1615,10 @@ def test_vaultwright_migration_reports_legacy_and_unknown_folders(tmp_path: Path
     assert "[unknown_folder] .imports -> manual classification" in result.stdout
     assert "[unknown_folder] _client_uploads -> manual classification" in result.stdout
     assert "[unknown_folder] client_uploads -> manual classification" in result.stdout
+    assert "migration: 2 note frontmatter domains need review (alias=1, unknown=1)" in result.stdout
+    assert "[frontmatter_domain_alias] marketing/campaign.md: marketing -> market" in result.stdout
+    assert "folder: 20_market" in result.stdout
+    assert "[frontmatter_domain_unknown] client_uploads/unknown-domain.md: special-projects -> manual classification" in result.stdout
     assert "[unknown_folder] _meta -> manual classification" not in result.stdout
     assert marketing.exists()
     assert custom.exists()
@@ -1620,6 +1647,14 @@ def test_vaultwright_migration_reports_legacy_and_unknown_folders(tmp_path: Path
     assert by_folder["client_uploads"]["kind"] == "unknown_folder"
     assert by_folder["client_uploads"]["counts"]["office"] == 1
     assert "_meta" not in by_folder
+    assert report["frontmatter_summary"] == {"alias": 1, "total": 2, "unknown": 1}
+    by_path = {item["path"]: item for item in report["frontmatter_items"]}
+    assert by_path["marketing/campaign.md"]["kind"] == "frontmatter_domain_alias"
+    assert by_path["marketing/campaign.md"]["current_domain"] == "marketing"
+    assert by_path["marketing/campaign.md"]["recommended_domain"] == "market"
+    assert by_path["marketing/campaign.md"]["recommended_folder"] == "20_market"
+    assert by_path["client_uploads/unknown-domain.md"]["kind"] == "frontmatter_domain_unknown"
+    assert by_path["client_uploads/unknown-domain.md"]["current_domain"] == "special-projects"
 
 
 def test_vaultwright_recovery_reports_manifest_actions(tmp_path: Path) -> None:

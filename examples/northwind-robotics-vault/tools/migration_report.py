@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Print a read-only migration report for legacy top-level folders."""
+"""Print a read-only migration report for legacy folders and frontmatter domains."""
 from __future__ import annotations
 
 import argparse
@@ -17,6 +17,7 @@ except ImportError:
 ROOT = Path(__file__).resolve().parent.parent
 DOMAIN_MAP_REL = Path("_meta/domain-map.yml")
 SOURCE_EXTS = {".docx", ".pptx", ".xlsx", ".doc", ".pdf"}
+STRUCTURAL_MD = {"AGENTS.md", "CLAUDE.md", "INDEX.md", "RETENTION.md", "CATALOG.md", "log.md"}
 RESERVED_TOP_LEVEL = {
     ".git",
     ".githooks",
@@ -33,20 +34,21 @@ RESERVED_TOP_LEVEL = {
 }
 
 
-def load_domain_routing(root: Path) -> tuple[dict[str, str], dict[str, dict[str, str]], list[str]]:
+def load_domain_routing(root: Path) -> tuple[dict[str, str], dict[str, dict[str, str]], set[str], list[str]]:
     path = root / DOMAIN_MAP_REL
     if not path.exists():
-        return {}, {}, [f"{DOMAIN_MAP_REL.as_posix()}: missing"]
+        return {}, {}, set(), [f"{DOMAIN_MAP_REL.as_posix()}: missing"]
     try:
         data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     except yaml.YAMLError as exc:
-        return {}, {}, [f"{DOMAIN_MAP_REL.as_posix()}: invalid YAML ({exc.__class__.__name__})"]
+        return {}, {}, set(), [f"{DOMAIN_MAP_REL.as_posix()}: invalid YAML ({exc.__class__.__name__})"]
     domains = data.get("domains")
     if not isinstance(domains, dict) or not domains:
-        return {}, {}, [f"{DOMAIN_MAP_REL.as_posix()}: missing domains map"]
+        return {}, {}, set(), [f"{DOMAIN_MAP_REL.as_posix()}: missing domains map"]
 
     canonical: dict[str, str] = {}
     aliases: dict[str, dict[str, str]] = {}
+    canonical_domains: set[str] = set()
     errors: list[str] = []
     for domain, info in domains.items():
         if not isinstance(info, dict) or not info.get("folder"):
@@ -54,6 +56,7 @@ def load_domain_routing(root: Path) -> tuple[dict[str, str], dict[str, dict[str,
             continue
         domain_name = str(domain)
         folder = str(info["folder"])
+        canonical_domains.add(domain_name)
         canonical[folder] = domain_name
         for key in (domain_name, folder):
             aliases[key] = {"domain": domain_name, "folder": folder}
@@ -62,7 +65,7 @@ def load_domain_routing(root: Path) -> tuple[dict[str, str], dict[str, dict[str,
             for alias in raw_aliases:
                 if isinstance(alias, str) and alias.strip():
                     aliases[alias.strip()] = {"domain": domain_name, "folder": folder}
-    return canonical, aliases, errors
+    return canonical, aliases, canonical_domains, errors
 
 
 def folder_counts(path: Path) -> dict[str, int]:
@@ -89,10 +92,72 @@ def should_ignore_top_level(path: Path, canonical_folders: set[str]) -> bool:
     return name in RESERVED_TOP_LEVEL or name in canonical_folders
 
 
-def build_report(root: Path) -> tuple[list[dict], list[str], list[str]]:
-    canonical, aliases, errors = load_domain_routing(root)
+def excluded_rel(rel: Path) -> bool:
+    return any(part in RESERVED_TOP_LEVEL or part.startswith(".") for part in rel.parts)
+
+
+def split_frontmatter(text: str) -> tuple[dict | None, str]:
+    if text.startswith("---"):
+        end = text.find("\n---", 3)
+        if end != -1:
+            try:
+                data = yaml.safe_load(text[3:end].lstrip("\n")) or {}
+            except yaml.YAMLError:
+                return None, text
+            return data if isinstance(data, dict) else None, text[end + 4:]
+    return {}, text
+
+
+def frontmatter_domain_items(root: Path, aliases: dict[str, dict[str, str]], canonical_domains: set[str]) -> list[dict]:
+    items: list[dict] = []
+    for path in sorted(root.rglob("*.md"), key=lambda p: p.relative_to(root).as_posix()):
+        if not path.is_file() or path.is_symlink():
+            continue
+        rel = path.relative_to(root)
+        if excluded_rel(rel) or path.name in STRUCTURAL_MD:
+            continue
+        fm, _body = split_frontmatter(path.read_text(encoding="utf-8", errors="ignore"))
+        if not isinstance(fm, dict):
+            continue
+        raw_domain = fm.get("domain")
+        if raw_domain in (None, ""):
+            continue
+        current_domain = str(raw_domain)
+        if current_domain in canonical_domains:
+            continue
+        alias = aliases.get(current_domain)
+        if alias:
+            kind = "frontmatter_domain_alias"
+            recommended_domain = alias["domain"]
+            recommended_folder = alias["folder"]
+            action = (
+                f"Review, then update frontmatter `domain: {recommended_domain}` and move the note "
+                f"under {recommended_folder}/ if ownership belongs there."
+            )
+        else:
+            kind = "frontmatter_domain_unknown"
+            recommended_domain = ""
+            recommended_folder = ""
+            action = (
+                "Review whether the domain should map to an existing canonical domain or be added to "
+                "_meta/domain-map.yml before moving the note."
+            )
+        items.append({
+            "kind": kind,
+            "path": rel.as_posix(),
+            "current_domain": current_domain,
+            "recommended_domain": recommended_domain,
+            "recommended_folder": recommended_folder,
+            "current_folder": rel.parts[0] if rel.parts else "",
+            "action": action,
+        })
+    return items
+
+
+def build_report(root: Path) -> tuple[list[dict], list[dict], list[str], list[str]]:
+    canonical, aliases, canonical_domains, errors = load_domain_routing(root)
     if errors:
-        return [], [], errors
+        return [], [], [], errors
 
     items: list[dict] = []
     warnings: list[str] = []
@@ -130,7 +195,7 @@ def build_report(root: Path) -> tuple[list[dict], list[str], list[str]]:
                     "documented in _meta/domain-map.yml before ingestion."
                 ),
             })
-    return items, warnings, []
+    return items, frontmatter_domain_items(root, aliases, canonical_domains), warnings, []
 
 
 def summary_counts(items: list[dict]) -> dict[str, int]:
@@ -141,7 +206,15 @@ def summary_counts(items: list[dict]) -> dict[str, int]:
     }
 
 
-def print_human(root: Path, items: list[dict], warnings: list[str], errors: list[str]) -> None:
+def frontmatter_summary_counts(items: list[dict]) -> dict[str, int]:
+    return {
+        "total": len(items),
+        "alias": sum(1 for item in items if item["kind"] == "frontmatter_domain_alias"),
+        "unknown": sum(1 for item in items if item["kind"] == "frontmatter_domain_unknown"),
+    }
+
+
+def print_human(root: Path, items: list[dict], frontmatter_items: list[dict], warnings: list[str], errors: list[str]) -> None:
     print(f"vaultwright migration: {root}")
     print("migration: dry-run only; no files were moved")
     for warning in warnings:
@@ -153,23 +226,39 @@ def print_human(root: Path, items: list[dict], warnings: list[str], errors: list
     summary = summary_counts(items)
     if not items:
         print("migration: no legacy or unknown top-level folders found")
+    else:
+        print(
+            "migration: "
+            f"{summary['total']} top-level folders need review "
+            f"(alias={summary['alias']}, unknown={summary['unknown']})"
+        )
+        for item in items:
+            target = item["recommended_folder"] or "manual classification"
+            print(f"  [{item['kind']:<14}] {item['folder']} -> {target}")
+            if item["domain"]:
+                print(f"    domain: {item['domain']}")
+            counts = item["counts"]
+            print(
+                "    contents: "
+                f"files={counts['files']}, dirs={counts['dirs']}, "
+                f"markdown={counts['markdown']}, office={counts['office']}"
+            )
+            print(f"    action: {item['action']}")
+
+    frontmatter_summary = frontmatter_summary_counts(frontmatter_items)
+    if not frontmatter_items:
+        print("migration: no legacy frontmatter domains found")
         return
     print(
         "migration: "
-        f"{summary['total']} top-level folders need review "
-        f"(alias={summary['alias']}, unknown={summary['unknown']})"
+        f"{frontmatter_summary['total']} note frontmatter domains need review "
+        f"(alias={frontmatter_summary['alias']}, unknown={frontmatter_summary['unknown']})"
     )
-    for item in items:
-        target = item["recommended_folder"] or "manual classification"
-        print(f"  [{item['kind']:<14}] {item['folder']} -> {target}")
-        if item["domain"]:
-            print(f"    domain: {item['domain']}")
-        counts = item["counts"]
-        print(
-            "    contents: "
-            f"files={counts['files']}, dirs={counts['dirs']}, "
-            f"markdown={counts['markdown']}, office={counts['office']}"
-        )
+    for item in frontmatter_items:
+        target = item["recommended_domain"] or "manual classification"
+        print(f"  [{item['kind']}] {item['path']}: {item['current_domain']} -> {target}")
+        if item["recommended_folder"]:
+            print(f"    folder: {item['recommended_folder']}")
         print(f"    action: {item['action']}")
 
 
@@ -181,17 +270,19 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main() -> int:
     args = build_parser().parse_args()
-    items, warnings, errors = build_report(ROOT)
+    items, frontmatter_items, warnings, errors = build_report(ROOT)
     if args.json:
         print(json.dumps({
             "root": str(ROOT),
             "summary": summary_counts(items),
+            "frontmatter_summary": frontmatter_summary_counts(frontmatter_items),
             "items": items,
+            "frontmatter_items": frontmatter_items,
             "warnings": warnings,
             "errors": errors,
         }, indent=2, sort_keys=True))
     else:
-        print_human(ROOT, items, warnings, errors)
+        print_human(ROOT, items, frontmatter_items, warnings, errors)
     return 1 if errors else 0
 
 

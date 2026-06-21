@@ -11,6 +11,8 @@ All notable changes to Vaultwright are documented here. Format loosely follows
   unmanaged-source, and legacy-folder summaries.
 - CI and release smoke checks now compile and exercise `catalog`, including packaged-template
   installation coverage and `catalog --check` freshness validation.
+- `vaultwright migration` now reports legacy or unknown note frontmatter domains using
+  `_meta/domain-map.yml` aliases, giving operators a read-only cleanup queue before moving notes.
 - Added `tools/sandbox_report.py` and `vaultwright sandbox`, a read-only copied-vault preflight for
   safe pilot workspaces that checks source-root separation, mirror isolation, manifest/recovery
   readiness, and backup posture without printing source paths or document text.
