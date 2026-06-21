@@ -122,6 +122,10 @@ The Office plan also reports warning counts for:
 - duplicate source bytes;
 - format-specific conversion-quality risks for spreadsheets, decks, PDFs, and legacy `.doc` files.
 
+For `.xlsx` mirrors, sync applies a conservative readability cleanup to extracted markdown tables:
+obvious `NaN` placeholders become blank cells, and empty `Unnamed:*` columns are removed. The
+workbook remains the source of truth for formulas, hidden sheets, and live calculations.
+
 ## GitHub repo mirrors
 
 ```bash

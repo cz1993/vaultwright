@@ -73,6 +73,7 @@ MANIFEST_REL = Path("_meta/source-manifest.json")
 AUDIT_REL = Path("_meta/sync-audit.jsonl")
 MANIFEST_SCHEMA_VERSION = 1
 CONFIG_VERSION = "office-mirrors:v1"
+XLSX_CONFIG_VERSION = "office-mirrors:v2"
 MIRROR_MODES = {"dedicated", "sibling"}
 FORBIDDEN_MIRROR_PARTS = {
     ".git", ".githooks", ".github", ".obsidian", "_archive", "_fixtures",
@@ -94,12 +95,21 @@ MANAGED_SOURCE_FRONTMATTER_DRIFT_WARNING = (
     "Mirror frontmatter managed source metadata differs from the manifest/source; "
     "sync will rewrite managed frontmatter."
 )
+MIRROR_CONFIGURATION_CHANGED_WARNING = "Mirror configuration changed; mirror should be regenerated."
 
 # Frontmatter keys the script owns and overwrites on every sync.
 MANAGED_KEYS = {
     "type", "source_id", "source", "source_manifest", "source_format", "source_modified",
     "synced", "source_sha256", "converter", "converter_version", "updated",
 }
+
+
+def config_version_for(source_format: str) -> str:
+    if source_format == "xlsx":
+        return XLSX_CONFIG_VERSION
+    return CONFIG_VERSION
+
+
 # Canonical key order for tidy, diff-friendly frontmatter.
 KEY_ORDER = [
     "title", "type", "status", "domain", "owner", "created", "updated",
@@ -419,6 +429,97 @@ def auto_region(extracted: str) -> str:
     return f"{SENTINEL}\n\n## Extracted content\n\n{body}\n"
 
 
+def spreadsheet_noise_value(value: str) -> bool:
+    normalized = value.strip().strip("`").casefold()
+    return normalized in {"", "nan"}
+
+
+def markdown_table_cells(line: str) -> list[str] | None:
+    stripped = line.strip()
+    if not stripped.startswith("|") or not stripped.endswith("|") or stripped.count("|") < 2:
+        return None
+    cells: list[str] = []
+    current: list[str] = []
+    body = stripped[1:-1]
+    index = 0
+    while index < len(body):
+        char = body[index]
+        if char == "\\" and index + 1 < len(body) and body[index + 1] == "|":
+            current.append("\\|")
+            index += 2
+            continue
+        if char == "|":
+            cells.append("".join(current).strip())
+            current = []
+        else:
+            current.append(char)
+        index += 1
+    cells.append("".join(current).strip())
+    return cells
+
+
+def markdown_separator_row(cells: list[str]) -> bool:
+    return bool(cells) and all(cell and set(cell) <= {"-", ":", " "} for cell in cells)
+
+
+def clean_spreadsheet_table(lines: list[str]) -> list[str]:
+    rows = [markdown_table_cells(line) for line in lines]
+    if any(row is None for row in rows):
+        return lines
+    table = [row or [] for row in rows]
+    if not table:
+        return lines
+    column_count = max(len(row) for row in table)
+    table = [row + [""] * (column_count - len(row)) for row in table]
+    header = table[0]
+    data_rows = table[2:] if len(table) > 1 and markdown_separator_row(table[1]) else table[1:]
+    drop_columns: set[int] = set()
+    for index, heading in enumerate(header):
+        normalized_heading = heading.strip().strip("`*_").casefold()
+        if not (normalized_heading == "" or normalized_heading.startswith("unnamed")):
+            continue
+        if all(spreadsheet_noise_value(row[index]) for row in data_rows):
+            drop_columns.add(index)
+    if len(drop_columns) >= column_count:
+        drop_columns.clear()
+
+    cleaned_lines: list[str] = []
+    for row_index, row in enumerate(table):
+        kept = [cell for index, cell in enumerate(row) if index not in drop_columns]
+        if row_index == 1 and markdown_separator_row(row):
+            kept = ["---" for _cell in kept]
+        else:
+            kept = ["" if spreadsheet_noise_value(cell) else cell for cell in kept]
+        cleaned_lines.append("| " + " | ".join(kept) + " |")
+    return cleaned_lines
+
+
+def clean_spreadsheet_text(text: str) -> str:
+    cleaned: list[str] = []
+    table_block: list[str] = []
+
+    def flush_table() -> None:
+        nonlocal table_block
+        if table_block:
+            cleaned.extend(clean_spreadsheet_table(table_block))
+            table_block = []
+
+    for line in text.splitlines():
+        if markdown_table_cells(line) is not None:
+            table_block.append(line)
+            continue
+        flush_table()
+        cleaned.append("" if spreadsheet_noise_value(line) else line)
+    flush_table()
+    return "\n".join(cleaned)
+
+
+def clean_extracted_text(source_format: str, text: str) -> str:
+    if source_format == "xlsx":
+        return clean_spreadsheet_text(text)
+    return text
+
+
 def generated_region_hash(markdown: str) -> str | None:
     _fm, body = split_frontmatter(markdown)
     lines = body.splitlines(keepends=True)
@@ -564,6 +665,15 @@ def upsert_manifest_record(manifest: dict, record: dict) -> None:
     manifest["records"] = records
 
 
+def preserve_unwritten_config_version(record: dict, existing_record: dict | None) -> dict:
+    existing_config_version = (existing_record or {}).get("config_version")
+    if not existing_config_version:
+        return record
+    preserved = dict(record)
+    preserved["config_version"] = existing_config_version
+    return preserved
+
+
 def mark_missing_sources(manifest: dict, root: Path, seen_source_ids: set[str]) -> int:
     missing = 0
     for record in list(manifest.get("records", [])):
@@ -649,6 +759,8 @@ def plan_one(
     converter_version: str,
 ) -> dict:
     source_rel = as_posix_rel(src.relative_to(root))
+    source_format = src.suffix.lstrip(".").lower()
+    config_version = config_version_for(source_format)
     warnings: list[str] = []
     errors: list[str] = []
     source_size = 0
@@ -800,7 +912,7 @@ def plan_one(
         elif (
             existing_record
             and (
-                existing_record.get("config_version") != CONFIG_VERSION
+                existing_record.get("config_version") != config_version
                 or existing_record.get("mirror_mode") != mirror_mode
                 or existing_record.get("mirror_root") != mirror_root
                 or existing_record.get("mirror_path") != mirror_rel
@@ -808,7 +920,7 @@ def plan_one(
         ):
             action = "update"
             lifecycle_state = "stale"
-            warnings.append("Mirror configuration changed; mirror should be regenerated.")
+            warnings.append(MIRROR_CONFIGURATION_CHANGED_WARNING)
         elif existing_record and existing_record.get("source_sha256") != source_sha256:
             action = "update"
             lifecycle_state = "source_changed"
@@ -818,7 +930,7 @@ def plan_one(
             source_id=source_id,
             source_modified=source_mtime,
             source_sha256=source_sha256,
-            source_format=src.suffix.lstrip(".").lower(),
+            source_format=source_format,
         ):
             action = "update"
             lifecycle_state = "stale"
@@ -844,7 +956,7 @@ def plan_one(
             else "source_moved" if moved_source_has_previous_mirror
             else None
         ),
-        "source_format": src.suffix.lstrip(".").lower(),
+        "source_format": source_format,
         "source_size": source_size,
         "source_modified": source_mtime,
         "source_sha256": source_sha256,
@@ -860,7 +972,7 @@ def plan_one(
         ),
         "converter": converter_name,
         "converter_version": converter_version,
-        "config_version": CONFIG_VERSION,
+        "config_version": config_version,
         "mirror_mode": mirror_mode,
         "mirror_root": mirror_root,
         "lifecycle_state": lifecycle_state,
@@ -878,6 +990,7 @@ def plan_one(
         "action": action,
         "record": record,
         "existing_fm": existing_fm,
+        "existing_record": existing_record,
     }
 
 
@@ -949,21 +1062,22 @@ def sync_one(
     active_manifest = manifest if manifest is not None else empty_manifest()
     plan = plan_one(src, root, mirror_config, routing, active_manifest, converter_name, converter_version)
     record = dict(plan["record"])
+    existing_record = plan.get("existing_record")
     mirror = plan["mirror"]
     source_id = record["source_id"]
     sha = record["source_sha256"]
 
     if plan["action"] == "error":
         if manifest is not None and not dry:
-            upsert_manifest_record(manifest, record)
+            upsert_manifest_record(manifest, preserve_unwritten_config_version(record, existing_record))
         return "error:plan"
     if plan["action"] == "skip":
         if manifest is not None and not dry:
-            upsert_manifest_record(manifest, record)
+            upsert_manifest_record(manifest, preserve_unwritten_config_version(record, existing_record))
         return "skipped:unsupported-format (legacy/no converter)"
     if plan["action"] == "review" and (not force or review_blocks_force(record)):
         if manifest is not None and not dry:
-            upsert_manifest_record(manifest, record)
+            upsert_manifest_record(manifest, preserve_unwritten_config_version(record, existing_record))
         return f"skipped:{record['lifecycle_state']}"
 
     existing_fm, existing_body = (None, "")
@@ -986,13 +1100,14 @@ def sync_one(
             record["lifecycle_state"] = "unsupported"
             record["warnings"] = unique_list(record.get("warnings", []) + ["Converter reported unsupported format."])
             if manifest is not None and not dry:
-                upsert_manifest_record(manifest, record)
+                upsert_manifest_record(manifest, preserve_unwritten_config_version(record, existing_record))
             return "skipped:unsupported-format (legacy/no converter)"
         record["lifecycle_state"] = "error"
         record["errors"] = unique_list(record.get("errors", []) + [f"{name}: {str(e)[:120]}"])
         if manifest is not None and not dry:
-            upsert_manifest_record(manifest, record)
+            upsert_manifest_record(manifest, preserve_unwritten_config_version(record, existing_record))
         return f"error:{name}: {str(e)[:120]}"
+    extracted = clean_extracted_text(src.suffix.lstrip(".").lower(), str(extracted or ""))
 
     try:
         post_convert_sha = sha256_of(src)
@@ -1003,7 +1118,7 @@ def sync_one(
             f"Source became unreadable during conversion: {name}: {str(e)[:120]}"
         ])
         if manifest is not None and not dry:
-            upsert_manifest_record(manifest, record)
+            upsert_manifest_record(manifest, preserve_unwritten_config_version(record, existing_record))
         return f"error:source-unreadable-after-conversion:{name}"
     if post_convert_sha != sha:
         record["lifecycle_state"] = "error"
@@ -1011,7 +1126,7 @@ def sync_one(
             "Source bytes changed during conversion; mirror was not written.",
         ])
         if manifest is not None and not dry:
-            upsert_manifest_record(manifest, record)
+            upsert_manifest_record(manifest, preserve_unwritten_config_version(record, existing_record))
         return "error:source-changed-during-conversion"
 
     # preserve the curated region (above the sentinel) if the mirror already exists
@@ -1049,7 +1164,7 @@ def sync_one(
                 f"Mirror write failed: {name}: {str(e)[:120]}"
             ])
             if manifest is not None:
-                upsert_manifest_record(manifest, record)
+                upsert_manifest_record(manifest, preserve_unwritten_config_version(record, existing_record))
             return f"error:mirror-write:{name}: {str(e)[:120]}"
         record["normalized_content_sha256"] = sha256_text(extracted.strip())
         record["generated_region_sha256"] = sha256_text(generated)
@@ -1058,7 +1173,10 @@ def sync_one(
         record["warnings"] = unique_list(
             warning
             for warning in record.get("warnings", [])
-            if warning != MANAGED_SOURCE_FRONTMATTER_DRIFT_WARNING
+            if warning not in {
+                MANAGED_SOURCE_FRONTMATTER_DRIFT_WARNING,
+                MIRROR_CONFIGURATION_CHANGED_WARNING,
+            }
         )
         record["errors"] = []
         if manifest is not None:

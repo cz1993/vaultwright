@@ -18,9 +18,22 @@ class FakeConversion:
     text_content = "Extracted fixture content"
 
 
+class TextConversion:
+    def __init__(self, text: str) -> None:
+        self.text_content = text
+
+
 class FakeConverter:
     def convert(self, _path: str) -> FakeConversion:
         return FakeConversion()
+
+
+class TextConverter:
+    def __init__(self, text: str) -> None:
+        self.text = text
+
+    def convert(self, _path: str) -> TextConversion:
+        return TextConversion(self.text)
 
 
 class SourceChangingConverter:
@@ -2904,6 +2917,383 @@ def test_office_sync_second_run_is_manifest_stable(tmp_path: Path) -> None:
     assert wrote is False
     assert mirror.read_text(encoding="utf-8") == first_mirror
     assert (vault / "_meta" / "source-manifest.json").read_text(encoding="utf-8") == first_manifest
+
+
+def _legacy_xlsx_mirror_fixture(sync, vault: Path, extracted: str) -> tuple[Path, Path, dict, dict]:
+    source = vault / "60_finance" / "tracker.xlsx"
+    source.parent.mkdir(parents=True)
+    source.write_bytes(b"xlsx bytes")
+    config = sync.load_mirror_config(vault)
+    source_sha = sync.sha256_of(source)
+    source_id = sync.source_id_for("60_finance/tracker.xlsx", source_sha)
+    mirror = vault / "_mirrors" / "60_finance" / "tracker.md"
+    mirror.parent.mkdir(parents=True)
+    fm = sync.managed_frontmatter(
+        {},
+        source,
+        vault,
+        source_sha,
+        {},
+        source_id,
+        "markitdown",
+        "test",
+    )
+    mirror.write_text(
+        sync.dump_frontmatter(fm)
+        + "\n"
+        + sync.fresh_preserved_region(source, vault)
+        + sync.auto_region(extracted),
+        encoding="utf-8",
+    )
+    manifest = sync.empty_manifest()
+    manifest["records"] = [
+        {
+            "source_id": source_id,
+            "current_source_path": "60_finance/tracker.xlsx",
+            "previous_source_paths": [],
+            "mirror_path": "_mirrors/60_finance/tracker.md",
+            "source_format": "xlsx",
+            "source_size": source.stat().st_size,
+            "source_modified": sync.file_mtime_iso(source),
+            "source_sha256": source_sha,
+            "normalized_content_sha256": sync.sha256_text(extracted.strip()),
+            "generated_region_sha256": sync.sha256_text(sync.auto_region(extracted)),
+            "converter": "markitdown",
+            "converter_version": "test",
+            "config_version": "office-mirrors:v1",
+            "mirror_mode": "dedicated",
+            "mirror_root": "_mirrors",
+            "lifecycle_state": "clean",
+            "last_successful_sync": fm["synced"],
+            "warnings": [],
+            "errors": [],
+        }
+    ]
+    return source, mirror, config, manifest
+
+
+def test_office_sync_cleans_spreadsheet_nan_and_unnamed_noise(tmp_path: Path) -> None:
+    sync = load_office_sync_module()
+    vault = tmp_path / "vault"
+    source = vault / "60_finance" / "tracker.xlsx"
+    source.parent.mkdir(parents=True)
+    source.write_bytes(b"xlsx bytes")
+    extracted = (
+        "| Program | Unnamed: 1 | Amount | Notes |\n"
+        "| --- | --- | --- | --- |\n"
+        "| GST/HST account | NaN | 1200 | NaN |\n"
+        "| Funding search | nan | 4500 | Follow up |\n"
+        "| Value \\| B | nan | 5 | None |\n"
+        "| Null workflow | nan | 8 | null |\n"
+        "\n"
+        "NaN\n"
+    )
+    config = sync.load_mirror_config(vault)
+    manifest = sync.empty_manifest()
+
+    status = sync.sync_one(source, vault, TextConverter(extracted), False, False, config, {}, manifest, "markitdown", "test")
+    sync.write_source_manifest(vault, manifest)
+    mirror = vault / "_mirrors" / "60_finance" / "tracker.md"
+    text = mirror.read_text(encoding="utf-8")
+    generated_text = text.split(sync.SENTINEL, 1)[1]
+    record = sync.load_source_manifest(vault)["records"][0]
+
+    assert status == "created"
+    assert "Unnamed: 1" not in generated_text
+    assert "NaN" not in generated_text
+    assert "nan" not in generated_text
+    assert "| Program | Amount | Notes |" in generated_text
+    assert "| GST/HST account | 1200 |  |" in generated_text
+    assert "| Funding search | 4500 | Follow up |" in generated_text
+    assert "| Value \\| B | 5 | None |" in generated_text
+    assert "| Null workflow | 8 | null |" in generated_text
+    assert record["normalized_content_sha256"] == sync.sha256_text(sync.clean_extracted_text("xlsx", extracted).strip())
+
+
+def test_office_sync_refreshes_existing_spreadsheet_mirror_after_cleanup_version_bump(tmp_path: Path) -> None:
+    sync = load_office_sync_module()
+    vault = tmp_path / "vault"
+    source = vault / "60_finance" / "tracker.xlsx"
+    source.parent.mkdir(parents=True)
+    source.write_bytes(b"xlsx bytes")
+    config = sync.load_mirror_config(vault)
+    source_sha = sync.sha256_of(source)
+    source_id = sync.source_id_for("60_finance/tracker.xlsx", source_sha)
+    extracted = (
+        "| Program | Unnamed: 1 | Amount |\n"
+        "| --- | --- | --- |\n"
+        "| GST/HST account | NaN | 1200 |\n"
+    )
+    mirror = vault / "_mirrors" / "60_finance" / "tracker.md"
+    mirror.parent.mkdir(parents=True)
+    fm = sync.managed_frontmatter(
+        {},
+        source,
+        vault,
+        source_sha,
+        {},
+        source_id,
+        "markitdown",
+        "test",
+    )
+    mirror.write_text(
+        sync.dump_frontmatter(fm)
+        + "\n"
+        + sync.fresh_preserved_region(source, vault)
+        + sync.auto_region(extracted),
+        encoding="utf-8",
+    )
+    manifest = sync.empty_manifest()
+    manifest["records"] = [
+        {
+            "source_id": source_id,
+            "current_source_path": "60_finance/tracker.xlsx",
+            "previous_source_paths": [],
+            "mirror_path": "_mirrors/60_finance/tracker.md",
+            "source_format": "xlsx",
+            "source_size": source.stat().st_size,
+            "source_modified": sync.file_mtime_iso(source),
+            "source_sha256": source_sha,
+            "normalized_content_sha256": sync.sha256_text(extracted.strip()),
+            "generated_region_sha256": sync.sha256_text(sync.auto_region(extracted)),
+            "converter": "markitdown",
+            "converter_version": "test",
+            "config_version": "office-mirrors:v1",
+            "mirror_mode": "dedicated",
+            "mirror_root": "_mirrors",
+            "lifecycle_state": "clean",
+            "last_successful_sync": fm["synced"],
+            "warnings": [],
+            "errors": [],
+        }
+    ]
+
+    plan = sync.plan_one(source, vault, config, {}, manifest, "markitdown", "test")
+    status = sync.sync_one(source, vault, TextConverter(extracted), False, False, config, {}, manifest, "markitdown", "test")
+    sync.write_source_manifest(vault, manifest)
+    generated_text = mirror.read_text(encoding="utf-8").split(sync.SENTINEL, 1)[1]
+    record = sync.load_source_manifest(vault)["records"][0]
+
+    assert sync.status_for_plan(plan) == "planned:update (stale)"
+    assert status == "updated"
+    assert "Unnamed: 1" not in generated_text
+    assert "NaN" not in generated_text
+    assert record["config_version"] == sync.config_version_for("xlsx")
+    assert record["normalized_content_sha256"] == sync.sha256_text(sync.clean_extracted_text("xlsx", extracted).strip())
+    assert sync.MIRROR_CONFIGURATION_CHANGED_WARNING not in record["warnings"]
+    assert any("Conversion-quality risk" in warning for warning in record["warnings"])
+
+
+def test_office_sync_skipped_spreadsheet_review_preserves_pending_cleanup_version(tmp_path: Path) -> None:
+    sync = load_office_sync_module()
+    vault = tmp_path / "vault"
+    source = vault / "60_finance" / "tracker.xlsx"
+    source.parent.mkdir(parents=True)
+    source.write_bytes(b"xlsx bytes")
+    config = sync.load_mirror_config(vault)
+    source_sha = sync.sha256_of(source)
+    source_id = sync.source_id_for("60_finance/tracker.xlsx", source_sha)
+    extracted = (
+        "| Program | Unnamed: 1 | Amount |\n"
+        "| --- | --- | --- |\n"
+        "| GST/HST account | NaN | 1200 |\n"
+    )
+    mirror = vault / "_mirrors" / "60_finance" / "tracker.md"
+    mirror.parent.mkdir(parents=True)
+    fm = sync.managed_frontmatter(
+        {},
+        source,
+        vault,
+        source_sha,
+        {},
+        source_id,
+        "markitdown",
+        "test",
+    )
+    baseline_text = (
+        sync.dump_frontmatter(fm)
+        + "\n"
+        + sync.fresh_preserved_region(source, vault)
+        + sync.auto_region(extracted)
+    )
+    mirror.write_text(
+        baseline_text.replace("GST/HST account", "Manual edit below sentinel"),
+        encoding="utf-8",
+    )
+    manifest = sync.empty_manifest()
+    manifest["records"] = [
+        {
+            "source_id": source_id,
+            "current_source_path": "60_finance/tracker.xlsx",
+            "previous_source_paths": [],
+            "mirror_path": "_mirrors/60_finance/tracker.md",
+            "source_format": "xlsx",
+            "source_size": source.stat().st_size,
+            "source_modified": sync.file_mtime_iso(source),
+            "source_sha256": source_sha,
+            "normalized_content_sha256": sync.sha256_text(extracted.strip()),
+            "generated_region_sha256": sync.sha256_text(sync.auto_region(extracted)),
+            "converter": "markitdown",
+            "converter_version": "test",
+            "config_version": "office-mirrors:v1",
+            "mirror_mode": "dedicated",
+            "mirror_root": "_mirrors",
+            "lifecycle_state": "clean",
+            "last_successful_sync": fm["synced"],
+            "warnings": [],
+            "errors": [],
+        }
+    ]
+
+    plan = sync.plan_one(source, vault, config, {}, manifest, "markitdown", "test")
+    status = sync.sync_one(source, vault, TextConverter(extracted), False, False, config, {}, manifest, "markitdown", "test")
+    sync.write_source_manifest(vault, manifest)
+    skipped_record = sync.load_source_manifest(vault)["records"][0]
+
+    assert sync.status_for_plan(plan) == "review:manual_modification"
+    assert status == "skipped:manual_modification"
+    assert skipped_record["config_version"] == "office-mirrors:v1"
+
+    mirror.write_text(baseline_text, encoding="utf-8")
+    follow_up_manifest = sync.load_source_manifest(vault)
+    follow_up_plan = sync.plan_one(source, vault, config, {}, follow_up_manifest, "markitdown", "test")
+
+    assert sync.status_for_plan(follow_up_plan) == "planned:update (stale)"
+    assert follow_up_plan["record"]["config_version"] == sync.config_version_for("xlsx")
+    assert sync.MIRROR_CONFIGURATION_CHANGED_WARNING in follow_up_plan["record"]["warnings"]
+
+
+def test_office_sync_spreadsheet_converter_failure_preserves_pending_cleanup_version(tmp_path: Path) -> None:
+    sync = load_office_sync_module()
+    vault = tmp_path / "vault"
+    extracted = (
+        "| Program | Unnamed: 1 | Amount |\n"
+        "| --- | --- | --- |\n"
+        "| GST/HST account | NaN | 1200 |\n"
+    )
+    source, mirror, config, manifest = _legacy_xlsx_mirror_fixture(sync, vault, extracted)
+    first_mirror = mirror.read_text(encoding="utf-8")
+
+    plan = sync.plan_one(source, vault, config, {}, manifest, "markitdown", "test")
+    status = sync.sync_one(source, vault, FailingConverter(), False, False, config, {}, manifest, "markitdown", "test")
+    sync.write_source_manifest(vault, manifest)
+    failed_record = sync.load_source_manifest(vault)["records"][0]
+
+    assert sync.status_for_plan(plan) == "planned:update (stale)"
+    assert status == "error:RuntimeError: conversion exploded"
+    assert mirror.read_text(encoding="utf-8") == first_mirror
+    assert failed_record["lifecycle_state"] == "error"
+    assert failed_record["config_version"] == "office-mirrors:v1"
+    assert any("RuntimeError: conversion exploded" in error for error in failed_record["errors"])
+
+    follow_up_manifest = sync.load_source_manifest(vault)
+    follow_up_plan = sync.plan_one(source, vault, config, {}, follow_up_manifest, "markitdown", "test")
+
+    assert sync.status_for_plan(follow_up_plan) == "planned:update (stale)"
+    assert follow_up_plan["record"]["config_version"] == sync.config_version_for("xlsx")
+    assert sync.MIRROR_CONFIGURATION_CHANGED_WARNING in follow_up_plan["record"]["warnings"]
+
+
+def test_office_sync_spreadsheet_write_failure_preserves_pending_cleanup_version(tmp_path: Path, monkeypatch) -> None:
+    sync = load_office_sync_module()
+    vault = tmp_path / "vault"
+    extracted = (
+        "| Program | Unnamed: 1 | Amount |\n"
+        "| --- | --- | --- |\n"
+        "| GST/HST account | NaN | 1200 |\n"
+    )
+    source, mirror, config, manifest = _legacy_xlsx_mirror_fixture(sync, vault, extracted)
+    first_mirror = mirror.read_text(encoding="utf-8")
+    original_write_text_atomic = sync.write_text_atomic
+
+    def failing_write(_path: Path, _content: str) -> None:
+        raise OSError("disk full")
+
+    monkeypatch.setattr(sync, "write_text_atomic", failing_write)
+    plan = sync.plan_one(source, vault, config, {}, manifest, "markitdown", "test")
+    status = sync.sync_one(source, vault, TextConverter(extracted), False, False, config, {}, manifest, "markitdown", "test")
+    monkeypatch.setattr(sync, "write_text_atomic", original_write_text_atomic)
+    sync.write_source_manifest(vault, manifest)
+    failed_record = sync.load_source_manifest(vault)["records"][0]
+
+    assert sync.status_for_plan(plan) == "planned:update (stale)"
+    assert status == "error:mirror-write:OSError: disk full"
+    assert mirror.read_text(encoding="utf-8") == first_mirror
+    assert failed_record["lifecycle_state"] == "error"
+    assert failed_record["config_version"] == "office-mirrors:v1"
+    assert any("Mirror write failed: OSError: disk full" in error for error in failed_record["errors"])
+
+    follow_up_manifest = sync.load_source_manifest(vault)
+    follow_up_plan = sync.plan_one(source, vault, config, {}, follow_up_manifest, "markitdown", "test")
+
+    assert sync.status_for_plan(follow_up_plan) == "planned:update (stale)"
+    assert follow_up_plan["record"]["config_version"] == sync.config_version_for("xlsx")
+    assert sync.MIRROR_CONFIGURATION_CHANGED_WARNING in follow_up_plan["record"]["warnings"]
+
+
+def test_office_sync_does_not_churn_non_spreadsheet_mirrors_for_xlsx_cleanup_version(tmp_path: Path) -> None:
+    sync = load_office_sync_module()
+    vault = tmp_path / "vault"
+    source = vault / "10_operations" / "guide.docx"
+    source.parent.mkdir(parents=True)
+    source.write_bytes(b"docx bytes")
+    config = sync.load_mirror_config(vault)
+    source_sha = sync.sha256_of(source)
+    source_id = sync.source_id_for("10_operations/guide.docx", source_sha)
+    extracted = "Clean operating guide."
+    mirror = vault / "_mirrors" / "10_operations" / "guide.md"
+    mirror.parent.mkdir(parents=True)
+    fm = sync.managed_frontmatter(
+        {},
+        source,
+        vault,
+        source_sha,
+        {},
+        source_id,
+        "markitdown",
+        "test",
+    )
+    mirror.write_text(
+        sync.dump_frontmatter(fm)
+        + "\n"
+        + sync.fresh_preserved_region(source, vault)
+        + sync.auto_region(extracted),
+        encoding="utf-8",
+    )
+    manifest = sync.empty_manifest()
+    manifest["records"] = [
+        {
+            "source_id": source_id,
+            "current_source_path": "10_operations/guide.docx",
+            "previous_source_paths": [],
+            "mirror_path": "_mirrors/10_operations/guide.md",
+            "source_format": "docx",
+            "source_size": source.stat().st_size,
+            "source_modified": sync.file_mtime_iso(source),
+            "source_sha256": source_sha,
+            "normalized_content_sha256": sync.sha256_text(extracted.strip()),
+            "generated_region_sha256": sync.sha256_text(sync.auto_region(extracted)),
+            "converter": "markitdown",
+            "converter_version": "test",
+            "config_version": sync.CONFIG_VERSION,
+            "mirror_mode": "dedicated",
+            "mirror_root": "_mirrors",
+            "lifecycle_state": "clean",
+            "last_successful_sync": fm["synced"],
+            "warnings": [],
+            "errors": [],
+        }
+    ]
+
+    plan = sync.plan_one(source, vault, config, {}, manifest, "markitdown", "test")
+    status = sync.sync_one(source, vault, TextConverter("should not be converted"), False, False, config, {}, manifest, "markitdown", "test")
+
+    assert sync.config_version_for("docx") == sync.CONFIG_VERSION
+    assert sync.config_version_for("xlsx") == sync.XLSX_CONFIG_VERSION
+    assert sync.status_for_plan(plan) == "clean"
+    assert status == "unchanged"
+    assert manifest["records"][0]["config_version"] == sync.CONFIG_VERSION
+    assert manifest["records"][0]["warnings"] == []
 
 
 def test_office_sync_unsupported_source_is_idempotent(tmp_path: Path) -> None:

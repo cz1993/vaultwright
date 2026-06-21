@@ -42,7 +42,8 @@ Current implementation status:
   errors, lifecycle states, formats, and source/mirror existence into an operator review list, plus
   blocking lint checks for generated Office mirrors whose source bytes changed or whose manifest
   lifecycle state is no longer current, plus Office sync/status detection and repair for managed
-  source frontmatter metadata drift;
+  source frontmatter metadata drift, plus conservative `.xlsx` mirror cleanup for obvious `NaN`
+  placeholders and empty `Unnamed:*` table columns;
 - implemented for repo mirrors: stable repo IDs, configured/resolved repo, note path, local-tree or
   remote HEAD hash, lifecycle state, warnings/errors, non-mutating plan/status reports, and
   generated-region manual-edit detection, plus lifecycle next-action guidance in plan/status
