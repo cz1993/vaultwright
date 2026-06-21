@@ -106,11 +106,11 @@ source material. It also scans note frontmatter for legacy alias domains such as
 rewriting files. Use `--worksheet` to print a Markdown review checklist for a migration batch.
 
 `pilot` is read-only. It summarizes aggregate pilot evidence from manifests, audit events,
-conversion priorities, recovery action counts, benchmark tasks, and optional benchmark result
-scores without printing source paths, source text, mirror text, answer text, reviewer notes, or
-repository document bodies. Use `--json` to attach the aggregate metrics to an anonymized
-design-partner worksheet. Use `--worksheet` to print a redacted Markdown summary that can be pasted
-into a private pilot record without source paths or document content.
+conversion priorities, recovery action counts, review-ledger counts, benchmark tasks, and optional
+benchmark result scores without printing source paths, source text, mirror text, answer text,
+reviewer notes, artifact paths, or repository document bodies. Use `--json` to attach the aggregate
+metrics to an anonymized design-partner worksheet. Use `--worksheet` to print a redacted Markdown
+summary that can be pasted into a private pilot record without source paths or document content.
 
 `recovery` is also read-only. It reads `_meta/source-manifest.json`, `_meta/repo-manifest.json`, and
 the latest matching `_meta/sync-audit.jsonl` events, then prints only records that need operator

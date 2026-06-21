@@ -76,8 +76,8 @@ For each pilot, maintain an anonymized summary:
 
 `tools/vaultwright.py pilot --json` is designed for machine-readable aggregate evidence.
 `tools/vaultwright.py pilot --worksheet` prints a redacted Markdown summary for private pilot
-records. Both report aggregate counts only and must not be treated as permission to commit pilot
-evidence to this repository.
+records. Both report aggregate counts only, including review-ledger approval/stale-review counts,
+and must not be treated as permission to commit pilot evidence to this repository.
 
 ## Success Standard
 

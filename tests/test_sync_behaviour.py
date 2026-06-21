@@ -1343,6 +1343,26 @@ def test_vaultwright_pilot_report_summarizes_evidence_without_content(tmp_path: 
         "    success_criteria: [Avoids duplicate notes]\n",
         encoding="utf-8",
     )
+    review_record = subprocess.run(
+        [
+            sys.executable,
+            str(vault / "tools" / "vaultwright.py"),
+            "review",
+            "--artifact",
+            "_mirrors/40_delivery/client-plan.md",
+            "--status",
+            "needs-work",
+            "--reviewer",
+            "CodeX",
+            "--note",
+            "private reviewer note",
+        ],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert review_record.returncode == 0, review_record.stderr or review_record.stdout
 
     result = subprocess.run(
         [sys.executable, str(vault / "tools" / "vaultwright.py"), "pilot"],
@@ -1370,9 +1390,12 @@ def test_vaultwright_pilot_report_summarizes_evidence_without_content(tmp_path: 
     assert "pilot: conversion available=True high=0 medium=1 low=0" in result.stdout
     assert "pilot: recovery available=True items=0" in result.stdout
     assert "pilot: benchmark available=True tasks=5" in result.stdout
+    assert "pilot: review ledger available=True reviewed=1 stale_or_missing=0 non_approved=1" in result.stdout
     assert "confidential source bytes" not in result.stdout
     assert "Generated mirror text" not in result.stdout
     assert "Generated repo mirror text" not in result.stdout
+    assert "private reviewer note" not in result.stdout
+    assert "_mirrors/40_delivery/client-plan.md" not in result.stdout
     assert str(vault) not in result.stdout
 
     assert json_result.returncode == 0, json_result.stderr or json_result.stdout
@@ -1381,6 +1404,8 @@ def test_vaultwright_pilot_report_summarizes_evidence_without_content(tmp_path: 
     assert "confidential source bytes" not in payload
     assert "Generated mirror text" not in payload
     assert "Generated repo mirror text" not in payload
+    assert "private reviewer note" not in payload
+    assert "_mirrors/40_delivery/client-plan.md" not in payload
     assert str(vault) not in payload
     assert report["report"]["source_manifest"]["records"] == 1
     assert report["report"]["source_manifest"]["states"] == {"clean": 1}
@@ -1390,6 +1415,13 @@ def test_vaultwright_pilot_report_summarizes_evidence_without_content(tmp_path: 
     assert report["report"]["conversion"]["summary"]["medium"] == 1
     assert report["report"]["recovery"]["summary"]["total"] == 0
     assert report["report"]["benchmark"]["summary"]["tasks"] == 5
+    review = report["report"]["review"]["summary"]
+    assert review["reviewed_artifacts"] == 1
+    assert review["statuses"] == {"needs-work": 1}
+    assert review["current_states"] == {"current": 1}
+    assert review["stale_or_missing"] == 0
+    assert review["non_approved"] == 1
+    assert "latest_reviews" not in review
 
     assert worksheet_result.returncode == 0, worksheet_result.stderr or worksheet_result.stdout
     assert "# Vaultwright Pilot Evidence Summary" in worksheet_result.stdout
@@ -1397,10 +1429,12 @@ def test_vaultwright_pilot_report_summarizes_evidence_without_content(tmp_path: 
     assert "Conversion review queue: available=True high=0 medium=1 low=0" in worksheet_result.stdout
     assert "Recovery queue: available=True items=0" in worksheet_result.stdout
     assert "Benchmark tasks: available=True tasks=5" in worksheet_result.stdout
+    assert "Review ledger: available=True reviewed=1 stale_or_missing=0 non_approved=1" in worksheet_result.stdout
     assert "Baseline time to answer fixed questions" in worksheet_result.stdout
     assert "confidential source bytes" not in worksheet_result.stdout
     assert "Generated mirror text" not in worksheet_result.stdout
     assert "Generated repo mirror text" not in worksheet_result.stdout
+    assert "private reviewer note" not in worksheet_result.stdout
     assert "40_delivery/client-plan.docx" not in worksheet_result.stdout
     assert "_mirrors/40_delivery/client-plan.md" not in worksheet_result.stdout
     assert str(vault) not in worksheet_result.stdout

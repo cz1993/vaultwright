@@ -35,6 +35,8 @@ Record from `python3.11 tools/vaultwright.py pilot --json` after first sync:
 - sync audit event count:
 - conversion high/medium/low counts:
 - recovery action count:
+- review-ledger reviewed artifacts:
+- review-ledger stale/missing or non-approved decisions:
 - benchmark task count:
 - benchmark result count:
 - benchmark missing task/mode scores:

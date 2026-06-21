@@ -18,6 +18,8 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 - Added `tools/review_ledger.py` and `vaultwright review`, a metadata-only review ledger that
   records reviewer/status decisions against generated artifact hashes and reports stale approvals
   when reviewed artifacts change.
+- `vaultwright pilot` now summarizes review-ledger aggregate counts, including reviewed artifacts,
+  stale/missing reviews, and non-approved decisions, without exposing artifact paths or notes.
 - `vaultwright migration` now reports legacy or unknown note frontmatter domains using
   `_meta/domain-map.yml` aliases, giving operators a read-only cleanup queue before moving notes.
 - `vaultwright migration --worksheet` now prints a Markdown review checklist for legacy folder and

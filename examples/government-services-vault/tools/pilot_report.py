@@ -236,6 +236,40 @@ def benchmark_summary(root: Path) -> tuple[dict[str, Any], list[str], list[str]]
         return {"available": False, "summary": {}}, [], [f"benchmark report failed: {exc.__class__.__name__}"]
 
 
+def review_summary(root: Path) -> tuple[dict[str, Any], list[str], list[str]]:
+    module, load_errors = load_tool_module(root, "review_ledger.py")
+    if not module:
+        return {"available": False, "summary": {}}, [], load_errors
+    try:
+        report, warnings = module.build_report(root)
+        latest = report.get("latest_reviews", [])
+        if not isinstance(latest, list):
+            latest = []
+        stale_or_missing = 0
+        non_approved = 0
+        for entry in latest:
+            if not isinstance(entry, dict):
+                continue
+            if str(entry.get("current_state", "") or "") != "current":
+                stale_or_missing += 1
+            if str(entry.get("status", "") or "") != "approved":
+                non_approved += 1
+        summary = {
+            "events": int(report.get("events", 0) or 0),
+            "reviewed_artifacts": int(report.get("reviewed_artifacts", 0) or 0),
+            "statuses": report.get("statuses", {}) if isinstance(report.get("statuses"), dict) else {},
+            "artifact_kinds": report.get("artifact_kinds", {}) if isinstance(report.get("artifact_kinds"), dict) else {},
+            "current_states": report.get("current_states", {}) if isinstance(report.get("current_states"), dict) else {},
+            "stale_or_missing": stale_or_missing,
+            "non_approved": non_approved,
+            "warnings": len(warnings),
+        }
+        messages = [f"review ledger has {len(warnings)} warnings; run `vaultwright review`"] if warnings else []
+        return {"available": True, "summary": summary}, messages, []
+    except Exception as exc:
+        return {"available": False, "summary": {}}, [], [f"review ledger failed: {exc.__class__.__name__}"]
+
+
 def build_report(root: Path) -> tuple[dict[str, Any], list[str], list[str]]:
     warnings: list[str] = []
     errors: list[str] = []
@@ -245,6 +279,7 @@ def build_report(root: Path) -> tuple[dict[str, Any], list[str], list[str]]:
     conversion, conversion_warnings, conversion_errors = conversion_summary(root)
     recovery, recovery_warnings, recovery_errors = recovery_summary(root)
     benchmark, benchmark_warnings, benchmark_errors = benchmark_summary(root)
+    review, review_warnings, review_errors = review_summary(root)
     warnings.extend([
         *source_warnings,
         *repo_warnings,
@@ -252,6 +287,7 @@ def build_report(root: Path) -> tuple[dict[str, Any], list[str], list[str]]:
         *conversion_warnings,
         *recovery_warnings,
         *benchmark_warnings,
+        *review_warnings,
     ])
     errors.extend([
         *source_errors,
@@ -260,6 +296,7 @@ def build_report(root: Path) -> tuple[dict[str, Any], list[str], list[str]]:
         *conversion_errors,
         *recovery_errors,
         *benchmark_errors,
+        *review_errors,
     ])
     report = {
         "inventory": workspace_inventory(root),
@@ -269,6 +306,7 @@ def build_report(root: Path) -> tuple[dict[str, Any], list[str], list[str]]:
         "conversion": conversion,
         "recovery": recovery,
         "benchmark": benchmark,
+        "review": review,
     }
     return report, warnings, errors
 
@@ -346,6 +384,14 @@ def print_human(root: Path, report: dict[str, Any], warnings: list[str], errors:
             f"results={result_summary.get('results', 0)} "
             f"missing={result_summary.get('missing_results', 0)}"
         )
+    review = report["review"]["summary"]
+    print(
+        "pilot: review ledger "
+        f"available={report['review']['available']} "
+        f"reviewed={review.get('reviewed_artifacts', 0)} "
+        f"stale_or_missing={review.get('stale_or_missing', 0)} "
+        f"non_approved={review.get('non_approved', 0)}"
+    )
 
 
 def print_worksheet_summary(report: dict[str, Any], warnings: list[str], errors: list[str]) -> None:
@@ -356,6 +402,7 @@ def print_worksheet_summary(report: dict[str, Any], warnings: list[str], errors:
     conversion = report["conversion"]["summary"]
     recovery = report["recovery"]["summary"]
     benchmark = report["benchmark"]["summary"]
+    review = report["review"]["summary"]
     results = benchmark.get("results", {})
     result_summary = results.get("summary", {}) if isinstance(results, dict) else {}
     result_available = bool(isinstance(results, dict) and results.get("available"))
@@ -401,6 +448,13 @@ def print_worksheet_summary(report: dict[str, Any], warnings: list[str], errors:
         f"available={result_available} "
         f"records={result_summary.get('results', 0)} "
         f"missing={result_summary.get('missing_results', 0)}"
+    )
+    print(
+        "- Review ledger: "
+        f"available={report['review']['available']} "
+        f"reviewed={review.get('reviewed_artifacts', 0)} "
+        f"stale_or_missing={review.get('stale_or_missing', 0)} "
+        f"non_approved={review.get('non_approved', 0)}"
     )
     print(f"- Pilot report warnings/errors: {len(warnings)}/{len(errors)}")
     print()
