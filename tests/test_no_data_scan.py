@@ -102,6 +102,62 @@ def test_no_data_scan_flags_renamed_agent_readiness_result_pack_shape(tmp_path: 
     assert "benchmark result packs must stay out of the public repo" in result.stderr
 
 
+def test_no_data_scan_flags_private_agent_readiness_task_packs(tmp_path: Path) -> None:
+    path = tmp_path / "vault" / "_meta" / "agent-readiness-tasks.yml"
+    path.parent.mkdir(parents=True)
+    path.write_text(
+        "schema_version: 1\n"
+        "corpus: private-client\n"
+        "comparison_modes: [raw_source_folder, document_chat_transcript, vaultwright_markdown]\n"
+        "scoring:\n"
+        "  scale: \"0-2\"\n"
+        "tasks:\n"
+        "  - id: private-answer\n"
+        "    family: answer\n"
+        "    prompt: What should the private client do?\n"
+        "    source_paths: [40_delivery/private-plan.docx]\n"
+        "    generated_mirror_paths: [_mirrors/40_delivery/private-plan.md]\n"
+        "    curated_paths: []\n"
+        "    success_criteria:\n"
+        "      - cites declared evidence\n",
+        encoding="utf-8",
+    )
+
+    result = run_scan(path)
+
+    assert result.returncode == 1
+    assert "private benchmark task packs must stay out of the public repo" in result.stderr
+
+
+def test_no_data_scan_flags_renamed_agent_readiness_task_pack_shape(tmp_path: Path) -> None:
+    path = tmp_path / "vault" / "_meta" / "pilot-agent-tasks.yml"
+    path.parent.mkdir(parents=True)
+    path.write_text(
+        "schema_version: 1\n"
+        "corpus: private-client\n"
+        "tasks:\n"
+        "  - id: private-answer\n"
+        "    family: answer\n"
+        "    prompt: What should the private client do?\n"
+        "    success_criteria:\n"
+        "      - cites declared evidence\n",
+        encoding="utf-8",
+    )
+
+    result = run_scan(path)
+
+    assert result.returncode == 1
+    assert "private benchmark task packs must stay out of the public repo" in result.stderr
+
+
+def test_no_data_scan_allows_public_government_agent_readiness_task_pack() -> None:
+    path = ROOT / "examples" / "government-services-vault" / "_meta" / "agent-readiness-tasks.yml"
+
+    result = run_scan(path)
+
+    assert result.returncode == 0, result.stderr
+
+
 def test_no_data_scan_allows_generated_sync_audit_but_scans_text(tmp_path: Path) -> None:
     audit = tmp_path / "vault" / "_meta" / "sync-audit.jsonl"
     audit.parent.mkdir(parents=True)

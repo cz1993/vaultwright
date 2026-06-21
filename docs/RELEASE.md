@@ -41,8 +41,8 @@ git diff --check
 
 4. Confirm the latest CI run on `main` is green.
 5. Review `CHANGELOG.md`, `README.md`, and `docs/VAULTWRIGHT_WHITEPAPER.md` for overclaims.
-6. Confirm no real client data, personal data, private benchmark results, secrets, tokens, or
-   proprietary documents are present.
+6. Confirm no real client data, personal data, private benchmark task/result packs, secrets,
+   tokens, or proprietary documents are present.
 
 ## Tagging
 

@@ -54,6 +54,10 @@ GENERATED_ARTIFACT_DIRS = {"build", "dist"}
 GENERATED_ARTIFACT_PARTS = {"__MACOSX"}
 GENERATED_ARTIFACT_SUFFIXES = {".log"}
 PRIVATE_RESULT_FILENAMES = {"agent-readiness-results.yml", "agent-readiness-results.yaml"}
+PRIVATE_TASK_FILENAMES = {"agent-readiness-tasks.yml", "agent-readiness-tasks.yaml"}
+PUBLIC_TASK_PACKS = {
+    "examples/government-services-vault/_meta/agent-readiness-tasks.yml",
+}
 YAML_SUFFIXES = {".yaml", ".yml"}
 
 DISALLOWED_DATA_EXTS = {
@@ -279,6 +283,24 @@ def looks_like_agent_readiness_results(rel_path: Path, text: str) -> bool:
     return all(re.search(pattern, text) for pattern in required_patterns)
 
 
+def looks_like_agent_readiness_tasks(rel_path: Path, text: str) -> bool:
+    if rel_path.suffix.lower() not in YAML_SUFFIXES or "_meta" not in rel_path.parts:
+        return False
+    required_patterns = (
+        r"(?m)^\s*schema_version\s*:\s*1\s*$",
+        r"(?m)^\s*tasks\s*:\s*$",
+        r"(?m)^\s*-\s*id\s*:",
+        r"(?m)^\s*family\s*:",
+        r"(?m)^\s*prompt\s*:",
+        r"(?m)^\s*success_criteria\s*:",
+    )
+    return all(re.search(pattern, text) for pattern in required_patterns)
+
+
+def public_task_pack_allowed(rel: str) -> bool:
+    return rel.replace(os.sep, "/") in PUBLIC_TASK_PACKS
+
+
 def is_ooxml_content_part(name: str) -> bool:
     low = name.lower()
     return any(low == prefix.lower() or low.startswith(prefix.lower()) for prefix in OOXML_CONTENT_PART_PREFIXES)
@@ -381,6 +403,13 @@ def scan_bytes(
     name = rel_path.name
     if name in PRIVATE_RESULT_FILENAMES and "_meta" in rel_path.parts:
         findings.append(f"{rel}: benchmark result packs must stay out of the public repo")
+    private_task_pack_name = (
+        name in PRIVATE_TASK_FILENAMES
+        and "_meta" in rel_path.parts
+        and not public_task_pack_allowed(rel)
+    )
+    if private_task_pack_name:
+        findings.append(f"{rel}: private benchmark task packs must stay out of the public repo")
 
     if (
         name in GENERATED_ARTIFACT_NAMES
@@ -423,6 +452,12 @@ def scan_bytes(
     text = raw.decode("utf-8", errors="ignore")
     if looks_like_agent_readiness_results(rel_path, text):
         findings.append(f"{rel}: benchmark result packs must stay out of the public repo")
+    if (
+        looks_like_agent_readiness_tasks(rel_path, text)
+        and not public_task_pack_allowed(rel)
+        and not private_task_pack_name
+    ):
+        findings.append(f"{rel}: private benchmark task packs must stay out of the public repo")
     findings.extend(scan_text_patterns(rel, text))
     return findings
 

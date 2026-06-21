@@ -82,9 +82,10 @@ those tasks in each comparison mode. Keep result packs in the private pilot vaul
 review packet; do not commit confidential answers, client names, source text, mirror text, or
 reviewer notes to this public repository.
 
-The public Vaultwright repository ignores and rejects committed `_meta/agent-readiness-results.yml`
-files by default. Store them in private pilot workspaces, then copy only aggregate numbers into a
-review packet after no-data review.
+The public Vaultwright repository rejects committed private `_meta/agent-readiness-tasks.yml` and
+`_meta/agent-readiness-results.yml` files by default. The checked-in government-services task pack
+is an approved public example. Store private task and result packs in pilot workspaces, then copy
+only aggregate numbers into a review packet after no-data review.
 
 Default local path:
 
@@ -169,6 +170,9 @@ business-registration, GST/HST, funding/support, update, audit, and consolidatio
 The task pack deliberately references both committed source files and generated mirror paths. The
 mirror paths should exist only after running sync in a temporary or local working copy, not in the
 committed example tree.
+
+Do not add private pilot task packs to this public repo. The no-data scanner allows only approved
+public examples and rejects task-pack-shaped YAML elsewhere.
 
 Validate a configured task pack with:
 

@@ -50,6 +50,8 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 - `vaultwright benchmark --worksheet` now prints a private Markdown run sheet from the task pack,
   including prompts, rubric, evidence counts, and per-mode scoring fields without source paths,
   mirror paths, answers, or reviewer notes.
+- The no-data scanner now rejects private agent-readiness task packs unless they are approved
+  public examples, preventing copied-vault benchmark prompts and path lists from entering the repo.
 - Repo sync/status now detects managed `repo` frontmatter identity drift as stale and normal sync
   rewrites the managed field from the configured/resolved repo identity.
 - Office sync/status now detects managed source frontmatter metadata drift as stale and normal
