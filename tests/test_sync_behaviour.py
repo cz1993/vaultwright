@@ -1023,6 +1023,72 @@ def test_vaultwright_benchmark_default_result_file_requires_task_pack(tmp_path: 
     assert "benchmark_tasks: missing task pack: _meta/agent-readiness-tasks.yml" in result.stderr
 
 
+def test_vaultwright_benchmark_init_results_writes_private_scaffold(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    write_agent_benchmark_fixture(vault)
+    result_path = vault / "_meta" / "agent-readiness-results.yml"
+    result_path.unlink()
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(vault / "tools" / "vaultwright.py"),
+            "benchmark",
+            "--init-results",
+            "--results",
+            "_meta/agent-readiness-results.yml",
+        ],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+    assert "benchmark_results: wrote scaffold with 15 entries to _meta/agent-readiness-results.yml" in result.stdout
+    scaffold_text = result_path.read_text(encoding="utf-8")
+    scaffold = yaml.safe_load(scaffold_text)
+    assert scaffold["schema_version"] == 1
+    assert scaffold["corpus"] == "fixture"
+    assert len(scaffold["results"]) == 15
+    assert {
+        (entry["task_id"], entry["mode"])
+        for entry in scaffold["results"]
+    } == {
+        (f"{family}-1", mode)
+        for family in ("answer", "reconcile", "update", "audit", "consolidate")
+        for mode in ("raw_source_folder", "document_chat_transcript", "vaultwright_markdown")
+    }
+    assert all(entry["score"] is None for entry in scaffold["results"])
+    assert all(entry["reviewer_corrections"] is None for entry in scaffold["results"])
+    assert "answer_text" not in scaffold_text
+    assert "reviewer_notes" not in scaffold_text
+    assert "client-plan" not in scaffold_text
+
+
+def test_vaultwright_benchmark_init_results_refuses_existing_pack_without_force(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    write_agent_benchmark_fixture(vault)
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(vault / "tools" / "vaultwright.py"),
+            "benchmark",
+            "--init-results",
+            "--results",
+            "_meta/agent-readiness-results.yml",
+        ],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 1
+    assert "_meta/agent-readiness-results.yml already exists; use --force to overwrite" in result.stderr
+
+
 def test_packaged_vaultwright_cli_delegates_benchmark_result_args(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     shutil.copytree(ROOT / "template", vault)
@@ -1055,6 +1121,42 @@ def test_packaged_vaultwright_cli_delegates_benchmark_result_args(tmp_path: Path
     assert payload["result_summary"]["modes"]["vaultwright_markdown"]["score"] == 2
     assert payload["result_summary"]["modes"]["vaultwright_markdown"]["source_citations"] == 1
     assert payload["result_summary"]["modes"]["vaultwright_markdown"]["generated_mirror_citations"] == 1
+
+
+def test_packaged_vaultwright_cli_delegates_benchmark_init_results(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    write_agent_benchmark_fixture(vault)
+    env = {**os.environ, "PYTHONPATH": str(ROOT / "src")}
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "vaultwright.cli",
+            "--root",
+            str(vault),
+            "benchmark",
+            "--init-results",
+            "--results",
+            "_meta/agent-readiness-results.yml",
+            "--force",
+            "--json",
+        ],
+        cwd=ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+    payload = json.loads(result.stdout)
+    assert payload["summary"]["tasks"] == 5
+    assert payload["result_scaffold"] == {
+        "overwritten": True,
+        "path": "_meta/agent-readiness-results.yml",
+        "results": 15,
+    }
 
 
 def test_packaged_vaultwright_cli_init_from_source_checkout(tmp_path: Path) -> None:

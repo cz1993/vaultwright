@@ -18,7 +18,8 @@ except ImportError:
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_TASKS = Path("_meta/agent-readiness-tasks.yml")
 DEFAULT_RESULTS = Path("_meta/agent-readiness-results.yml")
-REQUIRED_MODES = {"raw_source_folder", "document_chat_transcript", "vaultwright_markdown"}
+MODE_ORDER = ("raw_source_folder", "document_chat_transcript", "vaultwright_markdown")
+REQUIRED_MODES = set(MODE_ORDER)
 FAMILIES = {"answer", "reconcile", "update", "audit", "consolidate"}
 RESULT_ALLOWED_FIELDS = {
     "task_id",
@@ -45,6 +46,21 @@ def rel_path(value: str) -> Path | None:
     if path.is_absolute() or ".." in path.parts or not path.parts:
         return None
     return path
+
+
+def safe_result_output_path(path_arg: Path) -> Path:
+    path = path_arg if path_arg.is_absolute() else ROOT / path_arg
+    resolved_root = ROOT.resolve()
+    resolved = path.expanduser().resolve(strict=False)
+    try:
+        resolved.relative_to(resolved_root)
+    except ValueError as exc:
+        raise ValueError("result scaffold output must stay inside the vault") from exc
+    if resolved.suffix not in {".yml", ".yaml"}:
+        raise ValueError("result scaffold output must be a .yml or .yaml file")
+    if resolved.exists() and resolved.is_dir():
+        raise ValueError("result scaffold output must be a file, not a directory")
+    return resolved
 
 
 def load_tasks(path: Path) -> tuple[dict, list[str]]:
@@ -181,6 +197,41 @@ def task_ids_from_pack(data: dict) -> set[str]:
     }
 
 
+def result_scaffold_text(task_data: dict) -> tuple[str, int]:
+    tasks = [
+        task
+        for task in task_data.get("tasks", [])
+        if isinstance(task, dict) and str(task.get("id", "")).strip()
+    ]
+    lines = [
+        "# Vaultwright agent-readiness result scaffold.",
+        "# Private pilot file: do not commit this file or store answer text/reviewer notes in it.",
+        "# Fill score with 0, 1, or 2 after each reviewed run. Keep detailed answers elsewhere.",
+        "schema_version: 1",
+        f"corpus: {json.dumps(str(task_data.get('corpus', '')).strip())}",
+        "results:",
+    ]
+    entry_count = 0
+    for task in tasks:
+        task_id = str(task.get("id", "")).strip()
+        for mode in MODE_ORDER:
+            lines.extend(
+                [
+                    f"  - task_id: {json.dumps(task_id)}",
+                    f"    mode: {mode}",
+                    "    score: null",
+                    "    reviewer_corrections: null",
+                    "    elapsed_seconds: null",
+                    "    cited_source_paths: []",
+                ]
+            )
+            if mode == "vaultwright_markdown":
+                lines.append("    cited_generated_mirror_paths: []")
+            lines.append("    privacy_or_provenance_violation: false")
+            entry_count += 1
+    return "\n".join(lines) + "\n", entry_count
+
+
 def task_path_refs_from_pack(data: dict) -> dict[str, dict[str, set[str]]]:
     refs: dict[str, dict[str, set[str]]] = {}
     tasks = data.get("tasks", [])
@@ -289,7 +340,7 @@ def validate_result_pack(
             "generated_mirror_citations": 0,
             "uncited_scored_results": 0,
         }
-        for mode in sorted(REQUIRED_MODES)
+        for mode in MODE_ORDER
     }
 
     for index, result in enumerate(results):
@@ -398,7 +449,7 @@ def validate_result_pack(
         summary["average_score"] = round(float(summary["score"]) / count, 2) if count else 0.0
         summary["elapsed_seconds"] = round(float(summary["elapsed_seconds"]), 2)
 
-    expected = {(task_id, mode) for task_id in known_task_ids for mode in REQUIRED_MODES}
+    expected = {(task_id, mode) for task_id in known_task_ids for mode in MODE_ORDER}
     missing = sorted(expected - seen)
     if missing:
         message = f"benchmark results incomplete: missing {len(missing)} task/mode scores"
@@ -424,6 +475,16 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Validate a Vaultwright agent-readiness benchmark task pack.")
     parser.add_argument("--tasks", type=Path, default=DEFAULT_TASKS, help="Task pack path relative to the vault root.")
     parser.add_argument("--results", type=Path, help="Optional benchmark results path relative to the vault root.")
+    parser.add_argument(
+        "--init-results",
+        action="store_true",
+        help="Create a private result-pack scaffold from the task pack instead of validating results.",
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Overwrite an existing result scaffold when used with --init-results.",
+    )
     parser.add_argument("--require-generated", action="store_true", help="Require generated mirror paths to exist.")
     parser.add_argument("--require-results", action="store_true", help="Require benchmark results for every task/mode pair.")
     parser.add_argument(
@@ -437,17 +498,84 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main() -> int:
     args = build_parser().parse_args()
+    if args.force and not args.init_results:
+        print("benchmark_tasks: --force is only valid with --init-results", file=sys.stderr)
+        return 1
+    if args.init_results and (args.require_results or args.require_citations):
+        print(
+            "benchmark_tasks: --init-results cannot be combined with --require-results or --require-citations",
+            file=sys.stderr,
+        )
+        return 1
     task_path = args.tasks if args.tasks.is_absolute() else ROOT / args.tasks
     result_path_arg = args.results or DEFAULT_RESULTS
     result_path = result_path_arg if result_path_arg.is_absolute() else ROOT / result_path_arg
     if not task_path.exists():
-        if args.tasks == DEFAULT_TASKS and not args.results and not args.require_results and not result_path.exists():
+        if (
+            args.tasks == DEFAULT_TASKS
+            and not args.results
+            and not args.require_results
+            and not args.init_results
+            and not result_path.exists()
+        ):
             print(f"benchmark_tasks: no {DEFAULT_TASKS.as_posix()} found; benchmark validation skipped")
             return 0
         print(f"benchmark_tasks: missing task pack: {args.tasks}", file=sys.stderr)
         return 1
 
     summary, errors, warnings = validate_task_pack(task_path, require_generated=args.require_generated)
+    if args.init_results:
+        result_summary: dict = {}
+        scaffold_written = False
+        entry_count = 0
+        output_path: Path | None = None
+        if not errors:
+            try:
+                output_path = safe_result_output_path(result_path_arg)
+            except ValueError as exc:
+                errors.append(str(exc))
+        if output_path is not None and not errors:
+            existed = output_path.exists()
+            if existed and not args.force:
+                errors.append(f"benchmark_results: {display_path(output_path)} already exists; use --force to overwrite")
+            else:
+                task_data, task_errors = load_tasks(task_path)
+                errors.extend(task_errors)
+                if not errors:
+                    text, entry_count = result_scaffold_text(task_data)
+                    output_path.parent.mkdir(parents=True, exist_ok=True)
+                    output_path.write_text(text, encoding="utf-8")
+                    scaffold_written = True
+                    result_summary = {
+                        "path": display_path(output_path),
+                        "results": entry_count,
+                        "overwritten": existed,
+                    }
+        if args.json:
+            print(
+                json.dumps(
+                    {
+                        "summary": summary,
+                        "result_scaffold": result_summary,
+                        "warnings": warnings,
+                        "errors": errors,
+                    },
+                    indent=2,
+                    sort_keys=True,
+                )
+            )
+        else:
+            print(f"benchmark_tasks: {summary.get('tasks', 0)} tasks in {summary.get('path', args.tasks)}")
+            if scaffold_written:
+                assert output_path is not None
+                print(f"benchmark_results: wrote scaffold with {entry_count} entries to {display_path(output_path)}")
+                print("  fill scores before validating this result pack")
+            for warning in warnings:
+                print(f"  warning: {warning}")
+            for error in errors:
+                print(f"  error: {error}", file=sys.stderr)
+        return 1 if errors else 0
+
     result_summary: dict = {}
     should_validate_results = bool(args.results) or args.require_results or result_path.exists()
     if should_validate_results:

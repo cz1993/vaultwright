@@ -41,6 +41,9 @@ All notable changes to Vaultwright are documented here. Format loosely follows
   example vault tool copies stay aligned with the canonical `template/` sources.
 - `vaultwright benchmark` now reports citation counts and supports `--require-citations` so scored
   agent-readiness results can be gated on declared source or generated-mirror evidence.
+- `vaultwright benchmark --init-results` now writes a private, fillable result-pack scaffold for
+  every task/mode pair, avoiding hand-built pilot result files while keeping answer text and
+  reviewer notes out of aggregate benchmark data.
 - Repo sync/status now detects managed `repo` frontmatter identity drift as stale and normal sync
   rewrites the managed field from the configured/resolved repo identity.
 - Office sync/status now detects managed source frontmatter metadata drift as stale and normal

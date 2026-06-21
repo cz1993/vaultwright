@@ -132,11 +132,17 @@ Rules enforced by the validator:
 Validate and summarize results with:
 
 ```bash
+python3.11 tools/vaultwright.py benchmark --init-results
 python3.11 tools/vaultwright.py benchmark --results _meta/agent-readiness-results.yml
 python3.11 tools/vaultwright.py benchmark --results _meta/agent-readiness-results.yml --require-results
 python3.11 tools/vaultwright.py benchmark --results _meta/agent-readiness-results.yml --require-citations
 python3.11 tools/vaultwright.py benchmark --results _meta/agent-readiness-results.yml --json
 ```
+
+`--init-results` creates a private `_meta/agent-readiness-results.yml` scaffold with one entry for
+every task and comparison mode. It leaves scores and correction counts as `null` so an untouched
+scaffold does not pass validation as real evidence. Use `--force` only when intentionally replacing
+a prior private result pack.
 
 The human-readable report prints aggregate per-mode scores, correction counts, privacy/provenance
 violation counts, citation counts, and uncited scored-result counts. It does not print answer text,

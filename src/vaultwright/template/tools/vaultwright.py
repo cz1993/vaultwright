@@ -92,6 +92,10 @@ def command_benchmark(args: argparse.Namespace) -> int:
         cmd.extend(["--tasks", str(args.tasks)])
     if args.results:
         cmd.extend(["--results", str(args.results)])
+    if args.init_results:
+        cmd.append("--init-results")
+    if args.force:
+        cmd.append("--force")
     if args.require_generated:
         cmd.append("--require-generated")
     if args.require_results:
@@ -621,6 +625,8 @@ def build_parser() -> argparse.ArgumentParser:
     benchmark = sub.add_parser("benchmark", help="Validate the agent-readiness benchmark task pack and optional result pack.")
     benchmark.add_argument("--tasks", type=Path, help="Task pack path relative to the vault root.")
     benchmark.add_argument("--results", type=Path, help="Optional benchmark results path relative to the vault root.")
+    benchmark.add_argument("--init-results", action="store_true", help="Create a private benchmark result scaffold.")
+    benchmark.add_argument("--force", action="store_true", help="Overwrite an existing result scaffold with --init-results.")
     benchmark.add_argument("--require-generated", action="store_true", help="Require generated mirror paths to exist.")
     benchmark.add_argument("--require-results", action="store_true", help="Require benchmark results for every task/mode pair.")
     benchmark.add_argument(

@@ -249,6 +249,12 @@ python3.11 tools/vaultwright.py benchmark --results _meta/agent-readiness-result
 python3.11 tools/vaultwright.py benchmark --results _meta/agent-readiness-results.yml --json
 ```
 
+To avoid hand-building the private aggregate file, initialize a fillable scaffold:
+
+```bash
+python3.11 tools/vaultwright.py benchmark --init-results
+```
+
 Result packs score each task across `raw_source_folder`, `document_chat_transcript`, and
 `vaultwright_markdown`. The report prints per-mode scores, correction counts, privacy/provenance
 violation counts, citation counts, and uncited scored-result counts, but it does not print answer
