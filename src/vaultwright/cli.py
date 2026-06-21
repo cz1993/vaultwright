@@ -148,15 +148,27 @@ def build_parser() -> argparse.ArgumentParser:
             )
         ),
     )
-    migration = sub.add_parser("migration", help="Print a read-only legacy folder migration report.")
+    migration = sub.add_parser("migration", help="Report legacy folder/frontmatter migration work.")
     migration_output = migration.add_mutually_exclusive_group()
     migration_output.add_argument("--json", action="store_true", help="Print machine-readable migration JSON.")
     migration_output.add_argument("--worksheet", action="store_true", help="Print a Markdown migration review worksheet.")
+    migration.add_argument(
+        "--normalize-frontmatter-domains",
+        action="store_true",
+        help="Preview known legacy frontmatter domain aliases that can be rewritten to canonical domains.",
+    )
+    migration.add_argument(
+        "--write",
+        action="store_true",
+        help="With --normalize-frontmatter-domains, rewrite known frontmatter domain aliases. Does not move files.",
+    )
     migration.set_defaults(
         func=command_delegate,
         delegate_args=lambda args: (
             (["--json"] if args.json else [])
             + (["--worksheet"] if args.worksheet else [])
+            + (["--normalize-frontmatter-domains"] if args.normalize_frontmatter_domains else [])
+            + (["--write"] if args.write else [])
         ),
     )
     pilot = sub.add_parser("pilot", help="Print a read-only design-partner pilot evidence report.")

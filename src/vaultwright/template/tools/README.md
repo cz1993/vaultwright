@@ -12,7 +12,7 @@ These keep your knowledge base current and healthy. See `../CLAUDE.md` §6 for t
 | `catalog_report.py` | writes source-path-only `CATALOG.md` or `CATALOG.html` inventory gateways for reviewers and agents |
 | `conversion_report.py` | prints a read-only conversion spot-check report from the source manifest |
 | `m365_report.py` | prints a read-only Microsoft 365/Copilot handoff readiness report |
-| `migration_report.py` | prints a read-only migration report for legacy or unknown top-level folders |
+| `migration_report.py` | reports legacy or unknown top-level folders and can normalize known frontmatter domain aliases with explicit `--write` |
 | `pilot_report.py` | prints a read-only aggregate pilot evidence report without source content |
 | `recovery_report.py` | prints a read-only recovery checklist from source/repo manifest lifecycle states |
 | `review_ledger.py` | records and summarizes metadata-only human review decisions for generated artifacts |
@@ -47,6 +47,8 @@ python3.11 tools/vaultwright.py review --json
 python3.11 tools/vaultwright.py conversion --guide
 python3.11 tools/vaultwright.py migration
 python3.11 tools/vaultwright.py migration --worksheet
+python3.11 tools/vaultwright.py migration --normalize-frontmatter-domains
+python3.11 tools/vaultwright.py migration --normalize-frontmatter-domains --write
 python3.11 tools/vaultwright.py pilot
 python3.11 tools/vaultwright.py recovery
 python3.11 tools/vaultwright.py sandbox --source-root /path/to/original-documents
@@ -98,13 +100,17 @@ python3.11 tools/vaultwright.py review --check
 artifact hash still matches the reviewed hash. It is intended for private pilot and release-review
 workflows, not as proof that conversion quality is objectively complete.
 
-`migration` is read-only. It scans top-level folders, reports old aliases from
+`migration` is read-only by default. It scans top-level folders, reports old aliases from
 `_meta/domain-map.yml` such as `marketing/`, `legal/`, `clients/`, or `hr/`, and flags unknown
 folders that need human classification before any manual move. Non-reserved hidden or
 underscore-prefixed folders are reported too, because they may contain staged imports or legacy
 source material. It also scans note frontmatter for legacy alias domains such as
 `domain: marketing` or `domain: clients` and reports the canonical domain/folder recommendation without
 rewriting files. Use `--worksheet` to print a Markdown review checklist for a migration batch.
+Use `--normalize-frontmatter-domains` to preview rewriting known frontmatter aliases such as
+`domain: marketing` to `domain: market`; add `--write` only after review. This write mode changes
+only known frontmatter domain aliases in markdown notes. It does not move files, delete folders,
+rewrite unknown domains, or edit generated source/repo mirrors.
 
 `pilot` is read-only. It summarizes aggregate pilot evidence from manifests, audit events,
 conversion priorities, recovery action counts, review-ledger counts, benchmark tasks, and optional

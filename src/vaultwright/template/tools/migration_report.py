@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Print a read-only migration report for legacy folders and frontmatter domains."""
+"""Report legacy folders/frontmatter domains and optionally normalize known frontmatter aliases."""
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -18,6 +19,8 @@ ROOT = Path(__file__).resolve().parent.parent
 DOMAIN_MAP_REL = Path("_meta/domain-map.yml")
 SOURCE_EXTS = {".docx", ".pptx", ".xlsx", ".doc", ".pdf"}
 STRUCTURAL_MD = {"AGENTS.md", "CLAUDE.md", "INDEX.md", "RETENTION.md", "CATALOG.md", "log.md"}
+GENERATED_NOTE_TYPES = {"source-mirror", "repo-mirror"}
+GENERATED_SENTINEL = "%% AUTO-GENERATED BELOW"
 RESERVED_TOP_LEVEL = {
     ".git",
     ".githooks",
@@ -108,6 +111,25 @@ def split_frontmatter(text: str) -> tuple[dict | None, str]:
     return {}, text
 
 
+def dump_frontmatter(frontmatter: dict) -> str:
+    dumped = yaml.safe_dump(frontmatter, sort_keys=False, allow_unicode=True)
+    return f"---\n{dumped}---"
+
+
+def write_text_atomic(path: Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    try:
+        with tmp.open("w", encoding="utf-8") as handle:
+            handle.write(content)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(tmp, path)
+    finally:
+        if tmp.exists():
+            tmp.unlink()
+
+
 def frontmatter_domain_items(root: Path, aliases: dict[str, dict[str, str]], canonical_domains: set[str]) -> list[dict]:
     items: list[dict] = []
     for path in sorted(root.rglob("*.md"), key=lambda p: p.relative_to(root).as_posix()):
@@ -145,6 +167,7 @@ def frontmatter_domain_items(root: Path, aliases: dict[str, dict[str, str]], can
         items.append({
             "kind": kind,
             "path": rel.as_posix(),
+            "note_type": str(fm.get("type", "")),
             "current_domain": current_domain,
             "recommended_domain": recommended_domain,
             "recommended_folder": recommended_folder,
@@ -334,17 +357,138 @@ def print_human(root: Path, items: list[dict], frontmatter_items: list[dict], wa
         print(f"    action: {item['action']}")
 
 
+def normalize_frontmatter_domain_aliases(
+    root: Path,
+    frontmatter_items: list[dict],
+    *,
+    write: bool,
+) -> tuple[list[dict], list[str]]:
+    results: list[dict] = []
+    errors: list[str] = []
+    for item in frontmatter_items:
+        if item.get("kind") != "frontmatter_domain_alias":
+            continue
+        rel = Path(str(item.get("path", "")))
+        if rel.is_absolute() or ".." in rel.parts:
+            results.append({"status": "skipped", **item, "reason": "unsafe path"})
+            continue
+        path = root / rel
+        try:
+            text = path.read_text(encoding="utf-8")
+        except OSError as exc:
+            results.append({"status": "skipped", **item, "reason": f"unreadable ({exc.__class__.__name__})"})
+            continue
+        fm, body = split_frontmatter(text)
+        if not isinstance(fm, dict) or not fm:
+            results.append({"status": "skipped", **item, "reason": "missing or invalid frontmatter"})
+            continue
+        if str(fm.get("type", "")) in GENERATED_NOTE_TYPES or GENERATED_SENTINEL in body:
+            results.append({"status": "skipped", **item, "reason": "generated mirror"})
+            continue
+        current_domain = str(fm.get("domain", ""))
+        expected_current = str(item.get("current_domain", ""))
+        recommended_domain = str(item.get("recommended_domain", ""))
+        if not recommended_domain:
+            results.append({"status": "skipped", **item, "reason": "no canonical recommendation"})
+            continue
+        if current_domain != expected_current:
+            results.append({"status": "skipped", **item, "reason": "domain changed since report"})
+            continue
+        updated_fm = dict(fm)
+        updated_fm["domain"] = recommended_domain
+        if write:
+            try:
+                write_text_atomic(path, dump_frontmatter(updated_fm) + body)
+            except OSError as exc:
+                errors.append(f"{rel.as_posix()}: write failed ({exc.__class__.__name__})")
+                results.append({"status": "error", **item, "reason": f"write failed ({exc.__class__.__name__})"})
+                continue
+            status = "updated"
+        else:
+            status = "planned"
+        results.append({"status": status, **item})
+    return results, errors
+
+
+def print_normalize_frontmatter_domains(
+    root: Path,
+    frontmatter_items: list[dict],
+    warnings: list[str],
+    errors: list[str],
+    *,
+    write: bool,
+) -> int:
+    mode = "write mode; no files were moved" if write else "dry-run only; use --write to update files"
+    print(f"vaultwright migration normalize-frontmatter-domains: {root}")
+    print(f"migration normalize-frontmatter-domains: {mode}")
+    for warning in warnings:
+        print(f"  warning: {warning}")
+    for error in errors:
+        print(f"  error: {error}", file=sys.stderr)
+    if errors:
+        return 1
+
+    results, write_errors = normalize_frontmatter_domain_aliases(root, frontmatter_items, write=write)
+    unknown_count = sum(1 for item in frontmatter_items if item.get("kind") == "frontmatter_domain_unknown")
+    status_counts = {
+        "planned": sum(1 for item in results if item["status"] == "planned"),
+        "updated": sum(1 for item in results if item["status"] == "updated"),
+        "skipped": sum(1 for item in results if item["status"] == "skipped"),
+        "error": sum(1 for item in results if item["status"] == "error"),
+    }
+    eligible = sum(1 for item in frontmatter_items if item.get("kind") == "frontmatter_domain_alias")
+    print(
+        "migration normalize-frontmatter-domains: "
+        f"{eligible} alias domain(s) eligible, "
+        f"planned={status_counts['planned']}, updated={status_counts['updated']}, "
+        f"skipped={status_counts['skipped']}, errors={status_counts['error']}, unknown={unknown_count}"
+    )
+    if unknown_count:
+        print("migration normalize-frontmatter-domains: unknown domains were not changed")
+    for item in results:
+        target = item.get("recommended_domain") or "manual classification"
+        print(f"  [{item['status']:<7}] {item['path']}: {item['current_domain']} -> {target}")
+        if item.get("reason"):
+            print(f"    reason: {item['reason']}")
+    for error in write_errors:
+        print(f"  error: {error}", file=sys.stderr)
+    return 1 if write_errors else 0
+
+
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Print a read-only Vaultwright folder migration report.")
+    parser = argparse.ArgumentParser(description="Report Vaultwright folder/frontmatter migration work.")
     output = parser.add_mutually_exclusive_group()
     output.add_argument("--json", action="store_true", help="Print machine-readable migration JSON.")
     output.add_argument("--worksheet", action="store_true", help="Print a Markdown migration review worksheet.")
+    parser.add_argument(
+        "--normalize-frontmatter-domains",
+        action="store_true",
+        help="Preview known legacy frontmatter domain aliases that can be rewritten to canonical domains.",
+    )
+    parser.add_argument(
+        "--write",
+        action="store_true",
+        help="With --normalize-frontmatter-domains, rewrite known frontmatter domain aliases. Does not move files.",
+    )
     return parser
 
 
 def main() -> int:
-    args = build_parser().parse_args()
+    parser = build_parser()
+    args = parser.parse_args()
+    if args.write and not args.normalize_frontmatter_domains:
+        parser.error("--write requires --normalize-frontmatter-domains")
+    if args.normalize_frontmatter_domains and (args.json or args.worksheet):
+        parser.error("--normalize-frontmatter-domains cannot be combined with --json or --worksheet")
     items, frontmatter_items, warnings, errors = build_report(ROOT)
+    if args.normalize_frontmatter_domains:
+        return print_normalize_frontmatter_domains(
+            ROOT,
+            frontmatter_items,
+            warnings,
+            errors,
+            write=args.write,
+        )
     if args.json:
         print(json.dumps({
             "root": str(ROOT),

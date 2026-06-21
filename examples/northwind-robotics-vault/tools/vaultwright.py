@@ -134,6 +134,10 @@ def command_migration(args: argparse.Namespace) -> int:
         cmd.append("--json")
     if args.worksheet:
         cmd.append("--worksheet")
+    if args.normalize_frontmatter_domains:
+        cmd.append("--normalize-frontmatter-domains")
+    if args.write:
+        cmd.append("--write")
     return run(cmd, root)
 
 
@@ -658,10 +662,20 @@ def build_parser() -> argparse.ArgumentParser:
         help="Include this many low-risk sample records per format in the spot-check list.",
     )
     conversion.set_defaults(func=command_conversion)
-    migration = sub.add_parser("migration", help="Print a read-only legacy folder migration report.")
+    migration = sub.add_parser("migration", help="Report legacy folder/frontmatter migration work.")
     migration_output = migration.add_mutually_exclusive_group()
     migration_output.add_argument("--json", action="store_true", help="Print machine-readable migration JSON.")
     migration_output.add_argument("--worksheet", action="store_true", help="Print a Markdown migration review worksheet.")
+    migration.add_argument(
+        "--normalize-frontmatter-domains",
+        action="store_true",
+        help="Preview known legacy frontmatter domain aliases that can be rewritten to canonical domains.",
+    )
+    migration.add_argument(
+        "--write",
+        action="store_true",
+        help="With --normalize-frontmatter-domains, rewrite known frontmatter domain aliases. Does not move files.",
+    )
     migration.set_defaults(func=command_migration)
     pilot = sub.add_parser("pilot", help="Print a read-only design-partner pilot evidence report.")
     pilot_output = pilot.add_mutually_exclusive_group()

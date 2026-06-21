@@ -32,6 +32,9 @@ All notable changes to Vaultwright are documented here. Format loosely follows
   `_meta/domain-map.yml` aliases, giving operators a read-only cleanup queue before moving notes.
 - `vaultwright migration --worksheet` now prints a Markdown review checklist for legacy folder and
   frontmatter-domain cleanup batches.
+- `vaultwright migration --normalize-frontmatter-domains` now previews known legacy frontmatter
+  domain alias rewrites, and `--write` applies only those `domain` frontmatter changes without
+  moving files, touching unknown domains, or editing generated mirrors.
 - Added `tools/sandbox_report.py` and `vaultwright sandbox`, a read-only copied-vault preflight for
   safe pilot workspaces that checks source-root separation, mirror isolation, manifest/recovery
   readiness, and backup posture without printing source paths or document text.

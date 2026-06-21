@@ -430,6 +430,26 @@ def test_packaged_vaultwright_cli_delegates_to_target_vault(tmp_path: Path) -> N
     assert "No legacy or unknown top-level folders found" in migration_worksheet.stdout
     assert "No legacy frontmatter domains found" in migration_worksheet.stdout
 
+    migration_normalize = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "vaultwright.cli",
+            "--root",
+            str(vault),
+            "migration",
+            "--normalize-frontmatter-domains",
+        ],
+        cwd=ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert migration_normalize.returncode == 0, migration_normalize.stderr or migration_normalize.stdout
+    assert "normalize-frontmatter-domains" in migration_normalize.stdout
+    assert "0 alias domain(s) eligible" in migration_normalize.stdout
+
     recovery = subprocess.run(
         [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "recovery"],
         cwd=ROOT,
@@ -2356,6 +2376,12 @@ def test_vaultwright_migration_reports_legacy_and_unknown_folders(tmp_path: Path
         text=True,
         capture_output=True,
     )
+    normalize_preview = subprocess.run(
+        [sys.executable, str(vault / "tools" / "vaultwright.py"), "migration", "--normalize-frontmatter-domains"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
 
     assert result.returncode == 0, result.stderr or result.stdout
     assert "migration: dry-run only; no files were moved" in result.stdout
@@ -2416,6 +2442,39 @@ def test_vaultwright_migration_reports_legacy_and_unknown_folders(tmp_path: Path
     assert "- [ ] `marketing` -> `20_market`" in worksheet_result.stdout
     assert "- [ ] `marketing/campaign.md`: `marketing` -> `market`" in worksheet_result.stdout
     assert "- [ ] `client_uploads/unknown-domain.md`: `special-projects` -> `manual classification`" in worksheet_result.stdout
+
+    assert normalize_preview.returncode == 0, normalize_preview.stderr or normalize_preview.stdout
+    assert "dry-run only; use --write to update files" in normalize_preview.stdout
+    assert "1 alias domain(s) eligible, planned=1, updated=0, skipped=0, errors=0, unknown=1" in normalize_preview.stdout
+    assert "[planned] marketing/campaign.md: marketing -> market" in normalize_preview.stdout
+    assert "unknown domains were not changed" in normalize_preview.stdout
+    preview_fm, _preview_body = (marketing / "campaign.md").read_text(encoding="utf-8").split("---\n", 2)[1:]
+    assert yaml.safe_load(preview_fm)["domain"] == "marketing"
+
+    normalize_write = subprocess.run(
+        [
+            sys.executable,
+            str(vault / "tools" / "vaultwright.py"),
+            "migration",
+            "--normalize-frontmatter-domains",
+            "--write",
+        ],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert normalize_write.returncode == 0, normalize_write.stderr or normalize_write.stdout
+    assert "write mode; no files were moved" in normalize_write.stdout
+    assert "1 alias domain(s) eligible, planned=0, updated=1, skipped=0, errors=0, unknown=1" in normalize_write.stdout
+    assert "[updated] marketing/campaign.md: marketing -> market" in normalize_write.stdout
+    updated_fm, updated_body = (marketing / "campaign.md").read_text(encoding="utf-8").split("---\n", 2)[1:]
+    assert yaml.safe_load(updated_fm)["domain"] == "market"
+    assert "# Campaign" in updated_body
+    unknown_fm, _unknown_body = (custom / "unknown-domain.md").read_text(encoding="utf-8").split("---\n", 2)[1:]
+    assert yaml.safe_load(unknown_fm)["domain"] == "special-projects"
+    assert marketing.exists()
+    assert custom.exists()
 
 
 def test_vaultwright_recovery_reports_manifest_actions(tmp_path: Path) -> None:
