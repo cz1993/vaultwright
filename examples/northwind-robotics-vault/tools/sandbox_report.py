@@ -42,6 +42,7 @@ EXCLUDED_PARTS = {
     ".github",
     ".githooks",
     ".obsidian",
+    "_archive",
     "_fixtures",
     "_meta",
     "_mirrors",
@@ -147,14 +148,15 @@ def workspace_inventory(root: Path) -> dict[str, Any]:
             continue
         rel = path.relative_to(root)
         suffix = path.suffix.lower() or "[no extension]"
+        excluded = any(part in EXCLUDED_PARTS for part in rel.parts)
         if suffix == ".md" and managed_source_mirror(path):
             if rel.parts[:1] == ("_mirrors",):
                 dedicated_generated_mirrors += 1
-            else:
+            elif not excluded:
                 raw_folder_generated_mirrors += 1
         if rel.parts[:2] == ("80_sources", "repos") and suffix == ".md":
             repo_mirrors += 1
-        if any(part in EXCLUDED_PARTS for part in rel.parts):
+        if excluded:
             continue
         content_files += 1
         extensions[suffix] += 1

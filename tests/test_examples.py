@@ -42,6 +42,7 @@ BENCHMARK_FAMILIES = {"answer", "reconcile", "update", "audit", "consolidate"}
 COPIED_TOOL_FILES = [
     "README.md",
     "benchmark_tasks.py",
+    "catalog_report.py",
     "conversion_report.py",
     "lint_vault.py",
     "pilot_report.py",

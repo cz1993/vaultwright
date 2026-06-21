@@ -6,9 +6,10 @@ These keep your knowledge base current and healthy. See `../CLAUDE.md` §6 for t
 | --- | --- |
 | `sync_office_md.py` | markdown **mirror** under `_mirrors/` for every `.docx/.pptx/.xlsx` (Microsoft markitdown), refreshed on content change |
 | `sync_github_repos.py` | markdown **mirror** under `80_sources/repos/` for each repo in `repos.yml` (README + docs + metadata), refreshed on HEAD change |
-| `vaultwright.py` | thin operator wrapper: `plan`, `sync`, `status`, `conversion`, `migration`, `pilot`, `recovery`, `sandbox`, `lint`, `benchmark`, `doctor`, and repo-root `init` |
+| `vaultwright.py` | thin operator wrapper: `plan`, `sync`, `status`, `catalog`, `conversion`, `migration`, `pilot`, `recovery`, `sandbox`, `lint`, `benchmark`, `doctor`, and repo-root `init` |
 | `lint_vault.py` | health check — frontmatter, broken wikilinks, orphans, overlap warnings, mirror gaps, configured repo mirror gaps, stale generated mirrors |
 | `benchmark_tasks.py` | validates `_meta/agent-readiness-tasks.yml` task packs and optional aggregate result packs |
+| `catalog_report.py` | writes a source-path-only `CATALOG.md` inventory gateway for reviewers and agents |
 | `conversion_report.py` | prints a read-only conversion spot-check report from the source manifest |
 | `migration_report.py` | prints a read-only migration report for legacy or unknown top-level folders |
 | `pilot_report.py` | prints a read-only aggregate pilot evidence report without source content |
@@ -37,6 +38,7 @@ For the operator workflow, prefer:
 python3.11 tools/vaultwright.py plan
 python3.11 tools/vaultwright.py sync
 python3.11 tools/vaultwright.py status
+python3.11 tools/vaultwright.py catalog
 python3.11 tools/vaultwright.py conversion --guide
 python3.11 tools/vaultwright.py migration
 python3.11 tools/vaultwright.py pilot
@@ -52,6 +54,12 @@ manifest lifecycle counts, sync audit presence, recovery action counts, git back
 GitHub auth posture. It also reports optional Obsidian config/plugin posture and `.gitignore` backup
 guard coverage. A fresh vault may warn that manifests, audit logs, repo config, git history, or
 Obsidian UI config are not generated yet; those warnings are preflight context, not sync failures.
+
+`catalog` writes `CATALOG.md` by default. It is a generated source-path and manifest inventory,
+not a content extraction layer: it lists counts, lifecycle states, source/mirror links, repo mirror
+links, unmanaged source candidates, and legacy top-level folders without copying document text.
+Use `--stdout` to preview, `--json` for automation, and `--check` in CI or review scripts to fail
+when the catalog is stale.
 
 `conversion` is read-only. It reads `_meta/source-manifest.json` and turns lifecycle states,
 format risks, warnings, errors, and source/mirror existence into a prioritized spot-check list. It

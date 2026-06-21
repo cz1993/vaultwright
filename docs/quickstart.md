@@ -47,6 +47,7 @@ python3.11 tools/vaultwright.py sandbox --source-root /path/to/original-document
 python3.11 tools/vaultwright.py plan            # inspect source inventory and proposed mirrors
 python3.11 tools/vaultwright.py sync            # mirrors -> _mirrors/ and 80_sources/repos/
 python3.11 tools/vaultwright.py status          # review manifest-backed lifecycle state
+python3.11 tools/vaultwright.py catalog         # write CATALOG.md inventory gateway
 python3.11 tools/vaultwright.py conversion --guide # read-only conversion spot-check and guide
 python3.11 tools/vaultwright.py migration       # dry-run report for legacy/unknown folders
 python3.11 tools/vaultwright.py recovery        # read-only recovery checklist, if states need action
@@ -72,6 +73,8 @@ vault:
   will mirror binaries under `_mirrors/`, create or **extend** a note, link it from the relevant
   hub/entity, and log it.
 - **A question?** Ask the agent; it reads `INDEX.md` / the MOCs first and answers with citations.
+- **Need a non-Obsidian gateway?** Regenerate `CATALOG.md` with `tools/vaultwright.py catalog`;
+  it lists source paths, mirrors, lifecycle states, and inventory stats without copying content.
 - **Housekeeping?** Ask it to *lint* — or just run `tools/lint_vault.py`.
 - **Remember:** prefer consolidating into existing notes over creating new ones. See
   `docs/methodology.md` §4.

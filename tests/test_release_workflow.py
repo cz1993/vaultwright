@@ -55,6 +55,8 @@ def test_release_workflow_verifies_built_wheel_before_release() -> None:
     assert "dist/vaultwright-*.whl" in text
     assert "vaultwright-release-venv" in text
     assert "vaultwright\" init" in text
+    assert "test -f \"$tmp_vault/tools/catalog_report.py\"" in text
+    assert "catalog --check" in text
     assert "test -f \"$tmp_vault/tools/sandbox_report.py\"" in text
     assert "sandbox --source-root" in text
     assert "conversion --guide --json" in text
@@ -65,6 +67,9 @@ def test_release_workflow_verifies_built_wheel_before_release() -> None:
 def test_ci_workflow_smokes_sandbox_command() -> None:
     text = CI_WORKFLOW.read_text(encoding="utf-8")
 
+    assert "template/tools/catalog_report.py" in text
+    assert "test -f \"$tmp_vault/tools/catalog_report.py\"" in text
+    assert "catalog --check" in text
     assert "template/tools/sandbox_report.py" in text
     assert "test -f \"$tmp_vault/tools/sandbox_report.py\"" in text
     assert "sandbox --source-root" in text

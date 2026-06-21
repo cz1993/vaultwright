@@ -6,6 +6,11 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 ## [Unreleased]
 
 ### Added
+- Added `tools/catalog_report.py` and `vaultwright catalog`, which writes a generated
+  source-path-only `CATALOG.md` inventory gateway with domain, format, lifecycle, mirror, repo,
+  unmanaged-source, and legacy-folder summaries.
+- CI and release smoke checks now compile and exercise `catalog`, including packaged-template
+  installation coverage and `catalog --check` freshness validation.
 - Added `tools/sandbox_report.py` and `vaultwright sandbox`, a read-only copied-vault preflight for
   safe pilot workspaces that checks source-root separation, mirror isolation, manifest/recovery
   readiness, and backup posture without printing source paths or document text.

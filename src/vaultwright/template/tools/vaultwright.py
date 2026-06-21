@@ -141,6 +141,22 @@ def command_recovery(args: argparse.Namespace) -> int:
     return run(cmd, root)
 
 
+def command_catalog(args: argparse.Namespace) -> int:
+    root = args.root.resolve()
+    cmd = python_cmd(root, "catalog_report.py")
+    if args.json:
+        cmd.append("--json")
+    if args.stdout:
+        cmd.append("--stdout")
+    if args.check:
+        cmd.append("--check")
+    if args.output != Path("CATALOG.md"):
+        cmd.extend(["--output", str(args.output)])
+    if args.max_items != 500:
+        cmd.extend(["--max-items", str(args.max_items)])
+    return run(cmd, root)
+
+
 def command_sandbox(args: argparse.Namespace) -> int:
     root = args.root.resolve()
     cmd = python_cmd(root, "sandbox_report.py")
@@ -435,6 +451,7 @@ def command_doctor(args: argparse.Namespace) -> int:
         "sync_github_repos.py",
         "lint_vault.py",
         "benchmark_tasks.py",
+        "catalog_report.py",
         "conversion_report.py",
         "migration_report.py",
         "pilot_report.py",
@@ -549,6 +566,18 @@ def build_parser() -> argparse.ArgumentParser:
     recovery = sub.add_parser("recovery", help="Print a read-only manifest recovery checklist.")
     recovery.add_argument("--json", action="store_true", help="Print machine-readable recovery JSON.")
     recovery.set_defaults(func=command_recovery)
+    catalog = sub.add_parser("catalog", help="Generate a source-path-only documentation catalog.")
+    catalog.add_argument("--json", action="store_true", help="Print machine-readable catalog JSON.")
+    catalog.add_argument("--stdout", action="store_true", help="Print catalog Markdown instead of writing CATALOG.md.")
+    catalog.add_argument("--check", action="store_true", help="Fail if CATALOG.md is missing or stale.")
+    catalog.add_argument("--output", type=Path, default=Path("CATALOG.md"), help="Catalog path relative to the vault root.")
+    catalog.add_argument(
+        "--max-items",
+        type=int,
+        default=500,
+        help="Maximum source/repo records to list per catalog section; use 0 for no limit.",
+    )
+    catalog.set_defaults(func=command_catalog)
     sandbox = sub.add_parser("sandbox", help="Print a read-only copied-vault sandbox readiness report.")
     sandbox.add_argument(
         "--source-root",

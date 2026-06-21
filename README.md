@@ -32,8 +32,9 @@ parts nobody else ships:
    of truth; the mirror is searchable, linkable, diffable, and easier for agents to inspect than
    opaque binaries. Your hand-written notes in each mirror are preserved across syncs.
 2. **Linking-first retrieval.** Maps of Content, entity pages, backlinks, and a frontmatter-driven
-   index (Obsidian **Bases**) are the initial retrieval engine. Vector or semantic indexes may
-   help later, but they are not the source of truth.
+   index (Obsidian **Bases**) are the initial retrieval engine. `vaultwright catalog` also
+   generates a path-and-metadata-only `CATALOG.md` gateway for reviewers and agents that do not use
+   Obsidian. Vector or semantic indexes may help later, but they are not the source of truth.
 3. **Anti-proliferation discipline.** The agent is told to **consolidate and update before
    creating**, and the linter flags structural drift plus likely note overlap with review-only
    consolidation suggestions. Restraint is a feature.
@@ -90,6 +91,7 @@ python3.11 tools/vaultwright.py conversion --guide   # read-only conversion spot
 python3.11 tools/vaultwright.py migration            # dry-run report for legacy/unknown folders
 python3.11 tools/vaultwright.py recovery             # read-only recovery checklist from manifests
 python3.11 tools/vaultwright.py sandbox --source-root /path/to/original-documents
+python3.11 tools/vaultwright.py catalog              # generate CATALOG.md inventory gateway
 python3.11 tools/vaultwright.py pilot                # aggregate pilot evidence, no source content
 python3.11 tools/vaultwright.py pilot --worksheet    # redacted Markdown private-pilot summary
 python3.11 tools/vaultwright.py benchmark            # validate agent-readiness task pack, if present

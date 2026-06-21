@@ -91,6 +91,7 @@ def test_vaultwright_cli_doctor_passes_on_template() -> None:
     assert "backup guard: .gitignore covers high-risk local data patterns" in result.stdout
     assert "GitHub auth:" in result.stdout
     assert (ROOT / "template/tools/benchmark_tasks.py").exists()
+    assert (ROOT / "template/tools/catalog_report.py").exists()
     assert (ROOT / "template/tools/conversion_report.py").exists()
     assert (ROOT / "template/tools/migration_report.py").exists()
     assert (ROOT / "template/tools/pilot_report.py").exists()
@@ -372,6 +373,30 @@ def test_packaged_vaultwright_cli_delegates_to_target_vault(tmp_path: Path) -> N
     report = json.loads(recovery_json.stdout)
     assert report["items"] == []
     assert report["summary"]["total"] == 0
+
+    catalog = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "catalog"],
+        cwd=ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert catalog.returncode == 0, catalog.stderr or catalog.stdout
+    assert "catalog: wrote CATALOG.md" in catalog.stdout
+    assert (vault / "CATALOG.md").exists()
+    assert "Documentation Catalog" in (vault / "CATALOG.md").read_text(encoding="utf-8")
+
+    catalog_check = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "catalog", "--check"],
+        cwd=ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert catalog_check.returncode == 0, catalog_check.stderr or catalog_check.stdout
+    assert "catalog: up to date: CATALOG.md" in catalog_check.stdout
 
     source_root = tmp_path / "original-documents"
     source_root.mkdir()
@@ -1285,8 +1310,10 @@ def test_vaultwright_sandbox_report_checks_copied_boundary_without_content(tmp_p
     source = vault / "40_delivery" / "client-plan.docx"
     mirror = vault / "_mirrors" / "40_delivery" / "client-plan.md"
     raw_folder_mirror = vault / "40_delivery" / "client-plan.md"
+    archived_raw_folder_mirror = vault / "_archive" / "legacy-generated" / "40_delivery" / "old-client-plan.md"
     source.parent.mkdir(parents=True, exist_ok=True)
     mirror.parent.mkdir(parents=True, exist_ok=True)
+    archived_raw_folder_mirror.parent.mkdir(parents=True, exist_ok=True)
     source.write_bytes(b"copied private source bytes")
     mirror.write_text(
         "---\n"
@@ -1302,9 +1329,17 @@ def test_vaultwright_sandbox_report_checks_copied_boundary_without_content(tmp_p
         "Legacy sibling mirror text that should not appear\n",
         encoding="utf-8",
     )
+    archived_raw_folder_mirror.write_text(
+        "---\n"
+        "type: source-mirror\n"
+        "---\n"
+        "Archived legacy mirror text that should not appear\n",
+        encoding="utf-8",
+    )
     before_source = source.read_bytes()
     before_mirror = mirror.read_text(encoding="utf-8")
     before_raw_folder_mirror = raw_folder_mirror.read_text(encoding="utf-8")
+    before_archived_raw_folder_mirror = archived_raw_folder_mirror.read_text(encoding="utf-8")
     (vault / "_meta" / "source-manifest.json").write_text(
         json.dumps(
             {
@@ -1391,6 +1426,7 @@ def test_vaultwright_sandbox_report_checks_copied_boundary_without_content(tmp_p
     assert payload["report"]["source_manifest"]["records"] == 1
     assert "copied private source bytes" not in json_result.stdout
     assert "Generated mirror text" not in json_result.stdout
+    assert "Archived legacy mirror text" not in json_result.stdout
     assert "client-plan.docx" not in json_result.stdout
     assert str(vault) not in json_result.stdout
     assert str(source_root) not in json_result.stdout
@@ -1398,6 +1434,7 @@ def test_vaultwright_sandbox_report_checks_copied_boundary_without_content(tmp_p
     assert source.read_bytes() == before_source
     assert mirror.read_text(encoding="utf-8") == before_mirror
     assert raw_folder_mirror.read_text(encoding="utf-8") == before_raw_folder_mirror
+    assert archived_raw_folder_mirror.read_text(encoding="utf-8") == before_archived_raw_folder_mirror
 
 
 def test_vaultwright_sandbox_report_fails_when_source_root_is_vault(tmp_path: Path) -> None:

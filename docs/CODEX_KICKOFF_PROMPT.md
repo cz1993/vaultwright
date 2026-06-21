@@ -153,12 +153,13 @@ not broad industry expansion. Prove the narrow promise first:
 - **Mirror lifecycle correctness:** extend the initial Office/repo manifests and stable IDs into
   complete lifecycle states, rename / move / delete / stale / conflict handling, recovery tests,
   and source-byte integrity tests.
-- **Thin operator CLI:** `tools/vaultwright.py plan`, `sync`, `status`, `conversion`,
+- **Thin operator CLI:** `tools/vaultwright.py plan`, `sync`, `status`, `catalog`, `conversion`,
   `migration`, `pilot`, `recovery`, `sandbox`, `lint`, and `doctor` exist; keep them thin. The source-installable
   `vaultwright` console entry point delegates to the same vault-local wrapper. `plan` must remain
   non-destructive; keep improving its sensitive-file risks, duplicate warnings, and
   conversion-quality estimates before writing. `conversion`, `migration`, `pilot`, and `recovery` must
-  remain read-only operator reports. `sandbox` must remain a read-only copied-vault preflight that
+  remain read-only operator reports. `catalog` writes a generated path-and-metadata-only
+  `CATALOG.md` gateway; it must not copy source document text. `sandbox` must remain a read-only copied-vault preflight that
   verifies the pilot workspace is separate from the original source collection and does not print
   source paths or document bodies.
 - **Fresh-vault automation reliability:** `sync_all.sh` fails on required sync failures, missing

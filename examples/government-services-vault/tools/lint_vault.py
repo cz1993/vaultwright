@@ -19,7 +19,7 @@ except ImportError:
 
 ROOT = Path(__file__).resolve().parent.parent
 REQUIRED = ["title", "type", "status", "domain", "created", "updated"]
-META = {"CLAUDE.md", "AGENTS.md", "INDEX.md", "RETENTION.md", "log.md"}  # structural, exempt from note rules
+META = {"CLAUDE.md", "AGENTS.md", "INDEX.md", "RETENTION.md", "CATALOG.md", "log.md"}  # structural, exempt
 LINK_SRC_SKIP = {"CLAUDE.md", "AGENTS.md", "_meta/conventions.md"}  # docs full of illustrative links
 TYPES = {"moc", "entity", "note", "guide", "policy", "record", "source-mirror", "source-ref", "repo-mirror"}
 STATUSES = {"draft", "active", "in-review", "sent", "signed", "submitted", "awarded", "superseded", "archived"}
