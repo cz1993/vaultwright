@@ -382,6 +382,7 @@ def target_paths(target: str) -> list[Path]:
     if not t:
         return []
     path = Path(t)
+    path_qualified = len(path.parts) > 1 or t.startswith("/")
     if not path.is_absolute() and ".." not in path.parts:
         direct = ROOT / path
         if direct.exists():
@@ -390,6 +391,17 @@ def target_paths(target: str) -> list[Path]:
             direct_md = ROOT / Path(f"{t}.md")
             if direct_md.exists():
                 return [direct_md]
+            parent = ROOT / path.parent
+            if parent.exists():
+                same_path_stem = sorted(
+                    candidate
+                    for candidate in parent.glob(f"{path.name}.*")
+                    if candidate.is_file() and candidate.stem == path.name
+                )
+                if same_path_stem:
+                    return same_path_stem
+    if path_qualified:
+        return []
     cand = t.rsplit("/", 1)[-1]  # basename
     if cand in by_name:           # has extension, e.g. foo.pdf
         return by_name[cand]

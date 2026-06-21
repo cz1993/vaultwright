@@ -1562,6 +1562,76 @@ def test_template_linter_path_qualified_links_count_only_exact_overlap_target(tm
     assert "suggestion: choose one canonical note" not in result.stdout
 
 
+def test_template_linter_broken_path_qualified_link_does_not_fallback_to_same_stem(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    delivery = vault / "40_delivery" / "grant-readiness.md"
+    operations = vault / "50_operations" / "grant-readiness.md"
+    index = vault / "40_delivery" / "delivery-index.md"
+    body = (
+        "The intake checklist reviews eligibility, incorporation status, payroll evidence, "
+        "tax registration, cashflow runway, milestone plan, owner responsibilities, supporting "
+        "documents, application deadline, budget assumptions, reporting cadence, compliance risks, "
+        "grant program fit, review notes, approval path, and follow-up actions.\n"
+    )
+    delivery.write_text(
+        "---\n"
+        "title: Delivery Grant Readiness\n"
+        "type: guide\n"
+        "status: active\n"
+        "domain: delivery\n"
+        "created: 2026-01-01\n"
+        "updated: 2026-01-01\n"
+        "---\n"
+        f"# Delivery Grant Readiness\n\n{body}",
+        encoding="utf-8",
+    )
+    operations.write_text(
+        "---\n"
+        "title: Operations Grant Readiness\n"
+        "type: guide\n"
+        "status: active\n"
+        "domain: operations\n"
+        "created: 2026-01-01\n"
+        "updated: 2026-01-01\n"
+        "---\n"
+        f"# Operations Grant Readiness\n\n{body}",
+        encoding="utf-8",
+    )
+    index.write_text(
+        "---\n"
+        "title: Delivery Index\n"
+        "type: moc\n"
+        "status: active\n"
+        "domain: delivery\n"
+        "created: 2026-01-01\n"
+        "updated: 2026-01-01\n"
+        "---\n"
+        "# Delivery Index\n\n"
+        "The old pointer [[20_market/grant-readiness]] needs repair.\n"
+        "The unsafe pointer [[../50_operations/grant-readiness]] needs repair too.\n"
+        "The absolute pointer [[/50_operations/grant-readiness]] must not fall back either.\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "lint_vault.py")],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0
+    assert "Unresolved wikilinks: 3" in result.stdout
+    assert "40_delivery/delivery-index.md  [20_market/grant-readiness]" in result.stdout
+    assert "40_delivery/delivery-index.md  [../50_operations/grant-readiness]" in result.stdout
+    assert "40_delivery/delivery-index.md  [/50_operations/grant-readiness]" in result.stdout
+    assert "Potential duplicate/overlap notes: 1" in result.stdout
+    assert "40_delivery/grant-readiness.md <-> 50_operations/grant-readiness.md" in result.stdout
+    assert "suggestion: choose one canonical note" in result.stdout
+    assert "suggestion: keep 50_operations/grant-readiness.md" not in result.stdout
+
+
 def test_template_linter_allows_overlap_threshold_calibration(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     shutil.copytree(ROOT / "template", vault)

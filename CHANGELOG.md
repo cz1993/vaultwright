@@ -16,6 +16,8 @@ All notable changes to Vaultwright are documented here. Format loosely follows
   empty `Unnamed:*` table columns and `NaN` placeholder cells.
 - Lint overlap warnings now include human-gated consolidation suggestions, using inbound-link
   counts when available to identify the likely canonical note.
+- Lint now treats broken path-qualified wikilinks as unresolved instead of falling back to
+  same-stem notes in other folders, while still allowing same-path extension matches.
 - Lint now blocks explicit `tools/repos.yml` entries when the configured generated `repo-mirror`
   note is missing, unmanaged, pointed at an invalid output path, or tied to a different repo
   identity.
