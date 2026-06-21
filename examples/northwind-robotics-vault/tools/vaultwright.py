@@ -460,6 +460,58 @@ def recovery_preflight(root: Path) -> tuple[list[str], list[str]]:
     return info, warnings
 
 
+def review_preflight(root: Path) -> tuple[list[str], list[str]]:
+    info: list[str] = []
+    warnings: list[str] = []
+    script = root / "tools" / "review_ledger.py"
+    if not script.exists():
+        return info, warnings
+    try:
+        spec = importlib.util.spec_from_file_location("vaultwright_review_ledger_for_doctor", script)
+        if not spec or not spec.loader:
+            raise ImportError("cannot load review_ledger.py")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        report, report_warnings = module.build_report(root)
+    except Exception as exc:
+        detail = f"{exc.__class__.__name__}: {str(exc)[:120]}"
+        warnings.append(f"review ledger: unavailable ({detail})")
+        return info, warnings
+
+    warnings.extend(f"review ledger: {warning}" for warning in report_warnings)
+    reviewed = int(report.get("reviewed_artifacts", 0) or 0)
+    if not reviewed:
+        info.append("review ledger: no reviewed artifacts yet")
+        return info, warnings
+
+    statuses = report.get("statuses", {}) if isinstance(report.get("statuses"), dict) else {}
+    states = report.get("current_states", {}) if isinstance(report.get("current_states"), dict) else {}
+    status_summary = ", ".join(f"{key}={statuses[key]}" for key in sorted(statuses)) or "no statuses"
+    state_summary = ", ".join(f"{key}={states[key]}" for key in sorted(states)) or "no states"
+    info.append(f"review ledger: {reviewed} reviewed artifact(s) ({status_summary}; {state_summary})")
+
+    stale_or_missing = sum(
+        int(count)
+        for state, count in states.items()
+        if str(state) != "current" and isinstance(count, int)
+    )
+    non_approved = sum(
+        int(count)
+        for status, count in statuses.items()
+        if str(status) != "approved" and isinstance(count, int)
+    )
+    if stale_or_missing:
+        warnings.append(
+            f"review ledger: {stale_or_missing} reviewed artifact(s) are stale, missing, or unreadable; "
+            "run `vaultwright review`."
+        )
+    if non_approved:
+        warnings.append(
+            f"review ledger: {non_approved} reviewed artifact(s) are not approved; run `vaultwright review`."
+        )
+    return info, warnings
+
+
 def command_doctor(args: argparse.Namespace) -> int:
     root = args.root.resolve()
     info: list[str] = []
@@ -518,12 +570,15 @@ def command_doctor(args: argparse.Namespace) -> int:
     if not (root / "tools" / "repos.yml").exists():
         warnings.append("No tools/repos.yml found; repo sync will skip until configured.")
     recovery_info, recovery_warnings = recovery_preflight(root)
+    review_info, review_warnings = review_preflight(root)
     obsidian_info, obsidian_warnings = obsidian_preflight(root)
     backup_info, backup_warnings = backup_preflight(root)
     git_info, git_warnings = git_preflight(root)
     gh_info, gh_warnings = github_auth_preflight(root)
     info.extend(recovery_info)
     warnings.extend(recovery_warnings)
+    info.extend(review_info)
+    warnings.extend(review_warnings)
     info.extend(obsidian_info)
     warnings.extend(obsidian_warnings)
     info.extend(backup_info)

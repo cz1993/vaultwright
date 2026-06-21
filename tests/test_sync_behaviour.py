@@ -86,6 +86,7 @@ def test_vaultwright_cli_doctor_passes_on_template() -> None:
     assert "info: repo-manifest.json: not generated yet" in result.stdout
     assert "info: sync-audit.jsonl: not generated yet" in result.stdout
     assert "info: recovery: no action items" in result.stdout
+    assert "info: review ledger: no reviewed artifacts yet" in result.stdout
     assert "info: Obsidian Bases index: Documents.base present" in result.stdout
     assert "info: Obsidian: .obsidian not present" in result.stdout
     assert "backup guard: .gitignore covers high-risk local data patterns" in result.stdout
@@ -139,6 +140,70 @@ def test_vaultwright_cli_doctor_reports_manifest_lifecycle_counts(tmp_path: Path
     assert "sync-audit.jsonl: 2 events" in result.stdout
     assert "warning: recovery: 1 item needs operator action (office=1, repo=0, temp=0)" in result.stdout
     assert "vaultwright doctor: OK" in result.stdout
+
+
+def test_vaultwright_cli_doctor_reports_review_ledger_posture_without_details(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    (vault / "CATALOG.html").write_text("<!doctype html><title>Private catalog</title>\n", encoding="utf-8")
+    (vault / "CATALOG.md").write_text("# Private Catalog\n", encoding="utf-8")
+
+    approved = subprocess.run(
+        [
+            sys.executable,
+            str(vault / "tools" / "vaultwright.py"),
+            "review",
+            "--artifact",
+            "CATALOG.html",
+            "--status",
+            "approved",
+            "--reviewer",
+            "Private Reviewer",
+            "--note",
+            "private approval note",
+        ],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+    needs_work = subprocess.run(
+        [
+            sys.executable,
+            str(vault / "tools" / "vaultwright.py"),
+            "review",
+            "--artifact",
+            "CATALOG.md",
+            "--status",
+            "needs-work",
+            "--reviewer",
+            "Private Reviewer",
+            "--note",
+            "private issue note",
+        ],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+    (vault / "CATALOG.html").write_text("<!doctype html><title>Changed private catalog</title>\n", encoding="utf-8")
+
+    result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "vaultwright.py"), "doctor"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert approved.returncode == 0, approved.stderr or approved.stdout
+    assert needs_work.returncode == 0, needs_work.stderr or needs_work.stdout
+    assert result.returncode == 0, result.stderr or result.stdout
+    assert "info: review ledger: 2 reviewed artifact(s) (approved=1, needs-work=1; current=1, stale=1)" in result.stdout
+    assert "warning: review ledger: 1 reviewed artifact(s) are stale, missing, or unreadable; run `vaultwright review`." in result.stdout
+    assert "warning: review ledger: 1 reviewed artifact(s) are not approved; run `vaultwright review`." in result.stdout
+    assert "CATALOG.html" not in result.stdout
+    assert "CATALOG.md" not in result.stdout
+    assert "Private Reviewer" not in result.stdout
+    assert "private approval note" not in result.stdout
+    assert "private issue note" not in result.stdout
 
 
 def test_vaultwright_cli_doctor_reports_obsidian_and_backup_posture(tmp_path: Path) -> None:
