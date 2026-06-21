@@ -6,6 +6,8 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 ## [Unreleased]
 
 ### Added
+- Added `scripts/sync_template_copies.py` plus CI/release drift checks so the packaged template and
+  example vault tool copies stay aligned with the canonical `template/` sources.
 - `vaultwright benchmark` now reports citation counts and supports `--require-citations` so scored
   agent-readiness results can be gated on declared source or generated-mirror evidence.
 - Repo sync/status now detects managed `repo` frontmatter identity drift as stale and normal sync

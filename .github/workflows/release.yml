@@ -22,6 +22,8 @@ jobs:
           python-version: "3.11"
       - name: No-data scan
         run: python scripts/no_data_scan.py
+      - name: Template copy drift check
+        run: python scripts/sync_template_copies.py --check
       - name: Build package artifacts
         run: |
           python -m pip install --upgrade pip build

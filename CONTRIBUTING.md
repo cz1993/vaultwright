@@ -30,6 +30,9 @@ git commit -s -m "your message"     # adds: Signed-off-by: Your Name <you@exampl
 
 - One concern per PR; include a short rationale.
 - Run `python3.11 template/tools/lint_vault.py` if you touched the schema, templates, or tools.
+- If you touched `template/` or `template/tools/`, run
+  `python3.11 scripts/sync_template_copies.py --write`, then
+  `python3.11 scripts/sync_template_copies.py --check` before testing.
 - If you touched example fixtures or mirror behavior, regenerate and lint temporary copies of
   `examples/northwind-robotics-vault/` and `examples/government-services-vault/` instead of
   committing generated mirrors, manifests, or audit logs.

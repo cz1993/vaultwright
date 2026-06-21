@@ -72,8 +72,9 @@ section as the active execution trigger until it is resolved.
 4. Add `scripts/no_data_scan.py`, `.githooks/pre-commit`, GitHub Actions CI, and pytest coverage for
    the fixed behaviors.
 5. Update README/template docs and `CHANGELOG.md` so release claims match shipped behavior.
-6. Run: no-data scan, `python3.11 -m py_compile`, shell syntax checks,
-   `python3.11 -m pytest`, and `python3.11 template/tools/lint_vault.py`.
+6. Run: no-data scan, `python3.11 scripts/sync_template_copies.py --check`,
+   `python3.11 -m py_compile`, shell syntax checks, `python3.11 -m pytest`, and
+   `python3.11 template/tools/lint_vault.py`.
 7. Commit with Conventional Commits as `cz1993`, open a PR with `Reviewer: CodeX`, and continue to
    the next P0 item.
 
@@ -187,6 +188,8 @@ not broad industry expansion. Prove the narrow promise first:
 
 - Tests pass in CI; `lint_vault.py` is clean on the template + example vault, including zero
   orphan curated notes and zero overlap warnings after example regeneration.
+- Template-derived copies are current: `python3.11 scripts/sync_template_copies.py --check` passes
+  after any edit to `template/` or `template/tools/`.
 - Scripts remain **idempotent** and cross-platform (macOS + Linux); no new heavy dependencies.
 - No real data/secrets added; no-data guard green.
 - `CHANGELOG.md` + relevant docs updated; commit authored by cz1993; PR reviewed (Claude/CodeX).
