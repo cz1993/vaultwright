@@ -15,9 +15,11 @@ These keep your knowledge base current and healthy. See `../CLAUDE.md` §6 for t
 | `recovery_report.py` | prints a read-only recovery checklist from source/repo manifest lifecycle states |
 | `sync_all.sh` | run both syncs + the linter (for a cron/launchd job) |
 
-`lint_vault.py` reads `_meta/lint-config.yml` for warning-level overlap thresholds. Keep the
-template defaults until copied pilot vaults show too many false positives or false negatives, then
-record any threshold changes in the private pilot worksheet.
+`lint_vault.py` reads `_meta/lint-config.yml` for warning-level overlap thresholds. Overlap
+warnings include human-gated consolidation suggestions and prefer the note with more inbound links
+when that signal is available. Keep the template defaults until copied pilot vaults show too many
+false positives or false negatives, then record any threshold changes in the private pilot
+worksheet.
 
 ## Install
 

@@ -313,6 +313,38 @@ def jaccard(a: set[str], b: set[str]) -> float:
         return 0.0
     return len(a & b) / len(a | b)
 
+def overlap_consolidation_suggestion(left: dict[str, object], right: dict[str, object]) -> str:
+    left_path = str(left["path"])
+    right_path = str(right["path"])
+    left_type = str(left.get("type", ""))
+    right_type = str(right.get("type", ""))
+
+    left_inbound = int(left.get("inbound", 0) or 0)
+    right_inbound = int(right.get("inbound", 0) or 0)
+    if left_inbound != right_inbound:
+        if left_inbound > right_inbound:
+            keep, merge_from = left_path, right_path
+            keep_inbound, merge_inbound = left_inbound, right_inbound
+        else:
+            keep, merge_from = right_path, left_path
+            keep_inbound, merge_inbound = right_inbound, left_inbound
+        return (
+            f"suggestion: keep {keep} ({keep_inbound} inbound link{'s' if keep_inbound != 1 else ''} "
+            f"vs {merge_inbound}); merge unique details from {merge_from}, then mark the duplicate "
+            f"superseded/archived after review"
+        )
+
+    if left_type and right_type and left_type != right_type:
+        return (
+            f"suggestion: review boundaries ({left_type} vs {right_type}); link or consolidate "
+            f"shared material before adding another note"
+        )
+
+    return (
+        f"suggestion: choose one canonical note, merge unique details, then mark one note "
+        f"superseded/archived after review"
+    )
+
 def sha256_of(p: Path) -> str:
     h = hashlib.sha256()
     with p.open("rb") as f:
@@ -345,19 +377,31 @@ for p in all_files:
     by_name.setdefault(p.name, []).append(p)
     by_stem.setdefault(p.stem, []).append(p)
 
+def target_paths(target: str) -> list[Path]:
+    t = target.split("|")[0].split("#")[0].strip()
+    if not t:
+        return []
+    path = Path(t)
+    if not path.is_absolute() and ".." not in path.parts:
+        direct = ROOT / path
+        if direct.exists():
+            return [direct]
+        if not path.suffix:
+            direct_md = ROOT / Path(f"{t}.md")
+            if direct_md.exists():
+                return [direct_md]
+    cand = t.rsplit("/", 1)[-1]  # basename
+    if cand in by_name:           # has extension, e.g. foo.pdf
+        return by_name[cand]
+    if cand in by_stem:           # note by stem
+        return by_stem[cand]
+    return []
+
 def resolve(target: str) -> bool:
     t = target.split("|")[0].split("#")[0].strip()
     if not t:
         return True
-    cand = t.rsplit("/", 1)[-1]  # basename
-    if cand in by_name:           # has extension, e.g. foo.pdf
-        return True
-    if cand in by_stem:           # note by stem
-        return True
-    # path-style without extension
-    if (ROOT / (t + ".md")).exists() or (ROOT / t).exists():
-        return True
-    return False
+    return bool(target_paths(target))
 
 DOMAIN_FOLDERS, DOMAIN_FOLDER_ALIASES, domain_map_errors = domain_folders()
 MIRROR_CONFIG, mirror_config_errors = mirror_config()
@@ -604,6 +648,7 @@ for p in md_notes:
                 overlap_inputs.append({
                     "path": rels,
                     "title": str(fm.get("title", "")),
+                    "type": note_type,
                     "title_words": title_words,
                     "body_words": body_words,
                     "domain": str(fm.get("domain", "")),
@@ -623,11 +668,11 @@ for p in md_notes:
                     targets += LINK_RE.findall(it)
     targets = [t.replace("\\|", "|") for t in targets]  # Obsidian table-escaped pipes
     for t in targets:
-        if not resolve(t):
+        linked_paths = target_paths(t)
+        if not linked_paths:
             unresolved.append((str(rel), t.split("|")[0].split("#")[0].strip()))
         else:
-            tt = t.split("|")[0].split("#")[0].strip().rsplit("/", 1)[-1]
-            for q in by_stem.get(tt, []):
+            for q in linked_paths:
                 if q.suffix == ".md" and q != p:
                     inbound[q] = inbound.get(q, 0) + 1
 
@@ -686,9 +731,14 @@ for left, right in itertools.combinations(overlap_inputs, 2):
     if common_body >= overlap_min_tokens and body_score >= overlap_content_threshold:
         reasons.append(f"content overlap {body_score:.0%}")
     if reasons:
+        left_path = ROOT / Path(str(left["path"]))
+        right_path = ROOT / Path(str(right["path"]))
+        left["inbound"] = inbound.get(left_path, 0)
+        right["inbound"] = inbound.get(right_path, 0)
+        suggestion = overlap_consolidation_suggestion(left, right)
         overlap_candidates.append((
             f"{left['path']} <-> {right['path']}",
-            "; ".join(reasons) + " - review before creating another note",
+            "; ".join(reasons) + f" - {suggestion}",
         ))
 
 def section(title, items, limit=40):

@@ -35,8 +35,8 @@ parts nobody else ships:
    index (Obsidian **Bases**) are the initial retrieval engine. Vector or semantic indexes may
    help later, but they are not the source of truth.
 3. **Anti-proliferation discipline.** The agent is told to **consolidate and update before
-   creating**, and the linter flags structural drift plus likely note overlap. Restraint is a
-   feature.
+   creating**, and the linter flags structural drift plus likely note overlap with review-only
+   consolidation suggestions. Restraint is a feature.
 4. **Governance for real business records.** PII isolation, a retention policy, and
    secrets-stay-out-of-the-vault — because this holds finance, governance, customer, people, and
    operational records, not just personal notes.

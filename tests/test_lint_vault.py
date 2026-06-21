@@ -1372,6 +1372,196 @@ def test_template_linter_reports_overlap_candidates_as_warning_only(tmp_path: Pa
     assert "content overlap" in result.stdout
 
 
+def test_template_linter_overlap_suggests_inbound_canonical_note(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    first = vault / "40_delivery" / "grant-readiness.md"
+    second = vault / "40_delivery" / "funding-readiness.md"
+    index = vault / "40_delivery" / "delivery-index.md"
+    body = (
+        "The intake checklist reviews eligibility, incorporation status, payroll evidence, "
+        "tax registration, cashflow runway, milestone plan, owner responsibilities, supporting "
+        "documents, application deadline, budget assumptions, reporting cadence, compliance risks, "
+        "grant program fit, review notes, approval path, and follow-up actions.\n"
+    )
+    first.write_text(
+        "---\n"
+        "title: Grant Readiness Checklist\n"
+        "type: guide\n"
+        "status: active\n"
+        "domain: delivery\n"
+        "created: 2026-01-01\n"
+        "updated: 2026-01-01\n"
+        "---\n"
+        f"# Grant Readiness Checklist\n\n{body}",
+        encoding="utf-8",
+    )
+    second.write_text(
+        "---\n"
+        "title: Funding Readiness Checklist\n"
+        "type: guide\n"
+        "status: active\n"
+        "domain: delivery\n"
+        "created: 2026-01-01\n"
+        "updated: 2026-01-01\n"
+        "---\n"
+        f"# Funding Readiness Checklist\n\n{body}",
+        encoding="utf-8",
+    )
+    index.write_text(
+        "---\n"
+        "title: Delivery Index\n"
+        "type: moc\n"
+        "status: active\n"
+        "domain: delivery\n"
+        "created: 2026-01-01\n"
+        "updated: 2026-01-01\n"
+        "---\n"
+        "# Delivery Index\n\nUse [[grant-readiness]] as the current checklist.\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "lint_vault.py")],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0
+    assert "Potential duplicate/overlap notes: 1" in result.stdout
+    assert "suggestion: keep 40_delivery/grant-readiness.md (1 inbound link vs 0)" in result.stdout
+    assert "merge unique details from 40_delivery/funding-readiness.md" in result.stdout
+    assert "mark the duplicate superseded/archived after review" in result.stdout
+    assert "shared terms:" not in result.stdout
+    assert "payroll evidence" not in result.stdout
+
+
+def test_template_linter_overlap_uses_inbound_signal_across_note_types(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    guide = vault / "40_delivery" / "grant-readiness.md"
+    note = vault / "40_delivery" / "funding-readiness-note.md"
+    index = vault / "40_delivery" / "delivery-index.md"
+    body = (
+        "The intake checklist reviews eligibility, incorporation status, payroll evidence, "
+        "tax registration, cashflow runway, milestone plan, owner responsibilities, supporting "
+        "documents, application deadline, budget assumptions, reporting cadence, compliance risks, "
+        "grant program fit, review notes, approval path, and follow-up actions.\n"
+    )
+    guide.write_text(
+        "---\n"
+        "title: Grant Readiness Checklist\n"
+        "type: guide\n"
+        "status: active\n"
+        "domain: delivery\n"
+        "created: 2026-01-01\n"
+        "updated: 2026-01-01\n"
+        "---\n"
+        f"# Grant Readiness Checklist\n\n{body}",
+        encoding="utf-8",
+    )
+    note.write_text(
+        "---\n"
+        "title: Funding Readiness Working Note\n"
+        "type: note\n"
+        "status: active\n"
+        "domain: delivery\n"
+        "created: 2026-01-01\n"
+        "updated: 2026-01-01\n"
+        "---\n"
+        f"# Funding Readiness Working Note\n\n{body}",
+        encoding="utf-8",
+    )
+    index.write_text(
+        "---\n"
+        "title: Delivery Index\n"
+        "type: moc\n"
+        "status: active\n"
+        "domain: delivery\n"
+        "created: 2026-01-01\n"
+        "updated: 2026-01-01\n"
+        "---\n"
+        "# Delivery Index\n\nUse [[grant-readiness]] as the canonical checklist.\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "lint_vault.py")],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0
+    assert "Potential duplicate/overlap notes: 1" in result.stdout
+    assert "suggestion: keep 40_delivery/grant-readiness.md (1 inbound link vs 0)" in result.stdout
+    assert "review boundaries (guide vs note)" not in result.stdout
+
+
+def test_template_linter_path_qualified_links_count_only_exact_overlap_target(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    delivery = vault / "40_delivery" / "grant-readiness.md"
+    operations = vault / "50_operations" / "grant-readiness.md"
+    index = vault / "40_delivery" / "delivery-index.md"
+    body = (
+        "The intake checklist reviews eligibility, incorporation status, payroll evidence, "
+        "tax registration, cashflow runway, milestone plan, owner responsibilities, supporting "
+        "documents, application deadline, budget assumptions, reporting cadence, compliance risks, "
+        "grant program fit, review notes, approval path, and follow-up actions.\n"
+    )
+    delivery.write_text(
+        "---\n"
+        "title: Delivery Grant Readiness\n"
+        "type: guide\n"
+        "status: active\n"
+        "domain: delivery\n"
+        "created: 2026-01-01\n"
+        "updated: 2026-01-01\n"
+        "---\n"
+        f"# Delivery Grant Readiness\n\n{body}",
+        encoding="utf-8",
+    )
+    operations.write_text(
+        "---\n"
+        "title: Operations Grant Readiness\n"
+        "type: guide\n"
+        "status: active\n"
+        "domain: operations\n"
+        "created: 2026-01-01\n"
+        "updated: 2026-01-01\n"
+        "---\n"
+        f"# Operations Grant Readiness\n\n{body}",
+        encoding="utf-8",
+    )
+    index.write_text(
+        "---\n"
+        "title: Delivery Index\n"
+        "type: moc\n"
+        "status: active\n"
+        "domain: delivery\n"
+        "created: 2026-01-01\n"
+        "updated: 2026-01-01\n"
+        "---\n"
+        "# Delivery Index\n\nUse [[40_delivery/grant-readiness]] as the current checklist.\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "lint_vault.py")],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0
+    assert "Potential duplicate/overlap notes: 1" in result.stdout
+    assert "40_delivery/grant-readiness.md <-> 50_operations/grant-readiness.md" in result.stdout
+    assert "suggestion: keep 40_delivery/grant-readiness.md (1 inbound link vs 0)" in result.stdout
+    assert "suggestion: choose one canonical note" not in result.stdout
+
+
 def test_template_linter_allows_overlap_threshold_calibration(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     shutil.copytree(ROOT / "template", vault)

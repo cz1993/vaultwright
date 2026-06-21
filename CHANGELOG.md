@@ -14,6 +14,8 @@ All notable changes to Vaultwright are documented here. Format loosely follows
   sync rewrites the managed fields from the manifest/source.
 - Office sync now strips obvious spreadsheet extraction noise from `.xlsx` mirrors, including
   empty `Unnamed:*` table columns and `NaN` placeholder cells.
+- Lint overlap warnings now include human-gated consolidation suggestions, using inbound-link
+  counts when available to identify the likely canonical note.
 - Lint now blocks explicit `tools/repos.yml` entries when the configured generated `repo-mirror`
   note is missing, unmanaged, pointed at an invalid output path, or tied to a different repo
   identity.
