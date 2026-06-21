@@ -239,6 +239,17 @@ The first command allows generated mirror paths to be planned but not present ye
 `--require-generated` variant is for synced working copies and fails when a referenced mirror path
 does not exist.
 
+If a copied pilot vault has synced source manifests but no task pack yet, initialize a private task
+scaffold:
+
+```bash
+python3.11 tools/vaultwright.py benchmark --init-tasks
+```
+
+This writes `_meta/agent-readiness-tasks.yml` from manifest paths only. It does not read or copy
+source text, mirror text, answers, or reviewer notes. Edit the generated prompts, criteria, and
+selected paths before scoring.
+
 If a private pilot records comparison scores in `_meta/agent-readiness-results.yml`, summarize the
 aggregate results with:
 
@@ -249,7 +260,7 @@ python3.11 tools/vaultwright.py benchmark --results _meta/agent-readiness-result
 python3.11 tools/vaultwright.py benchmark --results _meta/agent-readiness-results.yml --json
 ```
 
-To avoid hand-building the private aggregate file, initialize a fillable scaffold:
+To avoid hand-building the private aggregate result file, initialize a fillable scaffold:
 
 ```bash
 python3.11 tools/vaultwright.py benchmark --init-results

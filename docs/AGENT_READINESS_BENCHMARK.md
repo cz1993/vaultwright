@@ -132,12 +132,18 @@ Rules enforced by the validator:
 Validate and summarize results with:
 
 ```bash
+python3.11 tools/vaultwright.py benchmark --init-tasks
 python3.11 tools/vaultwright.py benchmark --init-results
 python3.11 tools/vaultwright.py benchmark --results _meta/agent-readiness-results.yml
 python3.11 tools/vaultwright.py benchmark --results _meta/agent-readiness-results.yml --require-results
 python3.11 tools/vaultwright.py benchmark --results _meta/agent-readiness-results.yml --require-citations
 python3.11 tools/vaultwright.py benchmark --results _meta/agent-readiness-results.yml --json
 ```
+
+`--init-tasks` creates a private `_meta/agent-readiness-tasks.yml` scaffold from synced source
+manifest metadata. It references relative source and generated-mirror paths only; it does not read
+or copy source text, mirror text, answers, or reviewer notes. Treat the scaffold as a starting
+point: edit prompts, success criteria, and selected paths before scoring a real pilot.
 
 `--init-results` creates a private `_meta/agent-readiness-results.yml` scaffold with one entry for
 every task and comparison mode. It leaves scores and correction counts as `null` so an untouched

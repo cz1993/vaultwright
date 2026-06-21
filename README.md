@@ -98,6 +98,7 @@ python3.11 tools/vaultwright.py review --json        # summarize metadata-only h
 python3.11 tools/vaultwright.py pilot                # aggregate pilot evidence, no source content
 python3.11 tools/vaultwright.py pilot --worksheet    # redacted Markdown private-pilot summary
 python3.11 tools/vaultwright.py benchmark            # validate agent-readiness task pack, if present
+python3.11 tools/vaultwright.py benchmark --init-tasks    # create private task scaffold
 python3.11 tools/vaultwright.py benchmark --init-results  # create private result scaffold
 # edit tools/repos.yml, then:
 python3.11 tools/sync_github_repos.py                # mirror your GitHub repos

@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import re
 import sys
 from pathlib import Path
 
@@ -18,9 +19,31 @@ except ImportError:
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_TASKS = Path("_meta/agent-readiness-tasks.yml")
 DEFAULT_RESULTS = Path("_meta/agent-readiness-results.yml")
+SOURCE_MANIFEST = Path("_meta/source-manifest.json")
 MODE_ORDER = ("raw_source_folder", "document_chat_transcript", "vaultwright_markdown")
 REQUIRED_MODES = set(MODE_ORDER)
-FAMILIES = {"answer", "reconcile", "update", "audit", "consolidate"}
+FAMILY_ORDER = ("answer", "reconcile", "update", "audit", "consolidate")
+FAMILIES = set(FAMILY_ORDER)
+RESERVED_CURATED_PARTS = {
+    ".git",
+    ".github",
+    ".githooks",
+    "_fixtures",
+    "_meta",
+    "_mirrors",
+    "_templates",
+    "_tmp",
+    "node_modules",
+    "tools",
+}
+CURATED_EXCLUDED_NAMES = {
+    "AGENTS.md",
+    "CATALOG.md",
+    "CLAUDE.md",
+    "README.md",
+    "RETENTION.md",
+    "log.md",
+}
 RESULT_ALLOWED_FIELDS = {
     "task_id",
     "mode",
@@ -48,19 +71,45 @@ def rel_path(value: str) -> Path | None:
     return path
 
 
-def safe_result_output_path(path_arg: Path) -> Path:
+def safe_yaml_output_path(path_arg: Path, label: str) -> Path:
     path = path_arg if path_arg.is_absolute() else ROOT / path_arg
     resolved_root = ROOT.resolve()
     resolved = path.expanduser().resolve(strict=False)
     try:
         resolved.relative_to(resolved_root)
     except ValueError as exc:
-        raise ValueError("result scaffold output must stay inside the vault") from exc
+        raise ValueError(f"{label} output must stay inside the vault") from exc
     if resolved.suffix not in {".yml", ".yaml"}:
-        raise ValueError("result scaffold output must be a .yml or .yaml file")
+        raise ValueError(f"{label} output must be a .yml or .yaml file")
     if resolved.exists() and resolved.is_dir():
-        raise ValueError("result scaffold output must be a file, not a directory")
+        raise ValueError(f"{label} output must be a file, not a directory")
     return resolved
+
+
+def safe_task_output_path(path_arg: Path) -> Path:
+    return safe_yaml_output_path(path_arg, "task scaffold")
+
+
+def safe_result_output_path(path_arg: Path) -> Path:
+    return safe_yaml_output_path(path_arg, "result scaffold")
+
+
+def slug(value: str) -> str:
+    cleaned = re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
+    return cleaned or "task"
+
+
+def load_json_mapping(rel: Path) -> tuple[dict, list[str]]:
+    path = ROOT / rel
+    if not path.exists():
+        return {}, [f"{rel.as_posix()}: missing; run sync before initializing benchmark tasks"]
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        return {}, [f"{rel.as_posix()}: invalid JSON ({exc.__class__.__name__})"]
+    if not isinstance(data, dict):
+        return {}, [f"{rel.as_posix()}: must be a JSON object"]
+    return data, []
 
 
 def load_tasks(path: Path) -> tuple[dict, list[str]]:
@@ -195,6 +244,187 @@ def task_ids_from_pack(data: dict) -> set[str]:
         for task in tasks
         if isinstance(task, dict) and str(task.get("id", "")).strip()
     }
+
+
+def source_manifest_pairs(limit: int) -> tuple[list[dict[str, str]], int, list[str], list[str]]:
+    data, errors = load_json_mapping(SOURCE_MANIFEST)
+    warnings: list[str] = []
+    if errors:
+        return [], 0, errors, warnings
+    records = data.get("records")
+    if not isinstance(records, list):
+        return [], 0, [f"{SOURCE_MANIFEST.as_posix()}: records must be a list"], warnings
+
+    pairs: list[dict[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+    for index, record in enumerate(records):
+        if not isinstance(record, dict):
+            warnings.append(f"{SOURCE_MANIFEST.as_posix()}: skipped non-object record {index}")
+            continue
+        source_rel = rel_path(str(record.get("current_source_path", "")))
+        mirror_rel = rel_path(str(record.get("mirror_path", "")))
+        if source_rel is None or mirror_rel is None:
+            warnings.append(f"{SOURCE_MANIFEST.as_posix()}: skipped record {index} with invalid source or mirror path")
+            continue
+        if "_mirrors" in source_rel.parts or "_mirrors" not in mirror_rel.parts:
+            warnings.append(f"{SOURCE_MANIFEST.as_posix()}: skipped record {index} with incompatible source or mirror path")
+            continue
+        source_path = ROOT / source_rel
+        mirror_path = ROOT / mirror_rel
+        if not source_path.exists() or not mirror_path.exists():
+            continue
+        key = (source_rel.as_posix(), mirror_rel.as_posix())
+        if key in seen:
+            continue
+        seen.add(key)
+        pairs.append(
+            {
+                "source": source_rel.as_posix(),
+                "mirror": mirror_rel.as_posix(),
+                "state": str(record.get("lifecycle_state", "")),
+            }
+        )
+
+    pairs.sort(key=lambda item: (0 if item["state"] == "clean" else 1, item["source"]))
+    return pairs[:limit], len(pairs), [], warnings
+
+
+def curated_path_candidates(limit: int) -> list[str]:
+    if limit <= 0:
+        return []
+    candidates: list[Path] = []
+    for path in ROOT.rglob("*.md"):
+        if not path.is_file() or path.is_symlink():
+            continue
+        rel = path.relative_to(ROOT)
+        if RESERVED_CURATED_PARTS.intersection(rel.parts):
+            continue
+        if path.name in CURATED_EXCLUDED_NAMES:
+            continue
+        candidates.append(rel)
+    candidates.sort(key=lambda rel: (len(rel.parts), rel.as_posix().lower()))
+    return [rel.as_posix() for rel in candidates[:limit]]
+
+
+def task_scaffold_data(source_pairs: list[dict[str, str]], curated_paths: list[str]) -> dict:
+    source_paths = [item["source"] for item in source_pairs]
+    mirror_paths = [item["mirror"] for item in source_pairs]
+    common_criteria = [
+        "uses only the declared source, generated mirror, or curated paths as evidence",
+        "cites relative vault paths for material claims",
+        "flags unknowns or human-review needs instead of guessing",
+    ]
+    task_specs = {
+        "answer": (
+            "What reliable answer can be produced from the selected source set?",
+            [
+                *common_criteria,
+                "separates direct source-backed facts from interpretation",
+            ],
+        ),
+        "reconcile": (
+            "Which selected sources appear to overlap, disagree, or require human reconciliation?",
+            [
+                *common_criteria,
+                "identifies agreement, conflict, and insufficient-evidence cases separately",
+            ],
+        ),
+        "update": (
+            "If one selected source changes, which generated mirrors or curated notes should be reviewed?",
+            [
+                *common_criteria,
+                "does not recommend editing original source files or generated mirror regions directly",
+            ],
+        ),
+        "audit": (
+            "What evidence trail supports the selected knowledge claims?",
+            [
+                *common_criteria,
+                "includes both original source and generated mirror evidence when available",
+            ],
+        ),
+        "consolidate": (
+            "Where should a new related fact be added without creating duplicate notes?",
+            [
+                *common_criteria,
+                "recommends updating an existing note or mirror context before creating a new note",
+            ],
+        ),
+    }
+    tasks = []
+    for family in FAMILY_ORDER:
+        prompt, criteria = task_specs[family]
+        task = {
+            "id": f"scaffold-{slug(family)}",
+            "family": family,
+            "prompt": prompt,
+            "source_paths": source_paths,
+            "generated_mirror_paths": mirror_paths,
+            "curated_paths": curated_paths if family in {"update", "consolidate"} else [],
+            "success_criteria": criteria,
+        }
+        tasks.append(task)
+    return {
+        "schema_version": 1,
+        "corpus": ROOT.name,
+        "description": (
+            "Private benchmark task scaffold generated from Vaultwright manifest metadata. "
+            "Edit prompts and success criteria before treating results as product evidence."
+        ),
+        "comparison_modes": list(MODE_ORDER),
+        "scoring": {
+            "scale": "0-2",
+            "zero": "wrong, uncited, unsafe, or not actionable",
+            "one": "partially correct but missing caveats, citations, or audit/update evidence",
+            "two": "correct, source-backed, and operationally useful",
+        },
+        "tasks": tasks,
+    }
+
+
+def write_task_scaffold(
+    output_path: Path,
+    *,
+    source_limit: int,
+    curated_limit: int,
+    force: bool,
+) -> tuple[dict, list[str], list[str]]:
+    errors: list[str] = []
+    warnings: list[str] = []
+    if source_limit < 1:
+        errors.append("--scaffold-sources must be >= 1")
+    if curated_limit < 0:
+        errors.append("--scaffold-curated must be >= 0")
+    if errors:
+        return {}, errors, warnings
+
+    existed = output_path.exists()
+    if existed and not force:
+        return {}, [f"benchmark_tasks: {display_path(output_path)} already exists; use --force to overwrite"], warnings
+
+    source_pairs, available_pairs, pair_errors, pair_warnings = source_manifest_pairs(source_limit)
+    errors.extend(pair_errors)
+    warnings.extend(pair_warnings)
+    if not errors and not source_pairs:
+        errors.append("benchmark_tasks: no usable source/mirror manifest records found; run sync and retry")
+    if errors:
+        return {}, errors, warnings
+
+    curated_paths = curated_path_candidates(curated_limit)
+    data = task_scaffold_data(source_pairs, curated_paths)
+    text = yaml.safe_dump(data, sort_keys=False, allow_unicode=False)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(text, encoding="utf-8")
+    summary = {
+        "path": display_path(output_path),
+        "tasks": len(data["tasks"]),
+        "source_paths": len(source_pairs),
+        "available_source_paths": available_pairs,
+        "generated_mirror_paths": len(source_pairs),
+        "curated_paths": len(curated_paths),
+        "overwritten": existed,
+    }
+    return summary, errors, warnings
 
 
 def result_scaffold_text(task_data: dict) -> tuple[str, int]:
@@ -476,6 +706,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--tasks", type=Path, default=DEFAULT_TASKS, help="Task pack path relative to the vault root.")
     parser.add_argument("--results", type=Path, help="Optional benchmark results path relative to the vault root.")
     parser.add_argument(
+        "--init-tasks",
+        action="store_true",
+        help="Create a private task-pack scaffold from synced manifest metadata instead of validating tasks.",
+    )
+    parser.add_argument(
         "--init-results",
         action="store_true",
         help="Create a private result-pack scaffold from the task pack instead of validating results.",
@@ -483,7 +718,19 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--force",
         action="store_true",
-        help="Overwrite an existing result scaffold when used with --init-results.",
+        help="Overwrite an existing task or result scaffold when used with --init-tasks or --init-results.",
+    )
+    parser.add_argument(
+        "--scaffold-sources",
+        type=int,
+        default=5,
+        help="Maximum source/mirror pairs to reference when initializing a task scaffold.",
+    )
+    parser.add_argument(
+        "--scaffold-curated",
+        type=int,
+        default=5,
+        help="Maximum existing curated markdown notes to reference when initializing a task scaffold.",
     )
     parser.add_argument("--require-generated", action="store_true", help="Require generated mirror paths to exist.")
     parser.add_argument("--require-results", action="store_true", help="Require benchmark results for every task/mode pair.")
@@ -498,8 +745,17 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main() -> int:
     args = build_parser().parse_args()
-    if args.force and not args.init_results:
-        print("benchmark_tasks: --force is only valid with --init-results", file=sys.stderr)
+    if args.force and not (args.init_tasks or args.init_results):
+        print("benchmark_tasks: --force is only valid with --init-tasks or --init-results", file=sys.stderr)
+        return 1
+    if args.init_tasks and args.init_results:
+        print("benchmark_tasks: choose either --init-tasks or --init-results, not both", file=sys.stderr)
+        return 1
+    if args.init_tasks and (args.results or args.require_results or args.require_citations):
+        print(
+            "benchmark_tasks: --init-tasks cannot be combined with --results, --require-results, or --require-citations",
+            file=sys.stderr,
+        )
         return 1
     if args.init_results and (args.require_results or args.require_citations):
         print(
@@ -510,12 +766,54 @@ def main() -> int:
     task_path = args.tasks if args.tasks.is_absolute() else ROOT / args.tasks
     result_path_arg = args.results or DEFAULT_RESULTS
     result_path = result_path_arg if result_path_arg.is_absolute() else ROOT / result_path_arg
+    if args.init_tasks:
+        errors: list[str] = []
+        try:
+            task_output = safe_task_output_path(args.tasks)
+        except ValueError as exc:
+            task_output = None
+            errors.append(str(exc))
+        summary: dict = {}
+        warnings: list[str] = []
+        if task_output is not None:
+            summary, scaffold_errors, warnings = write_task_scaffold(
+                task_output,
+                source_limit=args.scaffold_sources,
+                curated_limit=args.scaffold_curated,
+                force=args.force,
+            )
+            errors.extend(scaffold_errors)
+        if args.json:
+            print(
+                json.dumps(
+                    {"task_scaffold": summary, "warnings": warnings, "errors": errors},
+                    indent=2,
+                    sort_keys=True,
+                )
+            )
+        else:
+            if summary:
+                print(f"benchmark_tasks: wrote task scaffold with {summary['tasks']} tasks to {summary['path']}")
+                print(
+                    "  refs: "
+                    f"sources={summary['source_paths']} "
+                    f"generated_mirrors={summary['generated_mirror_paths']} "
+                    f"curated={summary['curated_paths']}"
+                )
+                print("  edit prompts and success criteria before scoring pilot results")
+            for warning in warnings:
+                print(f"  warning: {warning}")
+            for error in errors:
+                print(f"  error: {error}", file=sys.stderr)
+        return 1 if errors else 0
+
     if not task_path.exists():
         if (
             args.tasks == DEFAULT_TASKS
             and not args.results
             and not args.require_results
             and not args.init_results
+            and not args.init_tasks
             and not result_path.exists()
         ):
             print(f"benchmark_tasks: no {DEFAULT_TASKS.as_posix()} found; benchmark validation skipped")

@@ -89,9 +89,10 @@ vault:
 - **Remember:** prefer consolidating into existing notes over creating new ones. See
   `docs/methodology.md` §4.
 - **Agent-readiness pilot?** Use `docs/AGENT_READINESS_BENCHMARK.md` and
-  `tools/vaultwright.py benchmark --init-results` to create a private score scaffold, then
-  `tools/vaultwright.py benchmark --results _meta/agent-readiness-results.yml` to compare
-  raw-source, document-chat, and Vaultwright-markdown performance on the same questions.
+  `tools/vaultwright.py benchmark --init-tasks` to create a private task scaffold after sync, then
+  `tools/vaultwright.py benchmark --init-results` and
+  `tools/vaultwright.py benchmark --results _meta/agent-readiness-results.yml` to compare raw-source,
+  document-chat, and Vaultwright-markdown performance on the same questions.
 - **Microsoft 365 handoff?** Use `docs/MICROSOFT_365_HANDOFF.md` and
   `tools/vaultwright.py m365` to check whether the generated mirror/catalog layer is ready for a
   governed SharePoint, OneDrive, Copilot Studio, or connector review.

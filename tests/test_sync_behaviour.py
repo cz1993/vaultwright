@@ -669,6 +669,44 @@ def write_agent_benchmark_fixture(vault: Path) -> None:
     )
 
 
+def write_agent_benchmark_manifest_fixture(vault: Path) -> None:
+    source = vault / "40_delivery" / "client-plan.docx"
+    mirror = vault / "_mirrors" / "40_delivery" / "client-plan.md"
+    curated = vault / "40_delivery" / "Client Plan Hub.md"
+    source.parent.mkdir(parents=True, exist_ok=True)
+    mirror.parent.mkdir(parents=True, exist_ok=True)
+    curated.parent.mkdir(parents=True, exist_ok=True)
+    source.write_bytes(b"synthetic benchmark source")
+    mirror.write_text("---\nsource_path: 40_delivery/client-plan.docx\n---\nSynthetic mirror\n", encoding="utf-8")
+    curated.write_text(
+        "---\ntype: guide\nstatus: draft\ndomain: delivery\n---\n# Client Plan Hub\n",
+        encoding="utf-8",
+    )
+    (vault / "_meta" / "source-manifest.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "records": [
+                    {
+                        "source_id": "src_client_plan",
+                        "current_source_path": "40_delivery/client-plan.docx",
+                        "mirror_path": "_mirrors/40_delivery/client-plan.md",
+                        "lifecycle_state": "clean",
+                    },
+                    {
+                        "source_id": "src_missing_mirror",
+                        "current_source_path": "40_delivery/missing-mirror.docx",
+                        "mirror_path": "_mirrors/40_delivery/missing-mirror.md",
+                        "lifecycle_state": "planned",
+                    },
+                ],
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+
 def test_vaultwright_benchmark_reports_result_scores_without_answer_content(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     shutil.copytree(ROOT / "template", vault)
@@ -1023,6 +1061,91 @@ def test_vaultwright_benchmark_default_result_file_requires_task_pack(tmp_path: 
     assert "benchmark_tasks: missing task pack: _meta/agent-readiness-tasks.yml" in result.stderr
 
 
+def test_vaultwright_benchmark_init_tasks_writes_private_scaffold_from_manifest(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    write_agent_benchmark_manifest_fixture(vault)
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(vault / "tools" / "vaultwright.py"),
+            "benchmark",
+            "--init-tasks",
+            "--scaffold-sources",
+            "1",
+            "--scaffold-curated",
+            "1",
+        ],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+    assert "benchmark_tasks: wrote task scaffold with 5 tasks to _meta/agent-readiness-tasks.yml" in result.stdout
+    assert "refs: sources=1 generated_mirrors=1 curated=1" in result.stdout
+    assert "client-plan" not in result.stdout
+    assert "client-plan" not in result.stderr
+    task_text = (vault / "_meta" / "agent-readiness-tasks.yml").read_text(encoding="utf-8")
+    task_pack = yaml.safe_load(task_text)
+    assert task_pack["schema_version"] == 1
+    assert task_pack["corpus"] == "vault"
+    assert set(task_pack["comparison_modes"]) == {
+        "raw_source_folder",
+        "document_chat_transcript",
+        "vaultwright_markdown",
+    }
+    assert {task["family"] for task in task_pack["tasks"]} == {
+        "answer",
+        "reconcile",
+        "update",
+        "audit",
+        "consolidate",
+    }
+    assert len(task_pack["tasks"]) == 5
+    assert all(task["source_paths"] == ["40_delivery/client-plan.docx"] for task in task_pack["tasks"])
+    assert all(task["generated_mirror_paths"] == ["_mirrors/40_delivery/client-plan.md"] for task in task_pack["tasks"])
+    assert all(task["success_criteria"] for task in task_pack["tasks"])
+    assert "Synthetic mirror" not in task_text
+
+    validation = subprocess.run(
+        [
+            sys.executable,
+            str(vault / "tools" / "vaultwright.py"),
+            "benchmark",
+            "--require-generated",
+        ],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+    assert validation.returncode == 0, validation.stderr or validation.stdout
+    assert "benchmark_tasks: 5 tasks" in validation.stdout
+
+
+def test_vaultwright_benchmark_init_tasks_refuses_existing_pack_without_force(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    write_agent_benchmark_manifest_fixture(vault)
+    (vault / "_meta" / "agent-readiness-tasks.yml").write_text("existing: true\n", encoding="utf-8")
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(vault / "tools" / "vaultwright.py"),
+            "benchmark",
+            "--init-tasks",
+        ],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 1
+    assert "_meta/agent-readiness-tasks.yml already exists; use --force to overwrite" in result.stderr
+
+
 def test_vaultwright_benchmark_init_results_writes_private_scaffold(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     shutil.copytree(ROOT / "template", vault)
@@ -1156,6 +1279,46 @@ def test_packaged_vaultwright_cli_delegates_benchmark_init_results(tmp_path: Pat
         "overwritten": True,
         "path": "_meta/agent-readiness-results.yml",
         "results": 15,
+    }
+
+
+def test_packaged_vaultwright_cli_delegates_benchmark_init_tasks(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    write_agent_benchmark_manifest_fixture(vault)
+    env = {**os.environ, "PYTHONPATH": str(ROOT / "src")}
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "vaultwright.cli",
+            "--root",
+            str(vault),
+            "benchmark",
+            "--init-tasks",
+            "--scaffold-sources",
+            "1",
+            "--scaffold-curated",
+            "0",
+            "--json",
+        ],
+        cwd=ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+    payload = json.loads(result.stdout)
+    assert payload["task_scaffold"] == {
+        "available_source_paths": 1,
+        "curated_paths": 0,
+        "generated_mirror_paths": 1,
+        "overwritten": False,
+        "path": "_meta/agent-readiness-tasks.yml",
+        "source_paths": 1,
+        "tasks": 5,
     }
 
 

@@ -70,6 +70,7 @@ python3.11 tools/vaultwright.py m365
 python3.11 tools/vaultwright.py review --json
 python3.11 tools/vaultwright.py pilot --json
 python3.11 tools/vaultwright.py pilot --worksheet
+python3.11 tools/vaultwright.py benchmark --init-tasks
 python3.11 tools/vaultwright.py benchmark --require-generated
 python3.11 tools/vaultwright.py benchmark --init-results
 python3.11 tools/vaultwright.py benchmark --results _meta/agent-readiness-results.yml --require-results
