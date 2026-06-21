@@ -351,6 +351,32 @@ def html_table(headers: list[str], rows: list[list[object]], raw_columns: set[in
     return lines
 
 
+def chart_panel(title: str, rows: list[tuple[str, int, str]]) -> list[str]:
+    lines = ['<div class="chart">', f"<h3>{html_escape(title)}</h3>"]
+    visible = [(label, int(count), detail) for label, count, detail in rows if int(count) > 0]
+    if not visible:
+        lines.append('<p class="empty">No records yet.</p>')
+        lines.append("</div>")
+        return lines
+    max_count = max(count for _label, count, _detail in visible)
+    for label, count, detail in visible:
+        width = round((count / max_count) * 100) if max_count else 0
+        lines.extend(
+            [
+                '<div class="bar-row">',
+                '<div class="bar-meta">',
+                f'<span class="bar-label">{html_escape(label)}</span>',
+                f'<span class="bar-count">{html_escape(count)}</span>',
+                "</div>",
+                f'<div class="bar" aria-label="{html_escape(label)}: {html_escape(count)}"><span style="width: {width}%"></span></div>',
+                f'<div class="bar-detail">{html_escape(detail)}</div>',
+                "</div>",
+            ]
+        )
+    lines.append("</div>")
+    return lines
+
+
 def limited(items: list[Any], max_items: int) -> tuple[list[Any], int]:
     if max_items <= 0 or len(items) <= max_items:
         return items, 0
@@ -487,6 +513,26 @@ def render_html(report: dict[str, Any], warnings: list[str], errors: list[str], 
     source_items, hidden_sources = limited(report["source_items"], max_items)
     unmanaged_sources, hidden_unmanaged = limited(report["unmanaged_sources"], max_items)
     repo_items, hidden_repos = limited(report["repo_items"], max_items)
+    domain_chart_rows = [
+        (
+            f"{item['folder'] or item['domain']} ({item['domain']})",
+            int(item["source_candidates"]) + int(item["markdown_files"]),
+            f"sources={item['source_candidates']}, markdown={item['markdown_files']}",
+        )
+        for item in report["domains"]
+    ]
+    state_chart_rows = [
+        (state, int(count), "source manifest lifecycle state")
+        for state, count in report["states"].items()
+    ]
+    format_chart_rows = [
+        (fmt, int(count), "source manifest format")
+        for fmt, count in report["formats"].items()
+    ]
+    top_level_rows = [
+        (folder, int(count), "files in workspace inventory")
+        for folder, count in sorted(report["top_level_counts"].items(), key=lambda item: (-int(item[1]), str(item[0])))[:12]
+    ]
 
     lines = [
         "<!doctype html>",
@@ -510,6 +556,15 @@ def render_html(report: dict[str, Any], warnings: list[str], errors: list[str], 
         ".card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px; }",
         ".card strong { display: block; font-size: 24px; line-height: 1.1; margin-bottom: 4px; }",
         ".section { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px; margin-top: 14px; overflow-x: auto; }",
+        ".chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; }",
+        ".chart h3 { margin: 0 0 10px; font-size: 15px; letter-spacing: 0; }",
+        ".bar-row { margin: 0 0 12px; }",
+        ".bar-meta { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }",
+        ".bar-label { min-width: 0; overflow-wrap: anywhere; }",
+        ".bar-count { color: var(--muted); font-variant-numeric: tabular-nums; }",
+        ".bar { height: 8px; margin-top: 4px; overflow: hidden; border-radius: 999px; background: #edf1f7; }",
+        ".bar span { display: block; height: 100%; min-width: 2px; border-radius: inherit; background: linear-gradient(90deg, #1f6feb, #12a594); }",
+        ".bar-detail { margin-top: 2px; color: var(--muted); font-size: 12px; }",
         "table { width: 100%; border-collapse: collapse; min-width: 640px; }",
         "th, td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }",
         "th { color: var(--muted); font-weight: 600; background: #fbfcfe; }",
@@ -544,6 +599,13 @@ def render_html(report: dict[str, Any], warnings: list[str], errors: list[str], 
     for label, value in summary_cards:
         lines.append(f'<div class="card"><strong>{html_escape(value)}</strong><span>{html_escape(label)}</span></div>')
     lines.append("</section>")
+
+    lines.extend(['<section class="section">', "<h2>Inventory Visuals</h2>", '<div class="chart-grid">'])
+    lines.extend(chart_panel("Domain Mix", domain_chart_rows))
+    lines.extend(chart_panel("Lifecycle States", state_chart_rows))
+    lines.extend(chart_panel("Source Formats", format_chart_rows))
+    lines.extend(chart_panel("Top-Level Files", top_level_rows))
+    lines.extend(["</div>", "</section>"])
 
     if warnings or errors:
         lines.extend(['<section class="section">', "<h2>Catalog Warnings</h2>", "<ul>"])

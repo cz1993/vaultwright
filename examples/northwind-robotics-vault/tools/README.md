@@ -60,8 +60,10 @@ Obsidian UI config are not generated yet; those warnings are preflight context, 
 `catalog` writes `CATALOG.md` by default, and `CATALOG.html` when called with `--html`. Both are
 generated source-path and manifest inventories, not content extraction layers: they list counts,
 lifecycle states, source/mirror links, repo mirror links, unmanaged source candidates, and legacy
-top-level folders without copying document text. Use `--stdout` to preview, `--json` for
-automation, and `--check` in CI or review scripts to fail when the selected catalog is stale.
+top-level folders without copying document text. The HTML gateway also includes static aggregate
+charts for domain mix, lifecycle states, source formats, and top-level file distribution. Use
+`--stdout` to preview, `--json` for automation, and `--check` in CI or review scripts to fail when
+the selected catalog is stale.
 
 `conversion` is read-only. It reads `_meta/source-manifest.json` and turns lifecycle states,
 format risks, warnings, errors, and source/mirror existence into a prioritized spot-check list. It

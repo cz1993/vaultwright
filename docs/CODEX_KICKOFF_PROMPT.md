@@ -159,7 +159,8 @@ not broad industry expansion. Prove the narrow promise first:
   non-destructive; keep improving its sensitive-file risks, duplicate warnings, and
   conversion-quality estimates before writing. `conversion`, `migration`, `pilot`, and `recovery` must
   remain read-only operator reports. `catalog` writes generated path-and-metadata-only
-  `CATALOG.md` and `CATALOG.html` gateways; neither may copy source document text.
+  `CATALOG.md` and `CATALOG.html` gateways; neither may copy source document text. HTML catalog
+  charts must stay aggregate-only and deterministic.
   `sandbox` must remain a read-only copied-vault preflight that
   verifies the pilot workspace is separate from the original source collection and does not print
   source paths or document bodies.

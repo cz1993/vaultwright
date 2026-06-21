@@ -48,7 +48,7 @@ python3.11 tools/vaultwright.py plan            # inspect source inventory and p
 python3.11 tools/vaultwright.py sync            # mirrors -> _mirrors/ and 80_sources/repos/
 python3.11 tools/vaultwright.py status          # review manifest-backed lifecycle state
 python3.11 tools/vaultwright.py catalog         # write CATALOG.md inventory gateway
-python3.11 tools/vaultwright.py catalog --html  # write CATALOG.html visual gateway
+python3.11 tools/vaultwright.py catalog --html  # write CATALOG.html visual inventory gateway
 python3.11 tools/vaultwright.py conversion --guide # read-only conversion spot-check and guide
 python3.11 tools/vaultwright.py migration       # dry-run report for legacy/unknown folders
 python3.11 tools/vaultwright.py migration --worksheet # Markdown cleanup checklist
@@ -77,7 +77,8 @@ vault:
 - **A question?** Ask the agent; it reads `INDEX.md` / the MOCs first and answers with citations.
 - **Need a non-Obsidian gateway?** Regenerate `CATALOG.md` with `tools/vaultwright.py catalog`,
   or `CATALOG.html` with `tools/vaultwright.py catalog --html`; both list source paths, mirrors,
-  lifecycle states, and inventory stats without copying content.
+  lifecycle states, and inventory stats without copying content. The HTML gateway adds static
+  aggregate charts for quick review.
 - **Housekeeping?** Ask it to *lint* — or just run `tools/lint_vault.py`.
 - **Remember:** prefer consolidating into existing notes over creating new ones. See
   `docs/methodology.md` §4.

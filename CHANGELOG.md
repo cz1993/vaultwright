@@ -10,7 +10,7 @@ All notable changes to Vaultwright are documented here. Format loosely follows
   source-path-only `CATALOG.md` inventory gateway with domain, format, lifecycle, mirror, repo,
   unmanaged-source, and legacy-folder summaries.
 - `vaultwright catalog --html` now writes the same path-and-metadata-only inventory as a static
-  `CATALOG.html` gateway for reviewers who prefer a browser surface.
+  `CATALOG.html` gateway with aggregate charts for reviewers who prefer a browser surface.
 - CI and release smoke checks now compile and exercise `catalog`, including packaged-template
   installation coverage and Markdown/HTML `catalog --check` freshness validation.
 - `vaultwright migration` now reports legacy or unknown note frontmatter domains using
