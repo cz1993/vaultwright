@@ -50,6 +50,7 @@ python3.11 tools/vaultwright.py status          # review manifest-backed lifecyc
 python3.11 tools/vaultwright.py catalog         # write CATALOG.md inventory gateway
 python3.11 tools/vaultwright.py catalog --html  # write CATALOG.html visual inventory gateway
 python3.11 tools/vaultwright.py m365            # Microsoft 365/Copilot handoff readiness
+python3.11 tools/vaultwright.py review --json   # summarize metadata-only review decisions
 python3.11 tools/vaultwright.py conversion --guide # read-only conversion spot-check and guide
 python3.11 tools/vaultwright.py migration       # dry-run report for legacy/unknown folders
 python3.11 tools/vaultwright.py migration --worksheet # Markdown cleanup checklist
@@ -80,6 +81,10 @@ vault:
   or `CATALOG.html` with `tools/vaultwright.py catalog --html`; both list source paths, mirrors,
   lifecycle states, and inventory stats without copying content. The HTML gateway adds static
   aggregate charts for quick review.
+- **Reviewed an artifact?** Record the decision with
+  `tools/vaultwright.py review --artifact CATALOG.html --status approved --reviewer <name>`.
+  The ledger stores hashes and short metadata notes only, then reports approvals as stale if the
+  reviewed artifact changes.
 - **Housekeeping?** Ask it to *lint* — or just run `tools/lint_vault.py`.
 - **Remember:** prefer consolidating into existing notes over creating new ones. See
   `docs/methodology.md` §4.

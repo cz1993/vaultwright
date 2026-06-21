@@ -60,6 +60,11 @@ Current implementation status:
 - not complete: full rename/move UX, rollback automation, quantitative conversion-quality scoring
   beyond checklist-based spot checks, and exhaustive conflict-resolution flows.
 
+Human review decisions are recorded outside generated artifacts in `_meta/review-ledger.jsonl`.
+The ledger stores artifact paths, hashes, reviewer/status fields, and short metadata notes. It does
+not change source files, mirror bodies, manifests, or lifecycle states, but it lets operators detect
+when a prior approval is stale because the reviewed artifact hash changed.
+
 ## Lifecycle States
 
 Minimum states:
@@ -159,6 +164,7 @@ Every generated change should be explainable from:
 - sync log entry;
 - machine-readable `_meta/sync-audit.jsonl` event;
 - output path.
+- optional `_meta/review-ledger.jsonl` decision tied to the generated artifact hash.
 
 Audit events must include the generated artifact path, lifecycle state, status, and structured
 `warnings` / `errors` copied from the manifest record after the sync attempt. They must not include

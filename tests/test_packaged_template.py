@@ -31,5 +31,6 @@ def test_packaged_template_matches_repository_template() -> None:
     assert "tools/migration_report.py" in package_files
     assert "tools/pilot_report.py" in package_files
     assert "tools/recovery_report.py" in package_files
+    assert "tools/review_ledger.py" in package_files
     assert "tools/sandbox_report.py" in package_files
     assert "80_sources/repos/.gitkeep" in package_files

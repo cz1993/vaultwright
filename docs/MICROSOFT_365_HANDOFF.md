@@ -112,9 +112,11 @@ Before handoff:
 3. Run `vaultwright conversion --guide`.
 4. Run `vaultwright recovery`.
 5. Run `vaultwright m365`.
-6. Resolve unsupported, stale, conflict, missing, or unreachable lifecycle states.
-7. Confirm the target Microsoft 365 location, owners, reviewers, and retention boundary.
-8. Record what was handed off in the private pilot worksheet.
+6. Record approvals or issues for `CATALOG.html`, `CATALOG.md`, and any handoff report with
+   `vaultwright review`.
+7. Resolve unsupported, stale, conflict, missing, or unreachable lifecycle states.
+8. Confirm the target Microsoft 365 location, owners, reviewers, and retention boundary.
+9. Record what was handed off in the private pilot worksheet.
 
 ## What Not To Claim Yet
 

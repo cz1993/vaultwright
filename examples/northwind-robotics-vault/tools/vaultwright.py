@@ -151,6 +151,26 @@ def command_m365(args: argparse.Namespace) -> int:
     return run(cmd, root)
 
 
+def command_review(args: argparse.Namespace) -> int:
+    root = args.root.resolve()
+    cmd = python_cmd(root, "review_ledger.py")
+    if args.artifact:
+        cmd.extend(["--artifact", str(args.artifact)])
+    if args.status:
+        cmd.extend(["--status", args.status])
+    if args.reviewer:
+        cmd.extend(["--reviewer", args.reviewer])
+    if args.note:
+        cmd.extend(["--note", args.note])
+    if args.kind:
+        cmd.extend(["--kind", args.kind])
+    if args.json:
+        cmd.append("--json")
+    if args.check:
+        cmd.append("--check")
+    return run(cmd, root)
+
+
 def command_catalog(args: argparse.Namespace) -> int:
     root = args.root.resolve()
     cmd = python_cmd(root, "catalog_report.py")
@@ -469,6 +489,7 @@ def command_doctor(args: argparse.Namespace) -> int:
         "migration_report.py",
         "pilot_report.py",
         "recovery_report.py",
+        "review_ledger.py",
         "sandbox_report.py",
     ):
         if not (root / "tools" / script).exists():
@@ -584,6 +605,15 @@ def build_parser() -> argparse.ArgumentParser:
     m365 = sub.add_parser("m365", help="Print a read-only Microsoft 365/Copilot handoff report.")
     m365.add_argument("--json", action="store_true", help="Print machine-readable handoff JSON.")
     m365.set_defaults(func=command_m365)
+    review = sub.add_parser("review", help="Record or summarize metadata-only artifact review decisions.")
+    review.add_argument("--artifact", type=Path, help="Generated artifact to review, relative to the vault root.")
+    review.add_argument("--status", choices=["approved", "blocked", "deferred", "needs-work"], help="Review decision to record.")
+    review.add_argument("--reviewer", help="Reviewer name or role for a recorded decision.")
+    review.add_argument("--note", default="", help="Short metadata-only review note.")
+    review.add_argument("--kind", help="Override artifact kind after path safety checks.")
+    review.add_argument("--json", action="store_true", help="Print machine-readable review ledger output.")
+    review.add_argument("--check", action="store_true", help="Fail unless every latest review is approved and current.")
+    review.set_defaults(func=command_review)
     catalog = sub.add_parser("catalog", help="Generate a source-path-only documentation catalog.")
     catalog.add_argument("--json", action="store_true", help="Print machine-readable catalog JSON.")
     catalog.add_argument("--html", action="store_true", help="Write or print an HTML catalog instead of Markdown.")

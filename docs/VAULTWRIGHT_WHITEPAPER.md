@@ -52,6 +52,8 @@ This work has made material progress:
 - A new Microsoft 365 handoff guide and `vaultwright m365` readiness report describe how to review
   the generated mirror/catalog layer before storing it in approved SharePoint, OneDrive, Copilot
   Studio, Dataverse, or connector paths.
+- A new metadata-only review ledger records human decisions against generated artifact hashes, so
+  a reviewed catalog, mirror, or handoff report becomes stale when the artifact changes.
 - A new public-service example vault demonstrates familiar Canadian business-startup workflows:
   business registration, CRA program accounts, GST/HST readiness, account access, and
   funding/support discovery.
@@ -380,7 +382,8 @@ Professional-services use should begin with a conservative operating model:
 | Office sync | Plan/sync/status, manifest, audit events, manual-edit detection, lifecycle next-action guidance | Useful alpha foundation |
 | Repo sync | Plan/sync/status, repo manifest, audit events, manual-edit detection, lifecycle next-action guidance | Useful for code/source repositories |
 | Catalog gateway | `vaultwright catalog` writes generated `CATALOG.md`; `vaultwright catalog --html` writes generated `CATALOG.html` with static aggregate charts; both include source/mirror links, lifecycle states, format/domain counts, repo mirrors, unmanaged source candidates, and legacy-folder inventory | Useful for non-Obsidian review and agent preflight orientation |
-| CLI | Vault-local wrapper and source-installable `vaultwright` entry point; CI now installs the built wheel and verifies packaged init, doctor, plan, benchmark, Markdown/HTML catalog generation/check, conversion, Microsoft 365 handoff readiness, migration, migration worksheet, pilot, redacted pilot worksheet output, and JSON recovery delegation; tag workflow builds artifacts under read-only permissions, verifies the released wheel, and creates draft prereleases for owner review while refusing to overwrite non-draft releases; doctor reports dependency, manifest, audit, recovery-action counts, git/GitHub backup posture, optional Obsidian config/plugin posture, and `.gitignore` backup guard coverage; benchmark validates task packs and optional aggregate result packs; catalog writes the inventory gateway; conversion, m365, migration, pilot, and recovery print read-only operator reports | Better operator ergonomics; first alpha draft release is intended for owner review, not stable distribution |
+| Review ledger | `vaultwright review` appends metadata-only reviewer/status decisions to `_meta/review-ledger.jsonl` and reports stale approvals when artifact hashes change | Bridges human sign-off and generated artifacts without editing source files or mirror bodies |
+| CLI | Vault-local wrapper and source-installable `vaultwright` entry point; CI now installs the built wheel and verifies packaged init, doctor, plan, benchmark, Markdown/HTML catalog generation/check, conversion, Microsoft 365 handoff readiness, review-ledger summary/check, migration, migration worksheet, pilot, redacted pilot worksheet output, and JSON recovery delegation; tag workflow builds artifacts under read-only permissions, verifies the released wheel, and creates draft prereleases for owner review while refusing to overwrite non-draft releases; doctor reports dependency, manifest, audit, recovery-action counts, git/GitHub backup posture, optional Obsidian config/plugin posture, and `.gitignore` backup guard coverage; benchmark validates task packs and optional aggregate result packs; catalog writes the inventory gateway; conversion, m365, migration, pilot, and recovery print read-only operator reports | Better operator ergonomics; first alpha draft release is intended for owner review, not stable distribution |
 | Examples | Government-services showcase plus Northwind regression fixture | Better demo plus stable tests |
 | Provenance | Public fixture ledger with source URLs, licence posture, and review date | Good discipline; must be maintained |
 | Safety | No-data scanner, pre-commit hook, CI checks | Strong for repository hygiene |
@@ -401,6 +404,7 @@ Current evidence is encouraging but limited.
 | Conversion spot-check report | Read-only manifest report prioritizes high/medium/low conversion review items from states, warnings, errors, formats, and source/mirror existence; `conversion --guide` adds a format-aware operator checklist | Useful pilot checklist; not a quantitative conversion-quality score |
 | Catalog gateway | Generated `CATALOG.md` and `CATALOG.html` summarize the manifest and workspace inventory using paths, metadata, and aggregate visual counts only | Useful review surfaces for agents, consultants, and non-Obsidian stakeholders; not a replacement for conversion review |
 | Microsoft 365 handoff | `docs/MICROSOFT_365_HANDOFF.md` and `vaultwright m365` define a read-only readiness report and handoff bundle for SharePoint, OneDrive, Copilot Studio, Dataverse, and connector review paths | Clarifies complement strategy; does not verify tenant permissions or production Copilot behavior |
+| Review ledger | `_meta/review-ledger.jsonl` stores artifact hash, reviewer, status, and short metadata notes from `vaultwright review` | Useful approval evidence; not a substitute for expert review of document meaning |
 | Pilot evidence report | Read-only aggregate report summarizes corpus shape, manifest states, audit counts, conversion priorities, recovery counts, benchmark tasks, optional benchmark result scores, and a redacted Markdown worksheet summary without source content or source paths | Useful for private design-partner worksheets; not external validation by itself |
 | Repo source manifest | Stable repo IDs, local-tree/remote-HEAD hashes, audit events, manual-edit detection | Useful coverage for repo mirrors |
 | Source-installable CLI | Console entry point delegates to vault-local tools and supports source-checkout `init` | Good development ergonomics |
@@ -471,6 +475,7 @@ Deliverables:
 - detailed white paper for consulting review;
 - read-only manifest recovery checklist;
 - generated catalog gateway for copied-vault review and agent orientation;
+- metadata-only review ledger for artifact-hash sign-off and stale-review detection;
 - local dogfood application against a copied GuildBuild document corpus, kept outside the public
   repository;
 - local validation of tests, linting, no-data scan, and generated-output residue;
@@ -674,7 +679,8 @@ Available today:
 - Machine-readable sync audit events in `_meta/sync-audit.jsonl`.
 - Generated `CATALOG.md` and `CATALOG.html` inventory gateways through `vaultwright catalog`.
 - Thin `tools/vaultwright.py` wrapper for `plan`, `sync`, `status`, `catalog`, `conversion`,
-  `migration`, `pilot`, `recovery`, `sandbox`, `benchmark`, `lint`, and `doctor`.
+  `m365`, `review`, `migration`, `pilot`, `recovery`, `sandbox`, `benchmark`, `lint`, and
+  `doctor`.
 - Source-installable `vaultwright` console entry point via `pyproject.toml`.
 - Warning-level plan risk reporting for sensitive-looking paths, duplicate bytes, and
   format-specific conversion caveats.

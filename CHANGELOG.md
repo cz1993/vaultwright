@@ -15,6 +15,9 @@ All notable changes to Vaultwright are documented here. Format loosely follows
   installation coverage and Markdown/HTML `catalog --check` freshness validation.
 - Added `docs/MICROSOFT_365_HANDOFF.md` and `vaultwright m365`, a read-only handoff readiness
   report for Microsoft 365, SharePoint, OneDrive, Copilot Studio, and connector review paths.
+- Added `tools/review_ledger.py` and `vaultwright review`, a metadata-only review ledger that
+  records reviewer/status decisions against generated artifact hashes and reports stale approvals
+  when reviewed artifacts change.
 - `vaultwright migration` now reports legacy or unknown note frontmatter domains using
   `_meta/domain-map.yml` aliases, giving operators a read-only cleanup queue before moving notes.
 - `vaultwright migration --worksheet` now prints a Markdown review checklist for legacy folder and

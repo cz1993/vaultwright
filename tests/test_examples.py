@@ -48,6 +48,7 @@ COPIED_TOOL_FILES = [
     "m365_report.py",
     "pilot_report.py",
     "recovery_report.py",
+    "review_ledger.py",
     "sandbox_report.py",
     "repos.example.yml",
     "requirements.txt",

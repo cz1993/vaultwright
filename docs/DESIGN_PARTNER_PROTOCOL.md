@@ -34,13 +34,15 @@ Each pilot should use a copied, permission-cleared corpus:
    states.
 6. Catalog review: run `tools/vaultwright.py catalog`, `tools/vaultwright.py catalog --html`, and
    `tools/vaultwright.py m365` if the participant expects Microsoft 365 handoff.
-7. Curate the first hubs and entity pages.
-8. Answer a fixed set of operational questions with citations.
-9. Capture aggregate evidence: run `tools/vaultwright.py pilot --json` and
+7. Record artifact review decisions with `tools/vaultwright.py review` after spot-checking
+   selected mirrors, catalogs, and handoff reports.
+8. Curate the first hubs and entity pages.
+9. Answer a fixed set of operational questions with citations.
+10. Capture aggregate evidence: run `tools/vaultwright.py pilot --json` and
    `tools/vaultwright.py pilot --worksheet`, then store the outputs with the private pilot
    worksheet.
-10. Modify or move selected sources, rerun status/sync, and verify lifecycle reporting.
-11. One-week follow-up: determine whether the participant returned to the vault.
+11. Modify or move selected sources, rerun status/sync, and verify lifecycle reporting.
+12. One-week follow-up: determine whether the participant returned to the vault.
 
 ## Required Metrics
 
@@ -54,6 +56,7 @@ Record:
 - manual correction count and time;
 - provenance spot-check pass/fail rate;
 - stale or missing source detection after changes;
+- reviewed-artifact counts and stale-review counts from `_meta/review-ledger.jsonl`;
 - time to answer fixed operational questions before and after Vaultwright;
 - operator confidence score;
 - support time required.
@@ -66,6 +69,7 @@ For each pilot, maintain an anonymized summary:
 - corpus shape, not source contents;
 - command transcript with sensitive paths redacted;
 - aggregate metrics;
+- review-ledger summary, not source or mirror bodies;
 - issues found;
 - product changes made;
 - participant quote only with written permission.

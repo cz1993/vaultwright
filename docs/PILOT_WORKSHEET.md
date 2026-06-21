@@ -65,6 +65,7 @@ python3.11 tools/vaultwright.py catalog --html
 python3.11 tools/vaultwright.py conversion --guide
 python3.11 tools/vaultwright.py recovery
 python3.11 tools/vaultwright.py m365
+python3.11 tools/vaultwright.py review --json
 python3.11 tools/vaultwright.py pilot --json
 python3.11 tools/vaultwright.py pilot --worksheet
 python3.11 tools/vaultwright.py benchmark --require-generated
@@ -79,6 +80,8 @@ python3.11 tools/vaultwright.py lint
 - Conversion medium-priority spot checks reviewed:
 - Conversion guide checklist completed:
 - Recovery items resolved:
+- Review ledger current approvals:
+- Review ledger stale or non-approved items:
 - Manual corrections made:
 - Overlap threshold changes from `_meta/lint-config.yml`:
 - Curated hubs/entity pages created:

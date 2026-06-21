@@ -15,6 +15,7 @@ These keep your knowledge base current and healthy. See `../CLAUDE.md` §6 for t
 | `migration_report.py` | prints a read-only migration report for legacy or unknown top-level folders |
 | `pilot_report.py` | prints a read-only aggregate pilot evidence report without source content |
 | `recovery_report.py` | prints a read-only recovery checklist from source/repo manifest lifecycle states |
+| `review_ledger.py` | records and summarizes metadata-only human review decisions for generated artifacts |
 | `sandbox_report.py` | prints a read-only copied-vault readiness report before a pilot sync |
 | `sync_all.sh` | run both syncs + the linter (for a cron/launchd job) |
 
@@ -42,6 +43,7 @@ python3.11 tools/vaultwright.py status
 python3.11 tools/vaultwright.py catalog
 python3.11 tools/vaultwright.py catalog --html
 python3.11 tools/vaultwright.py m365
+python3.11 tools/vaultwright.py review --json
 python3.11 tools/vaultwright.py conversion --guide
 python3.11 tools/vaultwright.py migration
 python3.11 tools/vaultwright.py migration --worksheet
@@ -79,6 +81,21 @@ for a Microsoft 365, SharePoint, OneDrive, Copilot Studio, or connector handoff 
 query Microsoft 365, verify tenant permissions, inspect sensitivity labels, or print source content.
 See `docs/MICROSOFT_365_HANDOFF.md` in the source repository for the current guidance and
 Microsoft Learn references.
+
+`review` records and summarizes human review decisions in `_meta/review-ledger.jsonl`. A recording
+command stores artifact path, artifact hash, reviewer, status, and a short metadata-only note
+without copying artifact bodies or source text:
+
+```bash
+python3.11 tools/vaultwright.py review --artifact CATALOG.html --status approved --reviewer CodeX
+python3.11 tools/vaultwright.py review --artifact _mirrors/40_delivery/brief.md --status needs-work --reviewer Claude --note "Table spot-check needed"
+python3.11 tools/vaultwright.py review --json
+python3.11 tools/vaultwright.py review --check
+```
+
+`review --check` fails unless every latest recorded artifact decision is `approved` and the current
+artifact hash still matches the reviewed hash. It is intended for private pilot and release-review
+workflows, not as proof that conversion quality is objectively complete.
 
 `migration` is read-only. It scans top-level folders, reports old aliases from
 `_meta/domain-map.yml` such as `marketing/`, `legal/`, `clients/`, or `hr/`, and flags unknown

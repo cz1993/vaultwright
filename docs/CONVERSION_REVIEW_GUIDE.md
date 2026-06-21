@@ -12,6 +12,7 @@ python3.11 tools/vaultwright.py status
 python3.11 tools/vaultwright.py recovery
 python3.11 tools/vaultwright.py conversion --guide
 python3.11 tools/vaultwright.py conversion --guide --json
+python3.11 tools/vaultwright.py review --artifact <generated-artifact> --status approved --reviewer <name>
 ```
 
 `sandbox` and `conversion --guide` are read-only. `sandbox` verifies the copied-vault boundary,
@@ -29,7 +30,8 @@ paths, or document bodies.
 4. Spot-check all medium-priority items that will support a decision, quote, answer, or curated
    note.
 5. Sample low-priority items by format for routine coverage.
-6. Record defects and manual corrections in the pilot worksheet.
+6. Record artifact-level review decisions with `vaultwright review`, then record defects and
+   manual corrections in the pilot worksheet.
 
 ## Priority Meaning
 
@@ -75,6 +77,7 @@ In `docs/PILOT_WORKSHEET.md` or a private engagement worksheet, record aggregate
 - conversion defects by format;
 - manual corrections made;
 - source files verified unchanged;
+- current approval and stale-review counts from `vaultwright review --json`;
 - whether the second sync remained idempotent.
 
 Do not paste source text, mirror text, personal data, client identifiers, secrets, or private

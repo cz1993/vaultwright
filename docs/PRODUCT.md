@@ -22,8 +22,10 @@ The first workflow is:
 5. Generate Markdown/HTML catalog gateways for operator, reviewer, and agent orientation.
 6. If the customer uses Microsoft 365, run a read-only Microsoft 365/Copilot handoff readiness
    report before moving derived content into approved tenant boundaries.
-7. Create a small number of curated hubs and entity pages.
-8. Refresh the workspace over time with auditable sync/status output.
+7. Record metadata-only human review decisions against generated mirrors, catalogs, and handoff
+   reports so approvals are tied to artifact hashes.
+8. Create a small number of curated hubs and entity pages.
+9. Refresh the workspace over time with auditable sync/status output.
 
 ## Supported Corpus Range
 
@@ -53,6 +55,7 @@ A successful first workflow produces:
 - source/repo manifests, audit events, and lifecycle status reports;
 - a Microsoft 365 handoff readiness report when the target workflow involves SharePoint, OneDrive,
   Copilot Studio, Dataverse, or Copilot connectors;
+- a review ledger that records reviewer/status decisions without copying source or mirror bodies;
 - aggregate pilot evidence reports that avoid source or mirror content;
 - curated hubs for the highest-value document clusters;
 - an agent-readable markdown substrate with source links, frontmatter, headings, manifests, and

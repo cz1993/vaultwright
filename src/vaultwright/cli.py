@@ -174,6 +174,26 @@ def build_parser() -> argparse.ArgumentParser:
         func=command_delegate,
         delegate_args=lambda args: ["--json"] if args.json else [],
     )
+    review = sub.add_parser("review", help="Record or summarize metadata-only artifact review decisions.")
+    review.add_argument("--artifact", type=Path, help="Generated artifact to review, relative to the vault root.")
+    review.add_argument("--status", choices=["approved", "blocked", "deferred", "needs-work"], help="Review decision to record.")
+    review.add_argument("--reviewer", help="Reviewer name or role for a recorded decision.")
+    review.add_argument("--note", default="", help="Short metadata-only review note.")
+    review.add_argument("--kind", help="Override artifact kind after path safety checks.")
+    review.add_argument("--json", action="store_true", help="Print machine-readable review ledger output.")
+    review.add_argument("--check", action="store_true", help="Fail unless every latest review is approved and current.")
+    review.set_defaults(
+        func=command_delegate,
+        delegate_args=lambda args: (
+            (["--artifact", str(args.artifact)] if args.artifact else [])
+            + (["--status", args.status] if args.status else [])
+            + (["--reviewer", args.reviewer] if args.reviewer else [])
+            + (["--note", args.note] if args.note else [])
+            + (["--kind", args.kind] if args.kind else [])
+            + (["--json"] if args.json else [])
+            + (["--check"] if args.check else [])
+        ),
+    )
     catalog = sub.add_parser("catalog", help="Generate a source-path-only documentation catalog.")
     catalog.add_argument("--json", action="store_true", help="Print machine-readable catalog JSON.")
     catalog.add_argument("--html", action="store_true", help="Write or print an HTML catalog instead of Markdown.")

@@ -94,6 +94,7 @@ python3.11 tools/vaultwright.py sandbox --source-root /path/to/original-document
 python3.11 tools/vaultwright.py catalog              # generate CATALOG.md inventory gateway
 python3.11 tools/vaultwright.py catalog --html       # generate CATALOG.html visual inventory gateway
 python3.11 tools/vaultwright.py m365                 # Microsoft 365/Copilot handoff readiness
+python3.11 tools/vaultwright.py review --json        # summarize metadata-only human review decisions
 python3.11 tools/vaultwright.py pilot                # aggregate pilot evidence, no source content
 python3.11 tools/vaultwright.py pilot --worksheet    # redacted Markdown private-pilot summary
 python3.11 tools/vaultwright.py benchmark            # validate agent-readiness task pack, if present
@@ -105,6 +106,10 @@ python3.11 tools/vaultwright.py lint                 # health check
 Run `sandbox` from a duplicated pilot vault, not the original document folder. It is read-only and
 checks copy-boundary, mirror isolation, manifest/recovery readiness, and basic backup posture
 without printing source paths or document text.
+
+Use `review` after spot-checking mirrors, catalogs, or handoff reports. It appends metadata-only
+decisions to `_meta/review-ledger.jsonl` with artifact hashes, so later changes are reported as
+stale reviews instead of silently preserving old approvals.
 
 From a source checkout, the pre-release console entry point is also available:
 

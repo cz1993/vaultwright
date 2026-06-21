@@ -97,6 +97,7 @@ def test_vaultwright_cli_doctor_passes_on_template() -> None:
     assert (ROOT / "template/tools/migration_report.py").exists()
     assert (ROOT / "template/tools/pilot_report.py").exists()
     assert (ROOT / "template/tools/recovery_report.py").exists()
+    assert (ROOT / "template/tools/review_ledger.py").exists()
     assert (ROOT / "template/tools/sandbox_report.py").exists()
 
 
@@ -465,6 +466,44 @@ def test_packaged_vaultwright_cli_delegates_to_target_vault(tmp_path: Path) -> N
 
     assert catalog_html_check.returncode == 0, catalog_html_check.stderr or catalog_html_check.stdout
     assert "catalog: up to date: CATALOG.html" in catalog_html_check.stdout
+
+    review_record = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "vaultwright.cli",
+            "--root",
+            str(vault),
+            "review",
+            "--artifact",
+            "CATALOG.html",
+            "--status",
+            "approved",
+            "--reviewer",
+            "CodeX",
+            "--json",
+        ],
+        cwd=ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert review_record.returncode == 0, review_record.stderr or review_record.stdout
+    recorded = json.loads(review_record.stdout)
+    assert recorded["recorded"]["artifact_path"] == "CATALOG.html"
+    assert recorded["recorded"]["status"] == "approved"
+
+    review_check = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "review", "--check"],
+        cwd=ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert review_check.returncode == 0, review_check.stderr or review_check.stdout
+    assert "review ledger: metadata-only review decisions" in review_check.stdout
 
     source_root = tmp_path / "original-documents"
     source_root.mkdir()
@@ -991,6 +1030,7 @@ def test_packaged_vaultwright_cli_init_from_packaged_template(tmp_path: Path) ->
     assert (target / "tools" / "migration_report.py").exists()
     assert (target / "tools" / "pilot_report.py").exists()
     assert (target / "tools" / "recovery_report.py").exists()
+    assert (target / "tools" / "review_ledger.py").exists()
     assert (target / "tools" / "sandbox_report.py").exists()
     assert (target / "tools" / "vaultwright.py").exists()
 
@@ -1464,6 +1504,124 @@ def test_vaultwright_m365_report_summarizes_handoff_without_content(tmp_path: Pa
     assert report["report"]["source_manifest"]["states"]["unsupported"] == 1
     assert "confidential source bytes" not in json_result.stdout
     assert "Generated mirror text" not in json_result.stdout
+
+
+def test_vaultwright_review_ledger_records_hashes_without_artifact_content(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    source = vault / "40_delivery" / "client-plan.docx"
+    mirror = vault / "_mirrors" / "40_delivery" / "client-plan.md"
+    source.parent.mkdir(parents=True, exist_ok=True)
+    mirror.parent.mkdir(parents=True, exist_ok=True)
+    source.write_bytes(b"confidential source bytes")
+    mirror.write_text(
+        "---\n"
+        "title: Client Plan\n"
+        "type: source-mirror\n"
+        "source_id: src-plan\n"
+        "source: 40_delivery/client-plan.docx\n"
+        "source_sha256: abc123\n"
+        "---\n"
+        "Generated mirror body that should not appear\n",
+        encoding="utf-8",
+    )
+
+    record = subprocess.run(
+        [
+            sys.executable,
+            str(vault / "tools" / "vaultwright.py"),
+            "review",
+            "--artifact",
+            "_mirrors/40_delivery/client-plan.md",
+            "--status",
+            "approved",
+            "--reviewer",
+            "CodeX",
+            "--note",
+            "spot checked headings",
+            "--json",
+        ],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert record.returncode == 0, record.stderr or record.stdout
+    payload = json.loads(record.stdout)
+    event = payload["recorded"]
+    assert event["artifact_path"] == "_mirrors/40_delivery/client-plan.md"
+    assert event["artifact_kind"] == "source-mirror"
+    assert event["status"] == "approved"
+    assert event["metadata"]["source_id"] == "src-plan"
+    assert "Generated mirror body" not in json.dumps(event)
+    assert "confidential source bytes" not in json.dumps(event)
+
+    ledger_text = (vault / "_meta" / "review-ledger.jsonl").read_text(encoding="utf-8")
+    assert "Generated mirror body" not in ledger_text
+    assert "confidential source bytes" not in ledger_text
+    assert "spot checked headings" in ledger_text
+
+    summary = subprocess.run(
+        [sys.executable, str(vault / "tools" / "vaultwright.py"), "review"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+    summary_json = subprocess.run(
+        [sys.executable, str(vault / "tools" / "vaultwright.py"), "review", "--json"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert summary.returncode == 0, summary.stderr or summary.stdout
+    assert "approved/current" in summary.stdout
+    assert "_mirrors/40_delivery/client-plan.md" in summary.stdout
+    assert "Generated mirror body" not in summary.stdout
+    assert "confidential source bytes" not in summary.stdout
+    report = json.loads(summary_json.stdout)
+    assert report["report"]["statuses"] == {"approved": 1}
+    assert report["report"]["current_states"] == {"current": 1}
+
+    mirror.write_text(mirror.read_text(encoding="utf-8") + "\nChanged generated body\n", encoding="utf-8")
+    stale = subprocess.run(
+        [sys.executable, str(vault / "tools" / "vaultwright.py"), "review", "--json"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+    check = subprocess.run(
+        [sys.executable, str(vault / "tools" / "vaultwright.py"), "review", "--check"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert stale.returncode == 0, stale.stderr or stale.stdout
+    stale_report = json.loads(stale.stdout)
+    assert stale_report["report"]["current_states"] == {"stale": 1}
+    assert check.returncode == 1
+    assert "review is stale" in check.stderr
+
+    source_review = subprocess.run(
+        [
+            sys.executable,
+            str(vault / "tools" / "vaultwright.py"),
+            "review",
+            "--artifact",
+            "40_delivery/client-plan.docx",
+            "--status",
+            "approved",
+            "--reviewer",
+            "CodeX",
+        ],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert source_review.returncode == 2
+    assert "artifact must be a generated mirror" in source_review.stderr
 
 
 def test_vaultwright_sandbox_report_checks_copied_boundary_without_content(tmp_path: Path) -> None:

@@ -154,11 +154,13 @@ not broad industry expansion. Prove the narrow promise first:
   complete lifecycle states, rename / move / delete / stale / conflict handling, recovery tests,
   and source-byte integrity tests.
 - **Thin operator CLI:** `tools/vaultwright.py plan`, `sync`, `status`, `catalog`, `conversion`,
-  `m365`, `migration`, `pilot`, `recovery`, `sandbox`, `lint`, and `doctor` exist; keep them thin. The source-installable
+  `m365`, `review`, `migration`, `pilot`, `recovery`, `sandbox`, `lint`, and `doctor` exist; keep them thin. The source-installable
   `vaultwright` console entry point delegates to the same vault-local wrapper. `plan` must remain
   non-destructive; keep improving its sensitive-file risks, duplicate warnings, and
   conversion-quality estimates before writing. `conversion`, `m365`, `migration`, `pilot`, and `recovery` must
-  remain read-only operator reports. `catalog` writes generated path-and-metadata-only
+  remain read-only operator reports. `review` may append metadata-only decisions to
+  `_meta/review-ledger.jsonl`, but must not copy source text, mirror bodies, answer text, secrets,
+  or client identifiers. `catalog` writes generated path-and-metadata-only
   `CATALOG.md` and `CATALOG.html` gateways; neither may copy source document text. HTML catalog
   charts must stay aggregate-only and deterministic.
   `sandbox` must remain a read-only copied-vault preflight that
