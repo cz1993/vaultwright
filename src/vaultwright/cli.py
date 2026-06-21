@@ -163,6 +163,20 @@ def build_parser() -> argparse.ArgumentParser:
         func=command_delegate,
         delegate_args=lambda args: ["--json"] if args.json else [],
     )
+    sandbox = sub.add_parser("sandbox", help="Print a read-only copied-vault sandbox readiness report.")
+    sandbox.add_argument(
+        "--source-root",
+        type=Path,
+        help="Original source collection root. Used only to verify the pilot vault is a separate copy.",
+    )
+    sandbox.add_argument("--json", action="store_true", help="Print machine-readable sandbox JSON.")
+    sandbox.set_defaults(
+        func=command_delegate,
+        delegate_args=lambda args: (
+            (["--source-root", str(args.source_root)] if args.source_root else [])
+            + (["--json"] if args.json else [])
+        ),
+    )
     return parser
 
 

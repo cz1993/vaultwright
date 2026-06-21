@@ -11,6 +11,8 @@ All notable changes to Vaultwright are documented here. Format loosely follows
   readiness, and backup posture without printing source paths or document text.
 - CI and release smoke checks now compile and exercise `sandbox`, including packaged-template
   installation coverage.
+- The installable `vaultwright` console entry point now delegates `sandbox` to the target vault's
+  local wrapper, matching the vault-local CLI.
 - Office sync now blocks ambiguous same-hash source moves as `conflict` when multiple missing
   manifest records could match one new source path.
 - Office sync now exits nonzero for review-blocking sync states and flags duplicate exact

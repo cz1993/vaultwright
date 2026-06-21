@@ -373,6 +373,30 @@ def test_packaged_vaultwright_cli_delegates_to_target_vault(tmp_path: Path) -> N
     assert report["items"] == []
     assert report["summary"]["total"] == 0
 
+    source_root = tmp_path / "original-documents"
+    source_root.mkdir()
+    sandbox = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "vaultwright.cli",
+            "--root",
+            str(vault),
+            "sandbox",
+            "--source-root",
+            str(source_root),
+            "--json",
+        ],
+        cwd=ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert sandbox.returncode == 0, sandbox.stderr or sandbox.stdout
+    sandbox_report = json.loads(sandbox.stdout)
+    assert sandbox_report["report"]["source_boundary"]["status"] == "distinct"
+
 
 def write_agent_benchmark_fixture(vault: Path) -> None:
     source = vault / "40_delivery" / "client-plan.docx"
