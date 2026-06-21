@@ -7,15 +7,18 @@ conversion quality before mirrors are used for client-facing conclusions or dura
 Run it from a copied, permission-cleared vault:
 
 ```bash
+python3.11 tools/vaultwright.py sandbox --source-root /path/to/original-documents
 python3.11 tools/vaultwright.py status
 python3.11 tools/vaultwright.py recovery
 python3.11 tools/vaultwright.py conversion --guide
 python3.11 tools/vaultwright.py conversion --guide --json
 ```
 
-`conversion --guide` is read-only. It prints the manifest-backed spot-check report plus an operator
-checklist based on lifecycle states and source formats. It must not print source text, mirror text,
-or document bodies.
+`sandbox` and `conversion --guide` are read-only. `sandbox` verifies the copied-vault boundary,
+mirror isolation, manifest/recovery readiness, and basic backup posture before review starts.
+`conversion --guide` prints the manifest-backed spot-check report plus an operator checklist based
+on lifecycle states and source formats. Neither command may print source text, mirror text, source
+paths, or document bodies.
 
 ## Review Order
 

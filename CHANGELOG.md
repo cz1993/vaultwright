@@ -6,6 +6,9 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 ## [Unreleased]
 
 ### Added
+- Added `tools/sandbox_report.py` and `vaultwright sandbox`, a read-only copied-vault preflight for
+  safe pilot workspaces that checks source-root separation, mirror isolation, manifest/recovery
+  readiness, and backup posture without printing source paths or document text.
 - Office sync now blocks ambiguous same-hash source moves as `conflict` when multiple missing
   manifest records could match one new source path.
 - Office sync now exits nonzero for review-blocking sync states and flags duplicate exact

@@ -93,6 +93,10 @@ Operators need documented recovery procedures for:
 Current recovery guidance lives in `docs/RECOVERY.md`. The copied-vault regeneration path has
 regression coverage, but restore drills on pilot vaults are still required before recovery can be
 treated as an operational control.
+Run `vaultwright sandbox --source-root <original-source-root>` from copied pilot vaults before the
+first sync. The sandbox report is read-only and checks copy-boundary, mirror isolation,
+manifest/recovery readiness, and basic backup posture without printing source paths or document
+content.
 
 ## Known Residual Risks
 
@@ -107,5 +111,6 @@ treated as an operational control.
 - Extend manifest and audit-log coverage through external pilots.
 - Add explicit prompt-injection handling guidance.
 - Expand recovery tests and run pilot restore drills.
+- Use the sandbox report as the standard copied-vault preflight for private design-partner pilots.
 - Run a focused security review after lifecycle semantics stabilize.
 - Defer full third-party audit until CLI, manifest, and recovery design are stable.

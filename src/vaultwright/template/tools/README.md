@@ -6,13 +6,14 @@ These keep your knowledge base current and healthy. See `../CLAUDE.md` §6 for t
 | --- | --- |
 | `sync_office_md.py` | markdown **mirror** under `_mirrors/` for every `.docx/.pptx/.xlsx` (Microsoft markitdown), refreshed on content change |
 | `sync_github_repos.py` | markdown **mirror** under `80_sources/repos/` for each repo in `repos.yml` (README + docs + metadata), refreshed on HEAD change |
-| `vaultwright.py` | thin operator wrapper: `plan`, `sync`, `status`, `conversion`, `migration`, `pilot`, `recovery`, `lint`, `benchmark`, `doctor`, and repo-root `init` |
+| `vaultwright.py` | thin operator wrapper: `plan`, `sync`, `status`, `conversion`, `migration`, `pilot`, `recovery`, `sandbox`, `lint`, `benchmark`, `doctor`, and repo-root `init` |
 | `lint_vault.py` | health check — frontmatter, broken wikilinks, orphans, overlap warnings, mirror gaps, configured repo mirror gaps, stale generated mirrors |
 | `benchmark_tasks.py` | validates `_meta/agent-readiness-tasks.yml` task packs and optional aggregate result packs |
 | `conversion_report.py` | prints a read-only conversion spot-check report from the source manifest |
 | `migration_report.py` | prints a read-only migration report for legacy or unknown top-level folders |
 | `pilot_report.py` | prints a read-only aggregate pilot evidence report without source content |
 | `recovery_report.py` | prints a read-only recovery checklist from source/repo manifest lifecycle states |
+| `sandbox_report.py` | prints a read-only copied-vault readiness report before a pilot sync |
 | `sync_all.sh` | run both syncs + the linter (for a cron/launchd job) |
 
 `lint_vault.py` reads `_meta/lint-config.yml` for warning-level overlap thresholds. Overlap
@@ -40,6 +41,7 @@ python3.11 tools/vaultwright.py conversion --guide
 python3.11 tools/vaultwright.py migration
 python3.11 tools/vaultwright.py pilot
 python3.11 tools/vaultwright.py recovery
+python3.11 tools/vaultwright.py sandbox --source-root /path/to/original-documents
 python3.11 tools/vaultwright.py lint
 python3.11 tools/vaultwright.py benchmark
 python3.11 tools/vaultwright.py doctor
@@ -77,6 +79,18 @@ action, such as missing sources, manual generated-region edits, conflicts, unrea
 missing mirrors, stale atomic temp files from interrupted writes, or error states.
 For moved sources and mirror-root conflicts, it also prints the previous generated mirror path that
 must be reviewed before regeneration.
+
+`sandbox` is read-only. Run it from a duplicated pilot vault before the first sync:
+
+```bash
+python3.11 tools/vaultwright.py sandbox --source-root /path/to/original-documents
+python3.11 tools/vaultwright.py sandbox --source-root /path/to/original-documents --json
+```
+
+It checks required Vaultwright files/tools, verifies the copied vault is not the same path as the
+original source collection, counts Office/PDF source candidates, reports whether generated mirrors
+are isolated under `_mirrors/`, summarizes manifests/audit/recovery readiness, and checks basic git
+backup posture. It does not print source paths, document text, mirror text, or repo document bodies.
 
 ```bash
 python3.11 tools/sync_office_md.py              # sync the whole vault

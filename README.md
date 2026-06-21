@@ -89,6 +89,7 @@ python3.11 tools/vaultwright.py status               # review manifest-backed li
 python3.11 tools/vaultwright.py conversion --guide   # read-only conversion spot-check + guide
 python3.11 tools/vaultwright.py migration            # dry-run report for legacy/unknown folders
 python3.11 tools/vaultwright.py recovery             # read-only recovery checklist from manifests
+python3.11 tools/vaultwright.py sandbox --source-root /path/to/original-documents
 python3.11 tools/vaultwright.py pilot                # aggregate pilot evidence, no source content
 python3.11 tools/vaultwright.py pilot --worksheet    # redacted Markdown private-pilot summary
 python3.11 tools/vaultwright.py benchmark            # validate agent-readiness task pack, if present
@@ -96,6 +97,10 @@ python3.11 tools/vaultwright.py benchmark            # validate agent-readiness 
 python3.11 tools/sync_github_repos.py                # mirror your GitHub repos
 python3.11 tools/vaultwright.py lint                 # health check
 ```
+
+Run `sandbox` from a duplicated pilot vault, not the original document folder. It is read-only and
+checks copy-boundary, mirror isolation, manifest/recovery readiness, and basic backup posture
+without printing source paths or document text.
 
 From a source checkout, the pre-release console entry point is also available:
 

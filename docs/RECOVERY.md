@@ -21,6 +21,23 @@ Back up the whole vault before first sync and before bulk changes:
 
 Do not back up secrets into the vault. Keep tokens in the OS keychain or environment.
 
+## Copied-Vault Sandbox Preflight
+
+Before piloting on a real document collection, duplicate the source collection and run Vaultwright
+only in the copied vault. Then run the read-only sandbox report:
+
+```bash
+python3.11 tools/vaultwright.py sandbox --source-root /path/to/original-documents
+python3.11 tools/vaultwright.py sandbox --source-root /path/to/original-documents --json
+```
+
+The report verifies that the pilot vault is not the same path as the original source root, checks
+required Vaultwright files/tools, counts source candidates, flags generated source mirrors sitting
+outside `_mirrors/`, summarizes manifest/audit/recovery readiness, and checks basic git backup
+posture. It does not print source paths, document text, mirror text, or repository document bodies.
+Treat sandbox errors as blockers before the first sync. Treat warnings as review items to resolve
+or explicitly accept in the private pilot worksheet.
+
 ## Regenerate Generated Mirrors
 
 Generated mirrors can be deleted and rebuilt from sources:
@@ -190,6 +207,7 @@ human-reviewed change and keep the audit trail.
 
 Before public release, recovery must be tested on a copied vault:
 
+- run `tools/vaultwright.py sandbox --source-root <original-source-root>` and resolve errors;
 - delete `_mirrors/` and regenerate;
 - interrupt sync and rerun;
 - force a converter failure and verify the previous mirror is preserved, then fix the converter and

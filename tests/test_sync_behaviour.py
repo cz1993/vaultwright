@@ -95,6 +95,7 @@ def test_vaultwright_cli_doctor_passes_on_template() -> None:
     assert (ROOT / "template/tools/migration_report.py").exists()
     assert (ROOT / "template/tools/pilot_report.py").exists()
     assert (ROOT / "template/tools/recovery_report.py").exists()
+    assert (ROOT / "template/tools/sandbox_report.py").exists()
 
 
 def test_vaultwright_cli_doctor_reports_manifest_lifecycle_counts(tmp_path: Path) -> None:
@@ -872,6 +873,7 @@ def test_packaged_vaultwright_cli_init_from_packaged_template(tmp_path: Path) ->
     assert (target / "tools" / "migration_report.py").exists()
     assert (target / "tools" / "pilot_report.py").exists()
     assert (target / "tools" / "recovery_report.py").exists()
+    assert (target / "tools" / "sandbox_report.py").exists()
     assert (target / "tools" / "vaultwright.py").exists()
 
 
@@ -1248,6 +1250,153 @@ def test_vaultwright_pilot_report_summarizes_evidence_without_content(tmp_path: 
     assert source.read_bytes() == before_source
     assert mirror.read_text(encoding="utf-8") == before_mirror
     assert repo_note.read_text(encoding="utf-8") == before_repo_note
+
+
+def test_vaultwright_sandbox_report_checks_copied_boundary_without_content(tmp_path: Path) -> None:
+    source_root = tmp_path / "original-documents"
+    source_root.mkdir()
+    (source_root / "original-client-plan.docx").write_bytes(b"original private source bytes")
+    vault = tmp_path / "copied-vault"
+    shutil.copytree(ROOT / "template", vault)
+    source = vault / "40_delivery" / "client-plan.docx"
+    mirror = vault / "_mirrors" / "40_delivery" / "client-plan.md"
+    raw_folder_mirror = vault / "40_delivery" / "client-plan.md"
+    source.parent.mkdir(parents=True, exist_ok=True)
+    mirror.parent.mkdir(parents=True, exist_ok=True)
+    source.write_bytes(b"copied private source bytes")
+    mirror.write_text(
+        "---\n"
+        "type: source-mirror\n"
+        "---\n"
+        "Generated mirror text that should not appear\n",
+        encoding="utf-8",
+    )
+    raw_folder_mirror.write_text(
+        "---\n"
+        "type: source-mirror\n"
+        "---\n"
+        "Legacy sibling mirror text that should not appear\n",
+        encoding="utf-8",
+    )
+    before_source = source.read_bytes()
+    before_mirror = mirror.read_text(encoding="utf-8")
+    before_raw_folder_mirror = raw_folder_mirror.read_text(encoding="utf-8")
+    (vault / "_meta" / "source-manifest.json").write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "records": [
+                    {
+                        "source_id": "src-plan",
+                        "current_source_path": "40_delivery/client-plan.docx",
+                        "mirror_path": "_mirrors/40_delivery/client-plan.md",
+                        "source_format": "docx",
+                        "source_size": len(before_source),
+                        "lifecycle_state": "clean",
+                        "warnings": [],
+                        "errors": [],
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (vault / "_meta" / "repo-manifest.json").write_text(
+        json.dumps({"version": 1, "records": []}),
+        encoding="utf-8",
+    )
+    (vault / "_meta" / "sync-audit.jsonl").write_text(
+        json.dumps(
+            {
+                "timestamp": "2026-06-20T00:00:00Z",
+                "tool": "sync_office_md",
+                "status": "unchanged",
+                "lifecycle_state": "clean",
+                "source_id": "src-plan",
+                "mirror_path": "_mirrors/40_delivery/client-plan.md",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(vault / "tools" / "vaultwright.py"),
+            "sandbox",
+            "--source-root",
+            str(source_root),
+        ],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+    json_result = subprocess.run(
+        [
+            sys.executable,
+            str(vault / "tools" / "vaultwright.py"),
+            "sandbox",
+            "--source-root",
+            str(source_root),
+            "--json",
+        ],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+    assert "sandbox: read-only copied-vault preflight; no source content or source paths were printed" in result.stdout
+    assert "sandbox: source boundary status=distinct" in result.stdout
+    assert "sandbox: generated mirrors dedicated=1 raw_folder=1 repo=0" in result.stdout
+    assert "raw source folders contain generated source mirrors" in result.stdout
+    assert "copied private source bytes" not in result.stdout
+    assert "Generated mirror text" not in result.stdout
+    assert "Legacy sibling mirror text" not in result.stdout
+    assert "client-plan.docx" not in result.stdout
+    assert str(vault) not in result.stdout
+    assert str(source_root) not in result.stdout
+
+    assert json_result.returncode == 0, json_result.stderr or json_result.stdout
+    payload = json.loads(json_result.stdout)
+    assert payload["report"]["source_boundary"]["status"] == "distinct"
+    assert payload["report"]["inventory"]["source_candidates"] == 1
+    assert payload["report"]["inventory"]["dedicated_generated_mirrors"] == 1
+    assert payload["report"]["inventory"]["raw_folder_generated_mirrors"] == 1
+    assert payload["report"]["source_manifest"]["records"] == 1
+    assert "copied private source bytes" not in json_result.stdout
+    assert "Generated mirror text" not in json_result.stdout
+    assert "client-plan.docx" not in json_result.stdout
+    assert str(vault) not in json_result.stdout
+    assert str(source_root) not in json_result.stdout
+
+    assert source.read_bytes() == before_source
+    assert mirror.read_text(encoding="utf-8") == before_mirror
+    assert raw_folder_mirror.read_text(encoding="utf-8") == before_raw_folder_mirror
+
+
+def test_vaultwright_sandbox_report_fails_when_source_root_is_vault(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(vault / "tools" / "vaultwright.py"),
+            "sandbox",
+            "--source-root",
+            str(vault),
+        ],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 1
+    assert "source boundary status=same_path" in result.stdout
+    assert "vault root and source-root are the same path" in result.stdout
+    assert str(vault) not in result.stdout
 
 
 def test_vaultwright_conversion_report_handles_invalid_inputs(tmp_path: Path) -> None:

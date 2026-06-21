@@ -46,6 +46,7 @@ COPIED_TOOL_FILES = [
     "lint_vault.py",
     "pilot_report.py",
     "recovery_report.py",
+    "sandbox_report.py",
     "repos.example.yml",
     "requirements.txt",
     "sync_all.sh",

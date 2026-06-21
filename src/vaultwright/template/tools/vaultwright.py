@@ -141,6 +141,16 @@ def command_recovery(args: argparse.Namespace) -> int:
     return run(cmd, root)
 
 
+def command_sandbox(args: argparse.Namespace) -> int:
+    root = args.root.resolve()
+    cmd = python_cmd(root, "sandbox_report.py")
+    if args.source_root:
+        cmd.extend(["--source-root", str(args.source_root)])
+    if args.json:
+        cmd.append("--json")
+    return run(cmd, root)
+
+
 def count_manifest_states(path: Path, id_key: str) -> tuple[str, str | None]:
     if not path.exists():
         return f"{path.name}: not generated yet", None
@@ -429,6 +439,7 @@ def command_doctor(args: argparse.Namespace) -> int:
         "migration_report.py",
         "pilot_report.py",
         "recovery_report.py",
+        "sandbox_report.py",
     ):
         if not (root / "tools" / script).exists():
             errors.append(f"Missing tool: tools/{script}")
@@ -538,6 +549,14 @@ def build_parser() -> argparse.ArgumentParser:
     recovery = sub.add_parser("recovery", help="Print a read-only manifest recovery checklist.")
     recovery.add_argument("--json", action="store_true", help="Print machine-readable recovery JSON.")
     recovery.set_defaults(func=command_recovery)
+    sandbox = sub.add_parser("sandbox", help="Print a read-only copied-vault sandbox readiness report.")
+    sandbox.add_argument(
+        "--source-root",
+        type=Path,
+        help="Original source collection root. Used only to verify the pilot vault is a separate copy.",
+    )
+    sandbox.add_argument("--json", action="store_true", help="Print machine-readable sandbox JSON.")
+    sandbox.set_defaults(func=command_sandbox)
     sub.add_parser("doctor", help="Check runtime, dependencies, and vault structure.").set_defaults(func=command_doctor)
     init = sub.add_parser("init", help="Scaffold a new vault from the repository template.")
     init.add_argument("target", type=Path)
