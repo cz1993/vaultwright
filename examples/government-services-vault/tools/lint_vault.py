@@ -24,7 +24,7 @@ LINK_SRC_SKIP = {"CLAUDE.md", "AGENTS.md", "_meta/conventions.md"}  # docs full 
 TYPES = {"moc", "entity", "note", "guide", "policy", "record", "source-mirror", "source-ref", "repo-mirror"}
 STATUSES = {"draft", "active", "in-review", "sent", "signed", "submitted", "awarded", "superseded", "archived"}
 EXCLUDE_PREFIX = ("_archive", "_backup", "_deprecated")
-EXCLUDE_EXACT = {"_fixtures", "_templates", "_tmp", "tools", "node_modules"}
+EXCLUDE_EXACT = {"_fixtures", "_meta", "_templates", "_tmp", "tools", "node_modules"}
 SOURCE_EXTS = {".docx", ".pptx", ".xlsx", ".doc"}
 TEMP_SOURCE_PREFIXES = ("~$",)
 LINK_RE = re.compile(r"\[\[([^\]]+?)\]\]")
@@ -719,7 +719,7 @@ for expected in CONFIGURED_REPOS:
     if actual_repo_id != expected_repo_id:
         repo_mirror_gap.append(str(note_path.relative_to(ROOT)) + "  (configured repo mirror repo_id mismatch; run vaultwright sync)")
 
-orphan_exempt_names = {"INDEX.md", "CLAUDE.md", "AGENTS.md", "README.md", "RETENTION.md", "log.md"}
+orphan_exempt_names = {"INDEX.md", "CLAUDE.md", "AGENTS.md", "README.md", "RETENTION.md", "CATALOG.md", "log.md"}
 orphans = sorted(
     str(p.relative_to(ROOT))
     for p, n in inbound.items()

@@ -60,6 +60,10 @@ Practical Vaultwright implication:
 - Preserve source links and manifests so Copilot answers can be reconciled against original records.
 - Treat `CATALOG.md` as an orientation file for agents and reviewers, not as the full knowledge
   base.
+- Do not assume SharePoint/OneDrive Copilot paths treat `.md` mirrors the same way they treat
+  Word, PowerPoint, or PDF files. Microsoft documents different file-type support and retrieval
+  behavior across SharePoint knowledge sources, Copilot Studio uploads, connectors, and Retrieval
+  API paths.
 
 ### Copilot Studio Uploaded Files
 
@@ -123,6 +127,8 @@ Before handoff:
 - Do not claim Vaultwright makes Copilot universally faster or more accurate.
 - Do not claim markdown is always better than native Office/PDF content.
 - Do not claim SharePoint, OneDrive, Copilot Studio, Dataverse, and connectors behave the same way.
+- Do not claim `.md` receives semantic retrieval in every Microsoft 365 path; test the exact target
+  path and record the result.
 - Do not claim Vaultwright verifies Microsoft tenant permissions or sensitivity labels.
 - Do not expose private source documents, source text, or mirror text in public repo artifacts.
 
@@ -133,6 +139,8 @@ The guidance above is based on current Microsoft Learn documentation:
 - [Knowledge sources summary - Microsoft Copilot Studio](https://learn.microsoft.com/en-us/microsoft-copilot-studio/knowledge-copilot-studio)
 - [Add knowledge sources to your declarative agent](https://learn.microsoft.com/en-us/microsoft-365/copilot/extensibility/knowledge-sources)
 - [Optimize content retrieval in your agent](https://learn.microsoft.com/en-us/microsoft-365/copilot/extensibility/optimize-content-retrieval)
+- [Add unstructured data as a knowledge source - Microsoft Copilot Studio](https://learn.microsoft.com/en-us/microsoft-copilot-studio/knowledge-add-unstructured-data)
 - [Upload files as a knowledge source - Microsoft Copilot Studio](https://learn.microsoft.com/en-us/microsoft-copilot-studio/knowledge-add-file-upload)
+- [Microsoft 365 Copilot Retrieval API overview](https://learn.microsoft.com/en-us/microsoft-365/copilot/extensibility/api/ai-services/retrieval/overview)
 - [Microsoft 365 Copilot connectors overview](https://learn.microsoft.com/en-us/microsoft-365/copilot/extensibility/overview-copilot-connector)
 - [Copilot Studio quotas and limits](https://learn.microsoft.com/en-us/microsoft-copilot-studio/requirements-quotas)

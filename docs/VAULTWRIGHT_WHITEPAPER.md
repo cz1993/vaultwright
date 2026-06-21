@@ -20,12 +20,13 @@ provenance and refresh safety remain strict.
 
 Vaultwright should also be evaluated as a supplement to Microsoft 365 Copilot and Copilot Studio,
 not as a replacement. Microsoft already grounds Copilot over SharePoint, OneDrive, mailbox,
-connector, and Dataverse-indexed content, and current Microsoft guidance explicitly supports many
-Office/PDF file types plus markdown/text in some Copilot Studio knowledge-source paths. The
-remaining opportunity is preprocessing and governance: Vaultwright can produce smaller, structured,
-source-linked markdown mirrors and an inventory catalog that Copilot-style agents or other agents
-can consume more consistently than sprawling folders of mixed Office files, provided enterprise
-permissions and retention controls remain authoritative.
+connector, and Dataverse-indexed content. Current Microsoft guidance supports Office/PDF files in
+core SharePoint/OneDrive agent paths and supports markdown/text in some Copilot Studio
+uploaded-file paths, but those paths do not behave identically. The remaining opportunity is
+preprocessing and governance: Vaultwright can produce smaller, structured, source-linked markdown
+mirrors plus an inventory catalog that Copilot-style agents or other agents can consume more
+consistently than sprawling folders of mixed Office files, provided enterprise permissions,
+retention controls, and target-platform file-type limits remain authoritative.
 
 The product should not be framed as another AI wiki, Obsidian template, or generic document-chat
 tool. Its practical promise is narrower and more defensible:
@@ -49,9 +50,12 @@ This work has made material progress:
   source/mirror links, lifecycle states, domain counts, unmanaged-source candidates,
   aggregate visual inventory charts, and legacy-folder inventory without copying source document
   text.
-- A new Microsoft 365 handoff guide and `vaultwright m365` readiness report describe how to review
+- A Microsoft 365 handoff guide and `vaultwright m365` readiness report describe how to review
   the generated mirror/catalog layer before storing it in approved SharePoint, OneDrive, Copilot
   Studio, Dataverse, or connector paths.
+- A copied private dogfood vault now demonstrates the safer workflow on a real local corpus outside
+  this repository: originals stay in place, generated mirrors live under `_mirrors/`, and the
+  catalog/report bundle gives a review gateway without copying source text into public artifacts.
 - A new metadata-only review ledger records human decisions against generated artifact hashes, so
   a reviewed catalog, mirror, or handoff report becomes stale when the artifact changes.
 - A new public-service example vault demonstrates familiar Canadian business-startup workflows:
@@ -168,13 +172,19 @@ recommends limiting and simplifying SharePoint content for agents:
 [semantic index](https://learn.microsoft.com/en-us/microsoftsearch/semantic-index-for-copilot),
 [Copilot connectors](https://learn.microsoft.com/en-us/microsoft-365/copilot/extensibility/overview-copilot-connector),
 [Copilot Studio unstructured knowledge](https://learn.microsoft.com/en-us/microsoft-copilot-studio/knowledge-unstructured-data),
+[Copilot Studio uploaded files](https://learn.microsoft.com/en-us/microsoft-copilot-studio/knowledge-add-file-upload),
+[Copilot Retrieval API limitations](https://learn.microsoft.com/en-us/microsoft-365/copilot/extensibility/api/ai-services/retrieval/overview),
 and
 [content-retrieval optimization](https://learn.microsoft.com/en-us/microsoft-365/copilot/extensibility/optimize-content-retrieval).
 Vaultwright's best role is to prepare and maintain a cleaner markdown corpus, provenance ledger,
-and catalog that can be stored in approved locations such as SharePoint or used by custom agents.
-The claim to validate is not that markdown is universally superior; it is that a governed, linked,
-refreshed markdown mirror layer may reduce interpretation cost, retrieval ambiguity, and review
-effort for agent workflows compared with raw Office/PDF folders alone.
+and catalog that can be stored in approved locations, uploaded to supported Copilot Studio
+knowledge-source paths, ingested through a connector, or used directly by custom agents. The claim
+to validate is not that markdown is universally superior. It is that a governed, linked, refreshed
+markdown mirror layer may reduce interpretation cost, retrieval ambiguity, and review effort for
+agent workflows compared with raw Office/PDF folders alone. In Microsoft 365 specifically,
+SharePoint/OneDrive, Copilot Studio upload, Dataverse, connector, and Retrieval API paths must be
+tested separately because their supported file types, indexing behavior, permissions, and latency
+characteristics differ.
 
 ## 6. Government-Services Showcase Rationale
 
@@ -408,7 +418,7 @@ Current evidence is encouraging but limited.
 | Pilot evidence report | Read-only aggregate report summarizes corpus shape, manifest states, audit counts, conversion priorities, recovery counts, review-ledger counts, benchmark tasks, optional benchmark result scores, and a redacted Markdown worksheet summary without source content, source paths, artifact paths, or reviewer notes; benchmark can now initialize private task/result scaffolds and print a path-redacted run worksheet | Useful for private design-partner worksheets; not external validation by itself |
 | Repo source manifest | Stable repo IDs, local-tree/remote-HEAD hashes, audit events, manual-edit detection | Useful coverage for repo mirrors |
 | Source-installable CLI | Console entry point delegates to vault-local tools and supports source-checkout `init` | Good development ergonomics |
-| Private dogfood | Small copied corpus produced mirrors without source-folder clutter | Useful smoke test only |
+| Private dogfood | Copied local corpus outside this repository now has 40 source manifest records, 39 clean generated source mirrors, 1 unsupported legacy `.doc`, regenerated `CATALOG.md`/`CATALOG.html`, conversion/migration/recovery/Microsoft 365 reports, and no source-folder mirror clutter | Useful smoke test only; not public evidence and not a production-readiness claim |
 
 Known gaps:
 
@@ -421,6 +431,9 @@ Known gaps:
   against raw source folders or ad hoc document-chat outputs; `docs/AGENT_READINESS_BENCHMARK.md`
   defines the required comparison protocol and `vaultwright benchmark --results` can validate
   aggregate result packs when private pilots produce them.
+- No Microsoft 365 pilot yet proves that Vaultwright-generated markdown improves Copilot outcomes;
+  SharePoint/OneDrive, uploaded-file, Dataverse, connector, and Retrieval API paths must be tested
+  independently because file-type support and retrieval behavior differ.
 - No independent security review has been completed.
 - The first alpha package artifact is a draft GitHub prerelease for owner review; it is not a
   stable distribution channel or a production-readiness claim.
@@ -439,7 +452,7 @@ Known gaps:
 | Agent over-automation | Medium | Agents treat generated markdown as final authority and skip source/provenance review | Preserve source links, manifests, sentinel boundaries, and human review gates |
 | Public-source licence drift | Medium | External source terms change or are misapplied | Keep dated provenance reviews and avoid copying protected content |
 | Narrow demo domain | Medium | Government example is useful but not company-specific | Add later domain packs only after lifecycle proof |
-| Copilot positioning overclaim | Medium | Buyers think Vaultwright competes with or bypasses Microsoft 365 governance | Frame Vaultwright as preprocessing, provenance, catalog, and mirror lifecycle that complements approved Copilot/SharePoint/Dataverse controls |
+| Copilot positioning overclaim | Medium | Buyers think Vaultwright competes with or bypasses Microsoft 365 governance, or that every Copilot path treats markdown like Office/PDF content | Frame Vaultwright as preprocessing, provenance, catalog, and mirror lifecycle that complements approved Copilot/SharePoint/Dataverse controls; validate each target path separately |
 | Packaging friction | Medium | Users struggle to install or run the CLI | Harden package release and golden-path docs |
 | Obsidian dependency perception | Low/Medium | Buyers think Vaultwright requires a specific UI | Keep filesystem/schema correctness independent of Obsidian |
 
@@ -659,8 +672,11 @@ Important unresolved questions:
 - How much domain-specific taxonomy is useful before it becomes rigid?
 - What should the first commercial support boundary include?
 - Which AI providers or local models are acceptable for early pilots?
-- For Microsoft 365 customers, when should mirrors be stored in SharePoint/OneDrive, exposed
-  through Copilot connectors, or kept local for agent-only use?
+- For Microsoft 365 customers, when should mirrors be stored in SharePoint/OneDrive, uploaded to
+  Copilot Studio, exposed through Copilot connectors, mapped into Dataverse, or kept local for
+  agent-only use?
+- Which Microsoft 365 paths give markdown semantic retrieval, lexical-only retrieval, or no useful
+  grounding, and how should the benchmark separate those cases?
 - How should source permissions and client data boundaries be represented in the vault?
 - When do the static `CATALOG.html` charts stop being enough, and what extra navigation would
   justify a richer UI later?
@@ -703,7 +719,8 @@ Experimental or partially defined:
 
 - Combined mirror files with curated notes above a sentinel.
 - Agent-maintained curated-note workflows.
-- Private dogfood on an existing corpus copy.
+- Private dogfood on an existing corpus copy, including regenerated catalogs and read-only
+  operator reports outside the public repository.
 - Government-services showcase as a public demo of advisory workflows.
 - Pilot-calibrated migration guidance for legacy folder/domain structures.
 - Quantitative conversion-quality scoring beyond the current read-only spot-check report.

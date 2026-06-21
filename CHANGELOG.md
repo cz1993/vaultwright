@@ -15,6 +15,12 @@ All notable changes to Vaultwright are documented here. Format loosely follows
   installation coverage and Markdown/HTML `catalog --check` freshness validation.
 - Added `docs/MICROSOFT_365_HANDOFF.md` and `vaultwright m365`, a read-only handoff readiness
   report for Microsoft 365, SharePoint, OneDrive, Copilot Studio, and connector review paths.
+- Updated the Microsoft 365 handoff and whitepaper guidance to treat Vaultwright as a Copilot
+  supplement while warning that SharePoint/OneDrive, Copilot Studio uploads, Dataverse,
+  connectors, and Retrieval API paths have different file-type and retrieval behavior.
+- Regenerated the private copied dogfood vault outside the repo with dedicated `_mirrors/`
+  storage, `CATALOG.md`, `CATALOG.html`, and read-only conversion, migration, recovery, pilot, and
+  Microsoft 365 review reports; no private source content was added to the repository.
 - Added `tools/review_ledger.py` and `vaultwright review`, a metadata-only review ledger that
   records reviewer/status decisions against generated artifact hashes and reports stale approvals
   when reviewed artifacts change.
@@ -69,6 +75,8 @@ All notable changes to Vaultwright are documented here. Format loosely follows
   same generated repo-mirror note path, preventing partial syncs and source-identity conflicts.
 - Lint now blocks generated repo mirrors when the frontmatter `repo` identity drifts from the
   repo manifest's configured or resolved repo identity.
+- Lint now skips generated `_meta/*.md` reports and the generated `CATALOG.md` gateway for note
+  frontmatter/orphan checks, keeping copied-vault review output focused on curated-note issues.
 
 ### Known TODO before stable release hardening
 - Decide CLA vs DCO; secure the "Vaultwright" name; draft the commercial agreement.

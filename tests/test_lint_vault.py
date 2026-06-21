@@ -94,6 +94,42 @@ def test_template_linter_exits_nonzero_for_blocking_issue(tmp_path: Path) -> Non
     assert "Missing/invalid frontmatter: 1" in result.stdout
 
 
+def test_template_linter_skips_generated_meta_markdown_reports(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    report = vault / "_meta" / "migration-review-worksheet.md"
+    report.write_text("# Vaultwright Migration Review Worksheet\n", encoding="utf-8")
+
+    result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "lint_vault.py")],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0
+    assert "Missing/invalid frontmatter: 0" in result.stdout
+    assert "_meta/migration-review-worksheet.md" not in result.stdout
+
+
+def test_template_linter_skips_catalog_gateway_for_orphan_warnings(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    catalog = vault / "CATALOG.md"
+    catalog.write_text("# Documentation Catalog\n", encoding="utf-8")
+
+    result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "lint_vault.py")],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0
+    assert "Orphan notes (no inbound links): 0" in result.stdout
+    assert "CATALOG.md" not in result.stdout
+
+
 def test_template_linter_keeps_warning_only_orphans_zero_exit(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     shutil.copytree(ROOT / "template", vault)
