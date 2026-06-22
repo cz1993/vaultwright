@@ -78,6 +78,8 @@ All notable changes to Vaultwright are documented here. Format loosely follows
   reviewer-entered status/score/correction/issue-code aggregates, `vaultwright pilot` summarizes
   those aggregates, and the no-data scanner blocks conversion-quality result packs from the public
   repo.
+- CI and release wheel smoke checks now exercise conversion-quality scaffold creation plus reviewed
+  result-pack validation through the packaged CLI.
 - Repo sync/status now detects managed `repo` frontmatter identity drift as stale and normal sync
   rewrites the managed field from the configured/resolved repo identity.
 - Office sync/status now detects managed source frontmatter metadata drift as stale and normal

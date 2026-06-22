@@ -12,8 +12,9 @@ The tag workflow in `.github/workflows/release.yml` runs on `v*` tags. It:
 - installs the built wheel into a fresh virtual environment;
 - scaffolds a new vault from that installed wheel;
 - runs smoke checks for `doctor`, `plan`, `sandbox`, `benchmark`, `catalog`, `catalog --html`,
-  `conversion --guide`, `overlap`, `overlap --worksheet`, `m365`, `review`, `review --check`,
-  `migration`, `migration --worksheet`, `migration --runbook`,
+  `conversion --guide`, `conversion --init-results`, reviewed
+  `conversion --results ... --require-reviewed`, `overlap`, `overlap --worksheet`, `m365`,
+  `review`, `review --check`, `migration`, `migration --worksheet`, `migration --runbook`,
   `migration --normalize-frontmatter-domains --worksheet`, `pilot`, `pilot --worksheet`,
   `recovery`, and `recovery --worksheet`;
 - uploads `dist/*` as workflow artifacts;
@@ -43,8 +44,8 @@ git diff --check
 
 4. Confirm the latest CI run on `main` is green.
 5. Review `CHANGELOG.md`, `README.md`, and `docs/VAULTWRIGHT_WHITEPAPER.md` for overclaims.
-6. Confirm no real client data, personal data, private benchmark task/result packs, secrets,
-   tokens, or proprietary documents are present.
+6. Confirm no real client data, personal data, private benchmark task/result packs, private
+   conversion-quality result packs, secrets, tokens, or proprietary documents are present.
 
 ## Tagging
 

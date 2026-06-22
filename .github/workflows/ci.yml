@@ -59,7 +59,11 @@ jobs:
           "$tmp_build/venv/bin/vaultwright" --root "$tmp_vault" catalog --check
           "$tmp_build/venv/bin/vaultwright" --root "$tmp_vault" catalog --html
           "$tmp_build/venv/bin/vaultwright" --root "$tmp_vault" catalog --html --check
+          python -c 'import json, pathlib, sys; root = pathlib.Path(sys.argv[1]); (root / "40_delivery").mkdir(exist_ok=True); (root / "_mirrors" / "40_delivery").mkdir(parents=True, exist_ok=True); (root / "40_delivery" / "release-smoke.docx").write_bytes(b"synthetic release smoke source"); (root / "_mirrors" / "40_delivery" / "release-smoke.md").write_text("---\ntitle: Release Smoke\n---\n# Release Smoke\n", encoding="utf-8"); (root / "_meta" / "source-manifest.json").write_text(json.dumps({"version": 1, "records": [{"source_id": "release-smoke-source", "current_source_path": "40_delivery/release-smoke.docx", "mirror_path": "_mirrors/40_delivery/release-smoke.md", "source_format": "docx", "source_size": 30, "lifecycle_state": "clean", "warnings": [], "errors": []}]}), encoding="utf-8")' "$tmp_vault"
           "$tmp_build/venv/bin/vaultwright" --root "$tmp_vault" conversion --json
+          "$tmp_build/venv/bin/vaultwright" --root "$tmp_vault" conversion --init-results
+          python -c 'import pathlib, sys; root = pathlib.Path(sys.argv[1]); (root / "_meta" / "conversion-quality-results.yml").write_text("schema_version: 1\ncorpus: ci-wheel-smoke\nreviews:\n- source_id: release-smoke-source\n  source_format: docx\n  priority: low\n  status: pass\n  score: 2\n  reviewer_corrections: 0\n  checked_source: true\n  checked_mirror: true\n  checked_links: true\n  issue_codes: []\n", encoding="utf-8")' "$tmp_vault"
+          "$tmp_build/venv/bin/vaultwright" --root "$tmp_vault" conversion --results _meta/conversion-quality-results.yml --require-reviewed --json
           "$tmp_build/venv/bin/vaultwright" --root "$tmp_vault" overlap --json
           "$tmp_build/venv/bin/vaultwright" --root "$tmp_vault" overlap --worksheet
           "$tmp_build/venv/bin/vaultwright" --root "$tmp_vault" m365 --json

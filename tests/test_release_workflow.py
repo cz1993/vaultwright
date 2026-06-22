@@ -64,6 +64,9 @@ def test_release_workflow_verifies_built_wheel_before_release() -> None:
     assert "test -f \"$tmp_vault/tools/sandbox_report.py\"" in text
     assert "sandbox --source-root" in text
     assert "conversion --guide --json" in text
+    assert "conversion --init-results" in text
+    assert "conversion --results _meta/conversion-quality-results.yml --require-reviewed --json" in text
+    assert "release-smoke-source" in text
     assert "overlap --json" in text
     assert "overlap --worksheet" in text
     assert "m365 --json" in text
@@ -93,6 +96,9 @@ def test_ci_workflow_smokes_sandbox_command() -> None:
     assert "template/tools/sandbox_report.py" in text
     assert "test -f \"$tmp_vault/tools/sandbox_report.py\"" in text
     assert "sandbox --source-root" in text
+    assert "conversion --init-results" in text
+    assert "conversion --results _meta/conversion-quality-results.yml --require-reviewed --json" in text
+    assert "release-smoke-source" in text
     assert "migration --worksheet" in text
     assert "migration --runbook" in text
     assert "migration --normalize-frontmatter-domains --worksheet" in text
@@ -149,4 +155,5 @@ def test_release_checklist_documents_owner_review_and_limitations() -> None:
     assert "This repository does not publish to PyPI yet." in text
     assert "`sandbox`" in text
     assert "conversion quality" in text
+    assert "conversion-quality result packs" in text
     assert "external pilot evidence" in text
