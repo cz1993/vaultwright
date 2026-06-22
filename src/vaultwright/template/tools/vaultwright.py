@@ -122,6 +122,8 @@ def command_benchmark(args: argparse.Namespace) -> int:
         cmd.append("--require-results")
     if args.require_citations:
         cmd.append("--require-citations")
+    if args.require_prompt_safety:
+        cmd.append("--require-prompt-safety")
     if args.json:
         cmd.append("--json")
     return run(cmd, root)
@@ -680,6 +682,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--require-citations",
         action="store_true",
         help="Fail scored benchmark results that do not cite a declared source or generated mirror path.",
+    )
+    benchmark.add_argument(
+        "--require-prompt-safety",
+        action="store_true",
+        help="Fail benchmark results with missing prompt-safety review or recorded prompt-safety violations.",
     )
     benchmark.add_argument("--json", action="store_true", help="Print machine-readable benchmark JSON.")
     benchmark.set_defaults(func=command_benchmark)

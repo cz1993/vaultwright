@@ -819,6 +819,8 @@ def write_agent_benchmark_fixture(vault: Path) -> None:
                         "elapsed_seconds": 12.5,
                         "cited_source_paths": ["40_delivery/client-plan.docx"],
                         "cited_generated_mirror_paths": ["_mirrors/40_delivery/client-plan.md"],
+                        "prompt_safety_reviewed": True,
+                        "prompt_safety_violation": False,
                     },
                     {
                         "task_id": "answer-1",
@@ -826,6 +828,8 @@ def write_agent_benchmark_fixture(vault: Path) -> None:
                         "score": 1,
                         "reviewer_corrections": 1,
                         "cited_source_paths": ["40_delivery/client-plan.docx"],
+                        "prompt_safety_reviewed": True,
+                        "prompt_safety_violation": False,
                     },
                     {
                         "task_id": "audit-1",
@@ -833,6 +837,8 @@ def write_agent_benchmark_fixture(vault: Path) -> None:
                         "score": 0,
                         "reviewer_corrections": 2,
                         "privacy_or_provenance_violation": True,
+                        "prompt_safety_reviewed": True,
+                        "prompt_safety_violation": True,
                     },
                 ],
             },
@@ -903,15 +909,15 @@ def test_vaultwright_benchmark_reports_result_scores_without_answer_content(tmp_
     assert "benchmark_results: 3 results" in result.stdout
     assert (
         "vaultwright_markdown: results=1 score=2/2 avg=2.00 corrections=0 violations=0 "
-        "citations=1+1 uncited_scored=0"
+        "citations=1+1 uncited_scored=0 prompt_safety=1/1 prompt_violations=0 missing_prompt_safety=0"
     ) in result.stdout
     assert (
         "raw_source_folder: results=1 score=1/2 avg=1.00 corrections=1 violations=0 "
-        "citations=1+0 uncited_scored=0"
+        "citations=1+0 uncited_scored=0 prompt_safety=1/1 prompt_violations=0 missing_prompt_safety=0"
     ) in result.stdout
     assert (
         "document_chat_transcript: results=1 score=0/2 avg=0.00 corrections=2 violations=1 "
-        "citations=0+0 uncited_scored=0"
+        "citations=0+0 uncited_scored=0 prompt_safety=1/1 prompt_violations=1 missing_prompt_safety=0"
     ) in result.stdout
     assert "warning: benchmark results incomplete: missing 12 task/mode scores" in result.stdout
 
@@ -955,6 +961,7 @@ def test_vaultwright_benchmark_warns_on_uncited_scored_result(tmp_path: Path) ->
     assert result.returncode == 0, result.stderr or result.stdout
     assert "citations=0+0 uncited_scored=1" in result.stdout
     assert "warning: answer-1: scored result has no valid cited source or mirror paths" in result.stdout
+    assert "warning: answer-1: prompt-safety review is missing or incomplete" in result.stdout
 
 
 def test_vaultwright_benchmark_require_citations_fails_on_uncited_scored_result(tmp_path: Path) -> None:
@@ -996,6 +1003,59 @@ def test_vaultwright_benchmark_require_citations_fails_on_uncited_scored_result(
 
     assert result.returncode == 1
     assert "answer-1: scored result has no valid cited source or mirror paths" in result.stderr
+
+
+def test_vaultwright_benchmark_require_prompt_safety_fails_on_missing_or_violation(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    write_agent_benchmark_fixture(vault)
+    (vault / "_meta" / "agent-readiness-results.yml").write_text(
+        yaml.safe_dump(
+            {
+                "schema_version": 1,
+                "corpus": "fixture",
+                "results": [
+                    {
+                        "task_id": "answer-1",
+                        "mode": "vaultwright_markdown",
+                        "score": 2,
+                        "reviewer_corrections": 0,
+                        "cited_source_paths": ["40_delivery/client-plan.docx"],
+                        "cited_generated_mirror_paths": ["_mirrors/40_delivery/client-plan.md"],
+                    },
+                    {
+                        "task_id": "audit-1",
+                        "mode": "raw_source_folder",
+                        "score": 1,
+                        "reviewer_corrections": 0,
+                        "cited_source_paths": ["40_delivery/client-plan.docx"],
+                        "prompt_safety_reviewed": True,
+                        "prompt_safety_violation": True,
+                    },
+                ],
+            },
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(vault / "tools" / "vaultwright.py"),
+            "benchmark",
+            "--results",
+            "_meta/agent-readiness-results.yml",
+            "--require-prompt-safety",
+        ],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 1
+    assert "answer-1: prompt-safety review is missing or incomplete" in result.stderr
+    assert "audit-1: prompt-safety violation recorded" in result.stderr
 
 
 def test_vaultwright_benchmark_require_results_fails_on_incomplete_scores(tmp_path: Path) -> None:
@@ -1357,6 +1417,8 @@ def test_vaultwright_benchmark_init_results_writes_private_scaffold(tmp_path: Pa
     }
     assert all(entry["score"] is None for entry in scaffold["results"])
     assert all(entry["reviewer_corrections"] is None for entry in scaffold["results"])
+    assert all(entry["prompt_safety_reviewed"] is None for entry in scaffold["results"])
+    assert all(entry["prompt_safety_violation"] is None for entry in scaffold["results"])
     assert "answer_text" not in scaffold_text
     assert "reviewer_notes" not in scaffold_text
     assert "client-plan" not in scaffold_text
@@ -1411,6 +1473,8 @@ def test_vaultwright_benchmark_worksheet_prints_private_run_sheet_without_paths(
     assert "#### document_chat_transcript" in result.stdout
     assert "#### vaultwright_markdown" in result.stdout
     assert "Score (0-2)" in result.stdout
+    assert "Prompt safety reviewed (true/false)" in result.stdout
+    assert "Prompt-safety violation (true/false)" in result.stdout
     assert "Evidence refs: sources=1, generated_mirrors=1, curated=0" in result.stdout
     assert "40_delivery/client-plan.docx" not in result.stdout
     assert "_mirrors/40_delivery/client-plan.md" not in result.stdout
@@ -1449,6 +1513,61 @@ def test_packaged_vaultwright_cli_delegates_benchmark_result_args(tmp_path: Path
     assert payload["result_summary"]["modes"]["vaultwright_markdown"]["score"] == 2
     assert payload["result_summary"]["modes"]["vaultwright_markdown"]["source_citations"] == 1
     assert payload["result_summary"]["modes"]["vaultwright_markdown"]["generated_mirror_citations"] == 1
+    assert payload["result_summary"]["modes"]["vaultwright_markdown"]["prompt_safety_reviewed"] == 1
+    assert payload["result_summary"]["modes"]["document_chat_transcript"]["prompt_safety_violations"] == 1
+
+
+def test_packaged_vaultwright_cli_delegates_benchmark_prompt_safety_gate(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    write_agent_benchmark_fixture(vault)
+    (vault / "_meta" / "agent-readiness-results.yml").write_text(
+        yaml.safe_dump(
+            {
+                "schema_version": 1,
+                "corpus": "fixture",
+                "results": [
+                    {
+                        "task_id": "answer-1",
+                        "mode": "vaultwright_markdown",
+                        "score": 2,
+                        "reviewer_corrections": 0,
+                        "cited_source_paths": ["40_delivery/client-plan.docx"],
+                        "cited_generated_mirror_paths": ["_mirrors/40_delivery/client-plan.md"],
+                        "prompt_safety_reviewed": True,
+                        "prompt_safety_violation": False,
+                    }
+                ],
+            },
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
+    env = {**os.environ, "PYTHONPATH": str(ROOT / "src")}
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "vaultwright.cli",
+            "--root",
+            str(vault),
+            "benchmark",
+            "--results",
+            "_meta/agent-readiness-results.yml",
+            "--require-prompt-safety",
+            "--json",
+        ],
+        cwd=ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+    payload = json.loads(result.stdout)
+    assert payload["result_summary"]["modes"]["vaultwright_markdown"]["prompt_safety_reviewed"] == 1
+    assert payload["result_summary"]["modes"]["vaultwright_markdown"]["prompt_safety_violations"] == 0
 
 
 def test_packaged_vaultwright_cli_delegates_benchmark_init_results(tmp_path: Path) -> None:
@@ -1922,6 +2041,28 @@ def test_vaultwright_pilot_report_summarizes_evidence_without_content(tmp_path: 
         "    success_criteria: [Avoids duplicate notes]\n",
         encoding="utf-8",
     )
+    (vault / "_meta" / "agent-readiness-results.yml").write_text(
+        yaml.safe_dump(
+            {
+                "schema_version": 1,
+                "corpus": "fixture",
+                "results": [
+                    {
+                        "task_id": "answer-1",
+                        "mode": "vaultwright_markdown",
+                        "score": 2,
+                        "reviewer_corrections": 0,
+                        "cited_source_paths": ["40_delivery/client-plan.docx"],
+                        "cited_generated_mirror_paths": ["_mirrors/40_delivery/client-plan.md"],
+                        "prompt_safety_reviewed": True,
+                        "prompt_safety_violation": False,
+                    }
+                ],
+            },
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
     review_record = subprocess.run(
         [
             sys.executable,
@@ -1970,6 +2111,10 @@ def test_vaultwright_pilot_report_summarizes_evidence_without_content(tmp_path: 
     assert "pilot: recovery available=True items=0" in result.stdout
     assert "pilot: overlap available=True curated_notes=2 pairs=1 candidates=1 near_misses=0 thresholds=18/0.72/0.82" in result.stdout
     assert "pilot: benchmark available=True tasks=5" in result.stdout
+    assert (
+        "pilot: benchmark results available=True results=1 missing=14 "
+        "prompt_safety_reviewed=1 prompt_safety_violations=0 prompt_safety_missing=0"
+    ) in result.stdout
     assert "pilot: review ledger available=True reviewed=1 stale_or_missing=0 non_approved=1" in result.stdout
     assert "confidential source bytes" not in result.stdout
     assert "Generated mirror text" not in result.stdout
@@ -2007,6 +2152,9 @@ def test_vaultwright_pilot_report_summarizes_evidence_without_content(tmp_path: 
         "title_threshold": 0.82,
     }
     assert report["report"]["benchmark"]["summary"]["tasks"] == 5
+    benchmark_results = report["report"]["benchmark"]["summary"]["results"]["summary"]
+    assert benchmark_results["modes"]["vaultwright_markdown"]["prompt_safety_reviewed"] == 1
+    assert benchmark_results["modes"]["vaultwright_markdown"]["prompt_safety_violations"] == 0
     review = report["report"]["review"]["summary"]
     assert review["reviewed_artifacts"] == 1
     assert review["statuses"] == {"needs-work": 1}
@@ -2022,6 +2170,7 @@ def test_vaultwright_pilot_report_summarizes_evidence_without_content(tmp_path: 
     assert "Recovery queue: available=True items=0" in worksheet_result.stdout
     assert "Overlap calibration: available=True candidates=1 near_misses=0 pairs=1 thresholds=18/0.72/0.82" in worksheet_result.stdout
     assert "Benchmark tasks: available=True tasks=5" in worksheet_result.stdout
+    assert "Benchmark prompt safety: reviewed=1 violations=0 missing=0" in worksheet_result.stdout
     assert "Review ledger: available=True reviewed=1 stale_or_missing=0 non_approved=1" in worksheet_result.stdout
     assert "Baseline time to answer fixed questions" in worksheet_result.stdout
     assert "confidential source bytes" not in worksheet_result.stdout

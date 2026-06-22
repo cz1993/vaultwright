@@ -122,6 +122,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Fail scored benchmark results that do not cite a declared source or generated mirror path.",
     )
+    benchmark.add_argument(
+        "--require-prompt-safety",
+        action="store_true",
+        help="Fail benchmark results with missing prompt-safety review or recorded prompt-safety violations.",
+    )
     benchmark.add_argument("--json", action="store_true", help="Print machine-readable benchmark JSON.")
     benchmark.set_defaults(
         func=command_delegate,
@@ -137,6 +142,7 @@ def build_parser() -> argparse.ArgumentParser:
             + (["--require-generated"] if args.require_generated else [])
             + (["--require-results"] if args.require_results else [])
             + (["--require-citations"] if args.require_citations else [])
+            + (["--require-prompt-safety"] if args.require_prompt_safety else [])
             + (["--json"] if args.json else [])
         ),
     )

@@ -118,8 +118,8 @@ content.
 ## Near-Term Security Work
 
 - Extend manifest and audit-log coverage through external pilots.
-- Validate prompt-injection handling guidance in private pilot workflows and agent-readiness
-  benchmarks.
+- Calibrate prompt-injection handling evidence in private pilot workflows and agent-readiness
+  benchmarks now that result packs can track and strictly gate prompt-safety review.
 - Expand recovery tests and run pilot restore drills.
 - Use the sandbox report as the standard copied-vault preflight for private design-partner pilots.
 - Run a focused security review after lifecycle semantics stabilize.

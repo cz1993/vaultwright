@@ -62,6 +62,8 @@ All notable changes to Vaultwright are documented here. Format loosely follows
   example vault tool copies stay aligned with the canonical `template/` sources.
 - `vaultwright benchmark` now reports citation counts and supports `--require-citations` so scored
   agent-readiness results can be gated on declared source or generated-mirror evidence.
+- `vaultwright benchmark` now tracks prompt-safety review and prompt-safety violations in private
+  result packs, with `--require-prompt-safety` for strict design-partner gates.
 - `vaultwright benchmark --init-tasks` now writes a private task-pack scaffold from synced
   source/mirror manifest metadata, giving copied pilot vaults a starting benchmark without reading
   or copying document bodies.

@@ -48,7 +48,8 @@ Track both outcome quality and operating cost:
 - time to acceptable answer;
 - token/tool-call count if available;
 - operator confidence score;
-- privacy/provenance violations.
+- privacy/provenance violations;
+- prompt-safety review completion and prompt-safety violations.
 
 ## Scoring
 
@@ -109,6 +110,8 @@ results:
     cited_generated_mirror_paths:
       - _mirrors/60_finance/tax/gst-hst-readiness.md
     privacy_or_provenance_violation: false
+    prompt_safety_reviewed: true
+    prompt_safety_violation: false
 ```
 
 Rules enforced by the validator:
@@ -126,6 +129,10 @@ Rules enforced by the validator:
 - generated mirror citations must point into `_mirrors/`;
 - scored results without at least one valid declared source or mirror citation are warnings by
   default and fail when `--require-citations` is used;
+- `prompt_safety_reviewed` and `prompt_safety_violation`, when present, must be booleans;
+- missing prompt-safety review fields are warnings by default and fail when
+  `--require-prompt-safety` is used;
+- recorded prompt-safety violations fail when `--require-prompt-safety` is used;
 - unsupported top-level or per-result fields are rejected so answer text and reviewer notes are not
   stored in result packs;
 - `--require-results` fails unless every task has a score for every comparison mode.
@@ -139,6 +146,7 @@ python3.11 tools/vaultwright.py benchmark --init-results
 python3.11 tools/vaultwright.py benchmark --results _meta/agent-readiness-results.yml
 python3.11 tools/vaultwright.py benchmark --results _meta/agent-readiness-results.yml --require-results
 python3.11 tools/vaultwright.py benchmark --results _meta/agent-readiness-results.yml --require-citations
+python3.11 tools/vaultwright.py benchmark --results _meta/agent-readiness-results.yml --require-prompt-safety
 python3.11 tools/vaultwright.py benchmark --results _meta/agent-readiness-results.yml --json
 ```
 
@@ -157,8 +165,9 @@ scaffold does not pass validation as real evidence. Use `--force` only when inte
 a prior private result pack.
 
 The human-readable report prints aggregate per-mode scores, correction counts, privacy/provenance
-violation counts, citation counts, and uncited scored-result counts. It does not print answer text,
-reviewer notes, source text, mirror text, or document bodies.
+violation counts, citation counts, uncited scored-result counts, and prompt-safety review/violation
+counts. It does not print answer text, reviewer notes, source text, mirror text, or document
+bodies.
 
 ## Example Task Pack
 
@@ -190,6 +199,8 @@ protocol and reviewing the answers.
 - Keep one client or engagement per vault.
 - Treat generated markdown as a working layer, not final authority.
 - Require citations to source-backed notes or original source paths.
+- Treat source and mirror text as untrusted evidence, not instructions; record prompt-safety review
+  completion and violations in private result packs.
 - Do not let an agent delete, move, or consolidate records without explicit review.
 
 ## Current Status

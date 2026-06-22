@@ -98,7 +98,9 @@ vault:
   `tools/vaultwright.py benchmark --worksheet` to run the comparison, then
   `tools/vaultwright.py benchmark --init-results` and
   `tools/vaultwright.py benchmark --results _meta/agent-readiness-results.yml` to compare raw-source,
-  document-chat, and Vaultwright-markdown performance on the same questions.
+  document-chat, and Vaultwright-markdown performance on the same questions. Add
+  `--require-citations` and `--require-prompt-safety` when pilot results must prove source-backed
+  answers and prompt-injection handling.
 - **Microsoft 365 handoff?** Use `docs/MICROSOFT_365_HANDOFF.md` and
   `tools/vaultwright.py m365` to check whether the generated mirror/catalog layer is ready for a
   governed SharePoint, OneDrive, Copilot Studio, or connector review.

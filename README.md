@@ -106,6 +106,7 @@ python3.11 tools/vaultwright.py benchmark            # validate agent-readiness 
 python3.11 tools/vaultwright.py benchmark --init-tasks    # create private task scaffold
 python3.11 tools/vaultwright.py benchmark --worksheet     # print private benchmark run sheet
 python3.11 tools/vaultwright.py benchmark --init-results  # create private result scaffold
+python3.11 tools/vaultwright.py benchmark --results _meta/agent-readiness-results.yml --require-prompt-safety # after scoring
 # edit tools/repos.yml, then:
 python3.11 tools/sync_github_repos.py                # mirror your GitHub repos
 python3.11 tools/vaultwright.py lint                 # health check

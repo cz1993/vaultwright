@@ -280,6 +280,18 @@ def benchmark_summary(root: Path) -> tuple[dict[str, Any], list[str], list[str]]
         return {"available": False, "summary": {}}, [], [f"benchmark report failed: {exc.__class__.__name__}"]
 
 
+def benchmark_prompt_safety_counts(result_summary: dict[str, Any]) -> dict[str, int]:
+    modes = result_summary.get("modes")
+    if not isinstance(modes, dict):
+        return {"reviewed": 0, "violations": 0, "missing": 0}
+    mode_values = [info for info in modes.values() if isinstance(info, dict)]
+    return {
+        "reviewed": sum(int(info.get("prompt_safety_reviewed", 0)) for info in mode_values),
+        "violations": sum(int(info.get("prompt_safety_violations", 0)) for info in mode_values),
+        "missing": sum(int(info.get("missing_prompt_safety_reviews", 0)) for info in mode_values),
+    }
+
+
 def review_summary(root: Path) -> tuple[dict[str, Any], list[str], list[str]]:
     module, load_errors = load_tool_module(root, "review_ledger.py")
     if not module:
@@ -457,11 +469,15 @@ def print_human(root: Path, report: dict[str, Any], warnings: list[str], errors:
     results = benchmark.get("results", {})
     result_summary = results.get("summary", {}) if isinstance(results, dict) else {}
     if isinstance(results, dict) and results.get("available"):
+        prompt_safety = benchmark_prompt_safety_counts(result_summary)
         print(
             "pilot: benchmark results "
             f"available=True "
             f"results={result_summary.get('results', 0)} "
-            f"missing={result_summary.get('missing_results', 0)}"
+            f"missing={result_summary.get('missing_results', 0)} "
+            f"prompt_safety_reviewed={prompt_safety['reviewed']} "
+            f"prompt_safety_violations={prompt_safety['violations']} "
+            f"prompt_safety_missing={prompt_safety['missing']}"
         )
     review = report["review"]["summary"]
     print(
@@ -488,6 +504,7 @@ def print_worksheet_summary(report: dict[str, Any], warnings: list[str], errors:
     results = benchmark.get("results", {})
     result_summary = results.get("summary", {}) if isinstance(results, dict) else {}
     result_available = bool(isinstance(results, dict) and results.get("available"))
+    prompt_safety = benchmark_prompt_safety_counts(result_summary)
     quality_average = conversion_quality.get("average_score")
     quality_average_text = "n/a" if quality_average is None else str(quality_average)
 
@@ -550,6 +567,12 @@ def print_worksheet_summary(report: dict[str, Any], warnings: list[str], errors:
         f"available={result_available} "
         f"records={result_summary.get('results', 0)} "
         f"missing={result_summary.get('missing_results', 0)}"
+    )
+    print(
+        "- Benchmark prompt safety: "
+        f"reviewed={prompt_safety['reviewed']} "
+        f"violations={prompt_safety['violations']} "
+        f"missing={prompt_safety['missing']}"
     )
     print(
         "- Review ledger: "

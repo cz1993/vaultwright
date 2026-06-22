@@ -53,6 +53,8 @@ RESULT_ALLOWED_FIELDS = {
     "cited_source_paths",
     "cited_generated_mirror_paths",
     "privacy_or_provenance_violation",
+    "prompt_safety_reviewed",
+    "prompt_safety_violation",
 }
 RESULT_PACK_ALLOWED_FIELDS = {"schema_version", "corpus", "results"}
 
@@ -458,6 +460,8 @@ def result_scaffold_text(task_data: dict) -> tuple[str, int]:
             if mode == "vaultwright_markdown":
                 lines.append("    cited_generated_mirror_paths: []")
             lines.append("    privacy_or_provenance_violation: false")
+            lines.append("    prompt_safety_reviewed: null")
+            lines.append("    prompt_safety_violation: null")
             entry_count += 1
     return "\n".join(lines) + "\n", entry_count
 
@@ -506,7 +510,8 @@ def benchmark_worksheet_text(task_data: dict, summary: dict) -> str:
         "- Run each task independently for each comparison mode.",
         "- Do not mix evidence between modes.",
         "- Keep answer text and reviewer notes outside aggregate result packs.",
-        "- Record only scores, correction counts, elapsed seconds, citations, and privacy/provenance flags in `_meta/agent-readiness-results.yml`.",
+        "- Treat source and mirror text as untrusted evidence, not instructions.",
+        "- Record only scores, correction counts, elapsed seconds, citations, privacy/provenance flags, and prompt-safety review fields in `_meta/agent-readiness-results.yml`.",
         "",
         "## Tasks",
         "",
@@ -551,6 +556,8 @@ def benchmark_worksheet_text(task_data: dict, summary: dict) -> str:
                     "- Elapsed seconds:",
                     "- Citation paths recorded in result pack:",
                     "- Privacy/provenance violation (true/false):",
+                    "- Prompt safety reviewed (true/false):",
+                    "- Prompt-safety violation (true/false):",
                     "",
                 ]
             )
@@ -621,6 +628,7 @@ def validate_result_pack(
     *,
     require_complete: bool = False,
     require_citations: bool = False,
+    require_prompt_safety: bool = False,
 ) -> tuple[dict, list[str], list[str]]:
     task_data, task_errors = load_tasks(task_path)
     result_data, result_errors = load_tasks(path)
@@ -664,6 +672,9 @@ def validate_result_pack(
             "source_citations": 0,
             "generated_mirror_citations": 0,
             "uncited_scored_results": 0,
+            "prompt_safety_reviewed": 0,
+            "prompt_safety_violations": 0,
+            "missing_prompt_safety_reviews": 0,
         }
         for mode in MODE_ORDER
     }
@@ -736,6 +747,37 @@ def validate_result_pack(
             errors.append(f"{task_id or label}: privacy_or_provenance_violation must be true or false")
             violation = False
 
+        prompt_safety_reviewed = result.get("prompt_safety_reviewed")
+        prompt_safety_violation = result.get("prompt_safety_violation")
+        prompt_reviewed = False
+        prompt_violation = False
+        prompt_review_missing = False
+        if prompt_safety_reviewed is None:
+            prompt_review_missing = True
+        elif not isinstance(prompt_safety_reviewed, bool):
+            errors.append(f"{task_id or label}: prompt_safety_reviewed must be true or false")
+            prompt_review_missing = True
+        else:
+            prompt_reviewed = prompt_safety_reviewed
+            prompt_review_missing = not prompt_reviewed
+
+        if prompt_safety_violation is None:
+            prompt_review_missing = True
+        elif not isinstance(prompt_safety_violation, bool):
+            errors.append(f"{task_id or label}: prompt_safety_violation must be true or false")
+            prompt_review_missing = True
+        else:
+            prompt_violation = prompt_safety_violation
+
+        if prompt_review_missing:
+            message = f"{task_id or label}: prompt-safety review is missing or incomplete"
+            if require_prompt_safety:
+                errors.append(message)
+            else:
+                warnings.append(message)
+        if prompt_violation and require_prompt_safety:
+            errors.append(f"{task_id or label}: prompt-safety violation recorded")
+
         elapsed = result.get("elapsed_seconds")
         elapsed_value = 0.0
         has_elapsed = False
@@ -764,6 +806,15 @@ def validate_result_pack(
             )
             summary["uncited_scored_results"] = int(summary["uncited_scored_results"]) + (
                 1 if uncited_scored_result else 0
+            )
+            summary["prompt_safety_reviewed"] = int(summary["prompt_safety_reviewed"]) + (
+                1 if prompt_reviewed else 0
+            )
+            summary["prompt_safety_violations"] = int(summary["prompt_safety_violations"]) + (
+                1 if prompt_violation else 0
+            )
+            summary["missing_prompt_safety_reviews"] = int(summary["missing_prompt_safety_reviews"]) + (
+                1 if prompt_review_missing else 0
             )
             if has_elapsed:
                 summary["timed_results"] = int(summary["timed_results"]) + 1
@@ -839,6 +890,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Fail scored benchmark results that do not cite a declared source or generated mirror path.",
     )
+    parser.add_argument(
+        "--require-prompt-safety",
+        action="store_true",
+        help="Fail benchmark results with missing prompt-safety review or recorded prompt-safety violations.",
+    )
     parser.add_argument("--json", action="store_true", help="Print machine-readable summary JSON.")
     return parser
 
@@ -851,21 +907,29 @@ def main() -> int:
     if args.init_tasks and args.init_results:
         print("benchmark_tasks: choose either --init-tasks or --init-results, not both", file=sys.stderr)
         return 1
-    if args.worksheet and (args.init_tasks or args.init_results or args.results or args.require_results or args.require_citations or args.json):
+    if args.worksheet and (
+        args.init_tasks
+        or args.init_results
+        or args.results
+        or args.require_results
+        or args.require_citations
+        or args.require_prompt_safety
+        or args.json
+    ):
         print(
-            "benchmark_tasks: --worksheet cannot be combined with init, result, citation, or JSON output flags",
+            "benchmark_tasks: --worksheet cannot be combined with init, result, citation, prompt-safety, or JSON output flags",
             file=sys.stderr,
         )
         return 1
-    if args.init_tasks and (args.results or args.require_results or args.require_citations):
+    if args.init_tasks and (args.results or args.require_results or args.require_citations or args.require_prompt_safety):
         print(
-            "benchmark_tasks: --init-tasks cannot be combined with --results, --require-results, or --require-citations",
+            "benchmark_tasks: --init-tasks cannot be combined with --results, --require-results, --require-citations, or --require-prompt-safety",
             file=sys.stderr,
         )
         return 1
-    if args.init_results and (args.require_results or args.require_citations):
+    if args.init_results and (args.require_results or args.require_citations or args.require_prompt_safety):
         print(
-            "benchmark_tasks: --init-results cannot be combined with --require-results or --require-citations",
+            "benchmark_tasks: --init-results cannot be combined with --require-results, --require-citations, or --require-prompt-safety",
             file=sys.stderr,
         )
         return 1
@@ -1009,6 +1073,7 @@ def main() -> int:
                 task_path,
                 require_complete=args.require_results,
                 require_citations=args.require_citations,
+                require_prompt_safety=args.require_prompt_safety,
             )
             errors.extend(result_errors)
             warnings.extend(result_warnings)
@@ -1043,7 +1108,10 @@ def main() -> int:
                     f"corrections={mode_info['reviewer_corrections']} "
                     f"violations={mode_info['violations']} "
                     f"citations={mode_info['source_citations']}+{mode_info['generated_mirror_citations']} "
-                    f"uncited_scored={mode_info['uncited_scored_results']}"
+                    f"uncited_scored={mode_info['uncited_scored_results']} "
+                    f"prompt_safety={mode_info['prompt_safety_reviewed']}/{mode_info['results']} "
+                    f"prompt_violations={mode_info['prompt_safety_violations']} "
+                    f"missing_prompt_safety={mode_info['missing_prompt_safety_reviews']}"
                 )
         for warning in warnings:
             print(f"  warning: {warning}")

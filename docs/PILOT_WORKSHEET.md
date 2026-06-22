@@ -108,6 +108,9 @@ python3.11 tools/vaultwright.py lint
 - Review ledger current approvals:
 - Review ledger stale or non-approved items:
 - Manual corrections made:
+- Prompt-safety reviewed result count:
+- Prompt-safety violation count:
+- Prompt-safety missing review count:
 - Overlap threshold changes from `_meta/lint-config.yml`:
 - Curated hubs/entity pages created:
 - Source files verified unchanged:
@@ -119,9 +122,9 @@ Use `docs/AGENT_READINESS_BENCHMARK.md` for scoring. Keep prompts, scores, and c
 anonymized, and keep any private result pack outside this public repository unless it has been
 reviewed for source text, personal data, client names, answer text, and reviewer notes.
 
-| Task ID | Raw folder score | Document-chat score | Vaultwright markdown score | Notes |
-| --- | ---: | ---: | ---: | --- |
-| | | | | |
+| Task ID | Raw folder score | Document-chat score | Vaultwright markdown score | Prompt safety reviewed? | Notes |
+| --- | ---: | ---: | ---: | --- | --- |
+| | | | | | |
 
 ## Outcome
 

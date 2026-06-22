@@ -297,6 +297,7 @@ aggregate results with:
 python3.11 tools/vaultwright.py benchmark --results _meta/agent-readiness-results.yml
 python3.11 tools/vaultwright.py benchmark --results _meta/agent-readiness-results.yml --require-results
 python3.11 tools/vaultwright.py benchmark --results _meta/agent-readiness-results.yml --require-citations
+python3.11 tools/vaultwright.py benchmark --results _meta/agent-readiness-results.yml --require-prompt-safety
 python3.11 tools/vaultwright.py benchmark --results _meta/agent-readiness-results.yml --json
 ```
 
@@ -308,11 +309,13 @@ python3.11 tools/vaultwright.py benchmark --init-results
 
 Result packs score each task across `raw_source_folder`, `document_chat_transcript`, and
 `vaultwright_markdown`. The report prints per-mode scores, correction counts, privacy/provenance
-violation counts, citation counts, and uncited scored-result counts, but it does not print answer
-text or reviewer notes. Use `--require-citations` when scored pilot results must cite at least one
-declared source or generated mirror path. Result packs are ignored and scanner-blocked in the
-public repository by default; keep them in private pilot workspaces unless an anonymized aggregate
-has been reviewed separately.
+violation counts, citation counts, uncited scored-result counts, and prompt-safety review/violation
+counts, but it does not print answer text or reviewer notes. Use `--require-citations` when scored
+pilot results must cite at least one declared source or generated mirror path. Use
+`--require-prompt-safety` when scored pilot results must prove reviewer confirmation that source and
+mirror text was treated as untrusted evidence, not instructions. Result packs are ignored and
+scanner-blocked in the public repository by default; keep them in private pilot workspaces unless
+an anonymized aggregate has been reviewed separately.
 
 ## Keep it fresh (unattended)
 
