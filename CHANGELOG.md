@@ -78,6 +78,8 @@ All notable changes to Vaultwright are documented here. Format loosely follows
   reviewer-entered status/score/correction/issue-code aggregates, `vaultwright pilot` summarizes
   those aggregates, and the no-data scanner blocks conversion-quality result packs from the public
   repo.
+- Conversion review guides and scaffolds now print the allowed result-pack schema, and quickstart
+  commands clarify that `--require-reviewed` runs after the private scaffold is filled.
 - CI and release wheel smoke checks now exercise conversion-quality scaffold creation plus reviewed
   result-pack validation through the packaged CLI.
 - Repo sync/status now detects managed `repo` frontmatter identity drift as stale and normal sync

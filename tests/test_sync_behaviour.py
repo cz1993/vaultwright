@@ -1769,6 +1769,8 @@ def test_vaultwright_conversion_report_prioritizes_spot_checks(tmp_path: Path) -
     assert "doc (1): Treat legacy .doc files as inventory-only" in guide_result.stdout
     assert "pdf (1): Check scanned or image-only pages against the original PDF" in guide_result.stdout
     assert "xlsx (1): Check formulas, hidden sheets" in guide_result.stdout
+    assert "Allowed issue codes: bad_source_link" in guide_result.stdout
+    assert "table_loss" in guide_result.stdout
     assert "Use source-backed citations for durable curated notes" in guide_result.stdout
     assert "PDF mirror" not in guide_result.stdout
     assert "Sheet mirror" not in guide_result.stdout
@@ -1780,10 +1782,13 @@ def test_vaultwright_conversion_report_prioritizes_spot_checks(tmp_path: Path) -
         "Preflight",
         "Priority handling",
         "Format checks",
+        "Quality result pack",
         "Sign-off",
     ]
     format_section = next(section for section in guide_payload["guide"]["sections"] if section["title"] == "Format checks")
     assert any(item.startswith("pdf (1):") for item in format_section["items"])
+    assert guide_payload["quality_schema"]["statuses"] == ["blocked", "needs-work", "not-reviewed", "pass"]
+    assert "table_loss" in guide_payload["quality_schema"]["issue_codes"]
 
     assert {path: path.read_bytes() for path in before_sources} == before_sources
     assert {path: path.read_text(encoding="utf-8") for path in before_mirrors} == before_mirrors
@@ -2544,6 +2549,10 @@ def test_vaultwright_conversion_quality_results_are_metadata_only(tmp_path: Path
 
     assert scaffold.returncode == 0, scaffold.stderr or scaffold.stdout
     assert "conversion results scaffold: wrote _meta/conversion-quality-results.yml" in scaffold.stdout
+    assert "conversion results schema:" in scaffold.stdout
+    assert "issue codes: bad_source_link" in scaffold.stdout
+    assert "table_loss" in scaffold.stdout
+    assert "forbidden fields:" in scaffold.stdout
     result_path = vault / "_meta" / "conversion-quality-results.yml"
     scaffold_text = result_path.read_text(encoding="utf-8")
     assert "src-registration" in scaffold_text

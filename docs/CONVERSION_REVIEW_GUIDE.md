@@ -12,7 +12,7 @@ python3.11 tools/vaultwright.py status
 python3.11 tools/vaultwright.py recovery
 python3.11 tools/vaultwright.py conversion --guide
 python3.11 tools/vaultwright.py conversion --init-results
-python3.11 tools/vaultwright.py conversion --results _meta/conversion-quality-results.yml --require-reviewed
+python3.11 tools/vaultwright.py conversion --results _meta/conversion-quality-results.yml --require-reviewed # after filling scaffold
 python3.11 tools/vaultwright.py conversion --guide --json
 python3.11 tools/vaultwright.py review --artifact <generated-artifact> --status approved --reviewer <name>
 ```
@@ -20,8 +20,10 @@ python3.11 tools/vaultwright.py review --artifact <generated-artifact> --status 
 `sandbox`, `conversion --guide`, and `conversion --results ...` are read-only. `sandbox` verifies
 the copied-vault boundary, mirror isolation, manifest/recovery readiness, and basic backup posture
 before review starts. `conversion --guide` prints the manifest-backed spot-check report plus an
-operator checklist based on lifecycle states and source formats. `conversion --init-results` is the
-only write step in this loop: it creates a private metadata-only result scaffold under `_meta/`.
+operator checklist based on lifecycle states and source formats, including the allowed result-pack
+schema. `conversion --init-results` is the only write step in this loop: it creates a private
+metadata-only result scaffold under `_meta/` and prints the allowed statuses, scores, issue codes,
+and forbidden free-text fields.
 None of these commands may print source text, mirror text, source paths, or document bodies.
 
 ## Review Order
@@ -35,7 +37,8 @@ None of these commands may print source text, mirror text, source paths, or docu
 5. Sample low-priority items by format for routine coverage.
 6. Fill `_meta/conversion-quality-results.yml` with metadata-only statuses, 0-2 scores, correction
    counts, booleans, and controlled issue codes.
-7. Validate the result pack with `vaultwright conversion --results _meta/conversion-quality-results.yml --require-reviewed`.
+7. After the scaffold is filled, validate the result pack with
+   `vaultwright conversion --results _meta/conversion-quality-results.yml --require-reviewed`.
 8. Record artifact-level review decisions with `vaultwright review`, then record aggregate defects
    and manual corrections in the pilot worksheet.
 
@@ -88,7 +91,7 @@ In `_meta/conversion-quality-results.yml`, record only these metadata fields:
 - `score`: null for `not-reviewed`, otherwise 0, 1, or 2;
 - `reviewer_corrections`: null for `not-reviewed`, otherwise a nonnegative integer;
 - `checked_source`, `checked_mirror`, and `checked_links`;
-- `issue_codes` from the controlled list printed by the scaffold/validator.
+- `issue_codes` from the controlled list printed by the guide, scaffold, and validator.
 
 Do not add notes, reviewer comments, source text, mirror text, prompts, answers, excerpts, client
 identifiers, secrets, or personal data. The validator rejects common free-text fields.

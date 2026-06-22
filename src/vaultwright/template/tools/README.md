@@ -50,7 +50,7 @@ python3.11 tools/vaultwright.py overlap
 python3.11 tools/vaultwright.py overlap --worksheet
 python3.11 tools/vaultwright.py conversion --guide
 python3.11 tools/vaultwright.py conversion --init-results
-python3.11 tools/vaultwright.py conversion --results _meta/conversion-quality-results.yml --require-reviewed
+python3.11 tools/vaultwright.py conversion --results _meta/conversion-quality-results.yml --require-reviewed # after filling scaffold
 python3.11 tools/vaultwright.py migration
 python3.11 tools/vaultwright.py migration --worksheet
 python3.11 tools/vaultwright.py migration --runbook
@@ -84,9 +84,11 @@ the selected catalog is stale.
 `conversion` is read-only unless `--init-results` is supplied. It reads
 `_meta/source-manifest.json` and turns lifecycle states, format risks, warnings, errors, and
 source/mirror existence into a prioritized spot-check list. Use `--guide` to append a
-manifest-aware operator checklist. Use `--init-results` to create a private
-`_meta/conversion-quality-results.yml` scaffold, then fill only metadata-only review fields:
-status, 0-2 score, correction count, booleans, and controlled issue codes. Use
+manifest-aware operator checklist with the allowed result-pack schema. Use `--init-results` to
+create a private `_meta/conversion-quality-results.yml` scaffold, then fill only metadata-only
+review fields:
+status, 0-2 score, correction count, booleans, and controlled issue codes. The scaffold command
+prints the allowed statuses, scores, issue codes, and forbidden free-text fields. Use
 `--results _meta/conversion-quality-results.yml --require-reviewed` to validate that every source
 manifest record has been reviewed. Result packs must stay out of the public repository and must
 not contain notes, source text, mirror text, prompts, answers, or excerpts. See

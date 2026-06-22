@@ -97,6 +97,15 @@ QUALITY_FORBIDDEN_FIELDS = {
 }
 
 
+def quality_schema() -> dict:
+    return {
+        "statuses": sorted(QUALITY_STATUSES),
+        "scores": sorted(QUALITY_SCORES),
+        "issue_codes": sorted(QUALITY_ISSUE_CODES),
+        "forbidden_fields": sorted(QUALITY_FORBIDDEN_FIELDS),
+    }
+
+
 def load_source_records(root: Path) -> tuple[list[dict], list[str], list[str]]:
     path = root / SOURCE_MANIFEST
     if not path.exists():
@@ -306,6 +315,18 @@ def build_guide(report: dict) -> dict:
         format_items.append(f"{fmt} ({count}): " + " ".join(guidance))
     if format_items:
         sections.append({"title": "Format checks", "items": format_items})
+    schema = quality_schema()
+    sections.append({
+        "title": "Quality result pack",
+        "items": [
+            "Fill the private result scaffold after source/mirror review, then run "
+            "`vaultwright conversion --results _meta/conversion-quality-results.yml --require-reviewed`.",
+            "Allowed statuses: " + ", ".join(schema["statuses"]) + ".",
+            "Scores are 0, 1, or 2 for reviewed records; leave score null only when status is not-reviewed.",
+            "Allowed issue codes: " + ", ".join(schema["issue_codes"]) + ".",
+            "Do not add free-text fields such as: " + ", ".join(schema["forbidden_fields"]) + ".",
+        ],
+    })
     sections.append({
         "title": "Sign-off",
         "items": [
@@ -441,9 +462,12 @@ def validate_quality_record(
     if not isinstance(issue_codes, list):
         errors.append(f"{label}: issue_codes must be a list")
     else:
-        for code in issue_codes:
+        allowed_codes = ", ".join(sorted(QUALITY_ISSUE_CODES))
+        for code_index, code in enumerate(issue_codes):
             if not isinstance(code, str) or code not in QUALITY_ISSUE_CODES:
-                errors.append(f"{label}: unsupported issue code {code!r}")
+                errors.append(
+                    f"{label}: unsupported issue code at issue_codes[{code_index}]; allowed: {allowed_codes}"
+                )
             else:
                 summary["issue_codes"][code] += 1
 
@@ -626,6 +650,16 @@ def print_quality_summary(summary: dict) -> None:
     print_counts("result issues", summary.get("issue_codes", {}))
 
 
+def print_quality_schema(schema: dict) -> None:
+    print(
+        "conversion results schema: "
+        f"statuses={', '.join(schema['statuses'])}; "
+        f"scores={', '.join(str(score) for score in schema['scores'])}"
+    )
+    print(f"  issue codes: {', '.join(schema['issue_codes'])}")
+    print(f"  forbidden fields: {', '.join(schema['forbidden_fields'])}")
+
+
 def print_human(
     root: Path,
     report: dict,
@@ -699,10 +733,12 @@ def main() -> int:
         return 1
     quality_rel = args.results or QUALITY_RESULTS
     if args.init_results:
+        schema = quality_schema()
         quality_summary, warnings, errors = write_quality_results_scaffold(ROOT, quality_rel, force=args.force)
         payload = {
             "root": str(ROOT),
             "quality_results": quality_summary,
+            "quality_schema": schema,
             "warnings": warnings,
             "errors": errors,
         }
@@ -716,6 +752,7 @@ def main() -> int:
             if not errors:
                 print(f"conversion results scaffold: wrote {quality_summary['path']}")
                 print_quality_summary(quality_summary)
+                print_quality_schema(schema)
         return 1 if errors else 0
 
     report, warnings, errors = build_report(ROOT, low_risk_per_format=args.low_risk_per_format)
@@ -740,6 +777,7 @@ def main() -> int:
         payload["quality_results"] = quality_summary
     if args.guide:
         payload["guide"] = build_guide(report)
+        payload["quality_schema"] = quality_schema()
     if args.json:
         print(json.dumps(payload, indent=2, sort_keys=True))
     else:

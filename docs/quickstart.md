@@ -54,7 +54,7 @@ python3.11 tools/vaultwright.py review --json   # summarize metadata-only review
 python3.11 tools/vaultwright.py overlap         # calibrate overlap thresholds without note bodies
 python3.11 tools/vaultwright.py conversion --guide # read-only conversion spot-check and guide
 python3.11 tools/vaultwright.py conversion --init-results # private quality result scaffold
-python3.11 tools/vaultwright.py conversion --results _meta/conversion-quality-results.yml --require-reviewed
+python3.11 tools/vaultwright.py conversion --results _meta/conversion-quality-results.yml --require-reviewed # after filling scaffold
 python3.11 tools/vaultwright.py migration       # dry-run report for legacy/unknown folders
 python3.11 tools/vaultwright.py migration --worksheet # Markdown cleanup checklist
 python3.11 tools/vaultwright.py migration --runbook # legacy folder move protocol

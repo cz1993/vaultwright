@@ -76,7 +76,7 @@ python3.11 tools/vaultwright.py catalog
 python3.11 tools/vaultwright.py catalog --html
 python3.11 tools/vaultwright.py conversion --guide
 python3.11 tools/vaultwright.py conversion --init-results
-python3.11 tools/vaultwright.py conversion --results _meta/conversion-quality-results.yml --require-reviewed
+python3.11 tools/vaultwright.py conversion --results _meta/conversion-quality-results.yml --require-reviewed # after filling scaffold
 python3.11 tools/vaultwright.py recovery
 python3.11 tools/vaultwright.py overlap
 python3.11 tools/vaultwright.py overlap --worksheet
