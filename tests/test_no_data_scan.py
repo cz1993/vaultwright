@@ -102,6 +102,36 @@ def test_no_data_scan_flags_renamed_agent_readiness_result_pack_shape(tmp_path: 
     assert "benchmark result packs must stay out of the public repo" in result.stderr
 
 
+def test_no_data_scan_flags_conversion_quality_result_packs(tmp_path: Path) -> None:
+    path = tmp_path / "vault" / "_meta" / "conversion-quality-results.yml"
+    path.parent.mkdir(parents=True)
+    path.write_text("schema_version: 1\ncorpus: fixture\nreviews: []\n", encoding="utf-8")
+
+    result = run_scan(path)
+
+    assert result.returncode == 1
+    assert "conversion quality result packs must stay out of the public repo" in result.stderr
+
+
+def test_no_data_scan_flags_renamed_conversion_quality_result_pack_shape(tmp_path: Path) -> None:
+    path = tmp_path / "vault" / "_meta" / "conversion-review-results-public.yml"
+    path.parent.mkdir(parents=True)
+    path.write_text(
+        "schema_version: 1\n"
+        "corpus: fixture\n"
+        "reviews:\n"
+        "  - source_id: src-1\n"
+        "    status: pass\n"
+        "    score: 2\n",
+        encoding="utf-8",
+    )
+
+    result = run_scan(path)
+
+    assert result.returncode == 1
+    assert "conversion quality result packs must stay out of the public repo" in result.stderr
+
+
 def test_no_data_scan_flags_private_agent_readiness_task_packs(tmp_path: Path) -> None:
     path = tmp_path / "vault" / "_meta" / "agent-readiness-tasks.yml"
     path.parent.mkdir(parents=True)

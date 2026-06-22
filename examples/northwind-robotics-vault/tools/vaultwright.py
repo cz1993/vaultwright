@@ -130,6 +130,14 @@ def command_benchmark(args: argparse.Namespace) -> int:
 def command_conversion(args: argparse.Namespace) -> int:
     root = args.root.resolve()
     cmd = python_cmd(root, "conversion_report.py")
+    if args.results:
+        cmd.extend(["--results", str(args.results)])
+    if args.init_results:
+        cmd.append("--init-results")
+    if args.force:
+        cmd.append("--force")
+    if args.require_reviewed:
+        cmd.append("--require-reviewed")
     if args.json:
         cmd.append("--json")
     if args.guide:
@@ -678,6 +686,14 @@ def build_parser() -> argparse.ArgumentParser:
     conversion = sub.add_parser("conversion", help="Print a read-only conversion spot-check report.")
     conversion.add_argument("--json", action="store_true", help="Print machine-readable conversion JSON.")
     conversion.add_argument("--guide", action="store_true", help="Append an operator conversion-review checklist.")
+    conversion.add_argument("--results", type=Path, help="Validate a metadata-only conversion quality result pack.")
+    conversion.add_argument("--init-results", action="store_true", help="Create a metadata-only quality result scaffold.")
+    conversion.add_argument("--force", action="store_true", help="Overwrite an existing quality result scaffold.")
+    conversion.add_argument(
+        "--require-reviewed",
+        action="store_true",
+        help="Fail unless every source manifest record has a reviewed quality result.",
+    )
     conversion.add_argument(
         "--low-risk-per-format",
         type=int,

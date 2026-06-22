@@ -73,6 +73,11 @@ All notable changes to Vaultwright are documented here. Format loosely follows
   mirror paths, answers, or reviewer notes.
 - The no-data scanner now rejects private agent-readiness task packs unless they are approved
   public examples, preventing copied-vault benchmark prompts and path lists from entering the repo.
+- `vaultwright conversion --init-results` now creates private metadata-only conversion-quality
+  result scaffolds, `vaultwright conversion --results ... --require-reviewed` validates
+  reviewer-entered status/score/correction/issue-code aggregates, `vaultwright pilot` summarizes
+  those aggregates, and the no-data scanner blocks conversion-quality result packs from the public
+  repo.
 - Repo sync/status now detects managed `repo` frontmatter identity drift as stale and normal sync
   rewrites the managed field from the configured/resolved repo identity.
 - Office sync/status now detects managed source frontmatter metadata drift as stale and normal

@@ -57,8 +57,8 @@ Current implementation status:
   plus repo sync/status detection and repair for managed repo frontmatter identity drift;
 - partially implemented: full move/rename UX beyond unique hash matching and ambiguous-move
   conflict detection;
-- not complete: full rename/move UX, rollback automation, quantitative conversion-quality scoring
-  beyond checklist-based spot checks, and exhaustive conflict-resolution flows.
+- not complete: full rename/move UX, rollback automation, automated conversion-quality scoring
+  beyond private operator-entered result packs, and exhaustive conflict-resolution flows.
 
 Human review decisions are recorded outside generated artifacts in `_meta/review-ledger.jsonl`.
 The ledger stores artifact paths, hashes, reviewer/status fields, and short metadata notes. It does

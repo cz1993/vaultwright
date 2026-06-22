@@ -143,6 +143,14 @@ def build_parser() -> argparse.ArgumentParser:
     conversion = sub.add_parser("conversion", help="Print a read-only conversion spot-check report.")
     conversion.add_argument("--json", action="store_true", help="Print machine-readable conversion JSON.")
     conversion.add_argument("--guide", action="store_true", help="Append an operator conversion-review checklist.")
+    conversion.add_argument("--results", type=Path, help="Validate a metadata-only conversion quality result pack.")
+    conversion.add_argument("--init-results", action="store_true", help="Create a metadata-only quality result scaffold.")
+    conversion.add_argument("--force", action="store_true", help="Overwrite an existing quality result scaffold.")
+    conversion.add_argument(
+        "--require-reviewed",
+        action="store_true",
+        help="Fail unless every source manifest record has a reviewed quality result.",
+    )
     conversion.add_argument(
         "--low-risk-per-format",
         type=int,
@@ -152,7 +160,11 @@ def build_parser() -> argparse.ArgumentParser:
     conversion.set_defaults(
         func=command_delegate,
         delegate_args=lambda args: (
-            (["--json"] if args.json else [])
+            (["--results", str(args.results)] if args.results else [])
+            + (["--init-results"] if args.init_results else [])
+            + (["--force"] if args.force else [])
+            + (["--require-reviewed"] if args.require_reviewed else [])
+            + (["--json"] if args.json else [])
             + (["--guide"] if args.guide else [])
             + (
                 ["--low-risk-per-format", str(args.low_risk_per_format)]

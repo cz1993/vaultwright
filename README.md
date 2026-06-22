@@ -88,6 +88,8 @@ python3.11 tools/vaultwright.py plan                 # inspect proposed mirror a
 python3.11 tools/vaultwright.py sync                 # mirror Office files and configured repos
 python3.11 tools/vaultwright.py status               # review manifest-backed lifecycle state
 python3.11 tools/vaultwright.py conversion --guide   # read-only conversion spot-check + guide
+python3.11 tools/vaultwright.py conversion --init-results # private quality review scaffold
+python3.11 tools/vaultwright.py conversion --results _meta/conversion-quality-results.yml --require-reviewed
 python3.11 tools/vaultwright.py migration            # dry-run report for legacy/unknown folders
 python3.11 tools/vaultwright.py migration --runbook  # legacy folder move protocol
 python3.11 tools/vaultwright.py migration --normalize-frontmatter-domains --worksheet # review domain alias cleanup

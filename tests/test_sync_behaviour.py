@@ -2495,6 +2495,206 @@ def test_vaultwright_conversion_report_handles_invalid_inputs(tmp_path: Path) ->
     assert "mirror path is unsafe: ../outside.md" in report["items"][0]["reasons"]
 
 
+def test_vaultwright_conversion_quality_results_are_metadata_only(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    (vault / "40_delivery").mkdir(exist_ok=True)
+    (vault / "_mirrors" / "40_delivery").mkdir(parents=True)
+    (vault / "40_delivery" / "registration.docx").write_bytes(b"office bytes")
+    (vault / "40_delivery" / "funding.pdf").write_bytes(b"pdf bytes")
+    (vault / "_mirrors" / "40_delivery" / "registration.md").write_text("Generated mirror text", encoding="utf-8")
+    (vault / "_mirrors" / "40_delivery" / "funding.md").write_text("Generated mirror text", encoding="utf-8")
+    (vault / "_meta" / "source-manifest.json").write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "records": [
+                    {
+                        "source_id": "src-registration",
+                        "current_source_path": "40_delivery/registration.docx",
+                        "mirror_path": "_mirrors/40_delivery/registration.md",
+                        "source_format": "docx",
+                        "source_size": 12,
+                        "lifecycle_state": "clean",
+                        "warnings": [],
+                        "errors": [],
+                    },
+                    {
+                        "source_id": "src-funding",
+                        "current_source_path": "40_delivery/funding.pdf",
+                        "mirror_path": "_mirrors/40_delivery/funding.md",
+                        "source_format": "pdf",
+                        "source_size": 10,
+                        "lifecycle_state": "clean",
+                        "warnings": [],
+                        "errors": [],
+                    },
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    scaffold = subprocess.run(
+        [sys.executable, str(vault / "tools" / "vaultwright.py"), "conversion", "--init-results"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert scaffold.returncode == 0, scaffold.stderr or scaffold.stdout
+    assert "conversion results scaffold: wrote _meta/conversion-quality-results.yml" in scaffold.stdout
+    result_path = vault / "_meta" / "conversion-quality-results.yml"
+    scaffold_text = result_path.read_text(encoding="utf-8")
+    assert "src-registration" in scaffold_text
+    assert "40_delivery/registration.docx" not in scaffold_text
+    assert "_mirrors/40_delivery/registration.md" not in scaffold_text
+
+    gated = subprocess.run(
+        [
+            sys.executable,
+            str(vault / "tools" / "vaultwright.py"),
+            "conversion",
+            "--results",
+            "_meta/conversion-quality-results.yml",
+            "--require-reviewed",
+        ],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert gated.returncode == 1
+    assert "every source manifest record must have a reviewed quality result" in gated.stderr
+
+    result_path.write_text(
+        yaml.safe_dump(
+            {
+                "schema_version": 1,
+                "corpus": "fixture",
+                "reviews": [
+                    {
+                        "source_id": "src-registration",
+                        "source_format": "docx",
+                        "priority": "medium",
+                        "status": "pass",
+                        "score": 2,
+                        "reviewer_corrections": 0,
+                        "checked_source": True,
+                        "checked_mirror": True,
+                        "checked_links": True,
+                        "issue_codes": [],
+                    },
+                    {
+                        "source_id": "src-funding",
+                        "source_format": "pdf",
+                        "priority": "medium",
+                        "status": "needs-work",
+                        "score": 1,
+                        "reviewer_corrections": 3,
+                        "checked_source": True,
+                        "checked_mirror": True,
+                        "checked_links": False,
+                        "issue_codes": ["table_loss"],
+                    },
+                ],
+            },
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
+    json_result = subprocess.run(
+        [
+            sys.executable,
+            str(vault / "tools" / "vaultwright.py"),
+            "conversion",
+            "--results",
+            "_meta/conversion-quality-results.yml",
+            "--json",
+            "--low-risk-per-format",
+            "0",
+        ],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert json_result.returncode == 0, json_result.stderr or json_result.stdout
+    payload = json.loads(json_result.stdout)
+    quality = payload["quality_results"]
+    assert quality["records"] == 2
+    assert quality["reviewed"] == 2
+    assert quality["missing_reviews"] == 0
+    assert quality["average_score"] == 1.5
+    assert quality["reviewer_corrections"] == 3
+    assert quality["issue_codes"] == {"table_loss": 1}
+    assert "Generated mirror text" not in json_result.stdout
+    assert "40_delivery/registration.docx" not in json_result.stdout
+
+    pilot = subprocess.run(
+        [sys.executable, str(vault / "tools" / "vaultwright.py"), "pilot"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+    pilot_json = subprocess.run(
+        [sys.executable, str(vault / "tools" / "vaultwright.py"), "pilot", "--json"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert pilot.returncode == 0, pilot.stderr or pilot.stdout
+    assert "pilot: conversion quality available=True records=2 reviewed=2 missing=0 average_score=1.5" in pilot.stdout
+    assert "Generated mirror text" not in pilot.stdout
+    assert "40_delivery/registration.docx" not in pilot.stdout
+    assert pilot_json.returncode == 0, pilot_json.stderr or pilot_json.stdout
+    pilot_payload = json.loads(pilot_json.stdout)
+    assert pilot_payload["report"]["conversion_quality"]["summary"]["reviewed"] == 2
+    assert "Generated mirror text" not in pilot_json.stdout
+    assert "40_delivery/registration.docx" not in pilot_json.stdout
+
+    result_path.write_text(
+        yaml.safe_dump(
+            {
+                "schema_version": 1,
+                "corpus": "fixture",
+                "reviews": [
+                    {
+                        "source_id": "src-registration",
+                        "status": "pass",
+                        "score": 2,
+                        "reviewer_corrections": 0,
+                        "checked_source": True,
+                        "checked_mirror": True,
+                        "checked_links": True,
+                        "issue_codes": [],
+                        "notes": "copied private source text",
+                    }
+                ],
+            },
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
+    invalid = subprocess.run(
+        [
+            sys.executable,
+            str(vault / "tools" / "vaultwright.py"),
+            "conversion",
+            "--results",
+            "_meta/conversion-quality-results.yml",
+        ],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert invalid.returncode == 1
+    assert "text/note fields are not allowed" in invalid.stderr
+    assert "copied private source text" not in invalid.stderr
+
+
 def test_vaultwright_migration_reports_legacy_and_unknown_folders(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     shutil.copytree(ROOT / "template", vault)

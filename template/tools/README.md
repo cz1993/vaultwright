@@ -49,6 +49,8 @@ python3.11 tools/vaultwright.py review --json
 python3.11 tools/vaultwright.py overlap
 python3.11 tools/vaultwright.py overlap --worksheet
 python3.11 tools/vaultwright.py conversion --guide
+python3.11 tools/vaultwright.py conversion --init-results
+python3.11 tools/vaultwright.py conversion --results _meta/conversion-quality-results.yml --require-reviewed
 python3.11 tools/vaultwright.py migration
 python3.11 tools/vaultwright.py migration --worksheet
 python3.11 tools/vaultwright.py migration --runbook
@@ -79,11 +81,15 @@ charts for domain mix, lifecycle states, source formats, and top-level file dist
 `--stdout` to preview, `--json` for automation, and `--check` in CI or review scripts to fail when
 the selected catalog is stale.
 
-`conversion` is read-only. It reads `_meta/source-manifest.json` and turns lifecycle states,
-format risks, warnings, errors, and source/mirror existence into a prioritized spot-check list. It
-does not claim a quantitative quality score; operators still review high-risk formats, tables,
-slides, PDFs, source links, and generated-region boundaries before relying on mirrors.
-Use `--guide` to append a manifest-aware operator checklist; see
+`conversion` is read-only unless `--init-results` is supplied. It reads
+`_meta/source-manifest.json` and turns lifecycle states, format risks, warnings, errors, and
+source/mirror existence into a prioritized spot-check list. Use `--guide` to append a
+manifest-aware operator checklist. Use `--init-results` to create a private
+`_meta/conversion-quality-results.yml` scaffold, then fill only metadata-only review fields:
+status, 0-2 score, correction count, booleans, and controlled issue codes. Use
+`--results _meta/conversion-quality-results.yml --require-reviewed` to validate that every source
+manifest record has been reviewed. Result packs must stay out of the public repository and must
+not contain notes, source text, mirror text, prompts, answers, or excerpts. See
 `docs/CONVERSION_REVIEW_GUIDE.md` in the source repository for the durable review protocol.
 
 `m365` is read-only. It checks whether the local mirror/catalog layer has the basic artifacts needed
@@ -128,12 +134,12 @@ markdown notes. It does not move files, delete folders, rewrite unknown domains,
 source/repo mirrors.
 
 `pilot` is read-only. It summarizes aggregate pilot evidence from manifests, audit events,
-conversion priorities, recovery action counts, overlap-calibration counts, review-ledger counts,
-benchmark tasks, and optional benchmark result scores without printing source paths, source text,
-mirror text, answer text, reviewer notes, artifact paths, or repository document bodies. Use
-`--json` to attach the aggregate metrics to an anonymized design-partner worksheet. Use
-`--worksheet` to print a redacted Markdown summary that can be pasted into a private pilot record
-without source paths or document content.
+conversion priorities, optional conversion-quality result counts/scores, recovery action counts,
+overlap-calibration counts, review-ledger counts, benchmark tasks, and optional benchmark result
+scores without printing source paths, source text, mirror text, answer text, reviewer notes,
+artifact paths, or repository document bodies. Use `--json` to attach the aggregate metrics to an
+anonymized design-partner worksheet. Use `--worksheet` to print a redacted Markdown summary that
+can be pasted into a private pilot record without source paths or document content.
 
 `recovery` is also read-only. It reads `_meta/source-manifest.json`, `_meta/repo-manifest.json`, and
 the latest matching `_meta/sync-audit.jsonl` events, then prints only records that need operator

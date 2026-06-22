@@ -18,6 +18,7 @@ REPO_MANIFEST = Path("_meta/repo-manifest.json")
 AUDIT_LOG = Path("_meta/sync-audit.jsonl")
 BENCHMARK_TASKS = Path("_meta/agent-readiness-tasks.yml")
 BENCHMARK_RESULTS = Path("_meta/agent-readiness-results.yml")
+CONVERSION_QUALITY_RESULTS = Path("_meta/conversion-quality-results.yml")
 EXCLUDED_PARTS = {
     ".git",
     ".github",
@@ -184,6 +185,34 @@ def conversion_summary(root: Path) -> tuple[dict[str, Any], list[str], list[str]
         return {"available": False, "summary": {}}, [], [f"conversion report failed: {exc.__class__.__name__}"]
 
 
+def conversion_quality_summary(root: Path) -> tuple[dict[str, Any], list[str], list[str]]:
+    result_path = root / CONVERSION_QUALITY_RESULTS
+    if not result_path.exists():
+        return {"available": False, "summary": {}}, [], []
+    module, load_errors = load_tool_module(root, "conversion_report.py")
+    if not module:
+        return {"available": False, "summary": {}}, [], load_errors
+    try:
+        summary, warnings, errors = module.validate_quality_results(
+            root,
+            CONVERSION_QUALITY_RESULTS,
+            require_reviewed=False,
+        )
+        summary = dict(summary)
+        summary["warnings"] = len(warnings)
+        summary["errors"] = len(errors)
+        quality_command = f"vaultwright conversion --results {CONVERSION_QUALITY_RESULTS.as_posix()}"
+        messages = [
+            f"conversion quality results have {len(warnings)} warnings; run `{quality_command}`"
+        ] if warnings else []
+        failures = [
+            f"conversion quality results have {len(errors)} errors; run `{quality_command}`"
+        ] if errors else []
+        return {"available": True, "summary": summary}, messages, failures
+    except Exception as exc:
+        return {"available": False, "summary": {}}, [], [f"conversion quality results failed: {exc.__class__.__name__}"]
+
+
 def recovery_summary(root: Path) -> tuple[dict[str, Any], list[str], list[str]]:
     module, load_errors = load_tool_module(root, "recovery_report.py")
     if not module:
@@ -292,6 +321,9 @@ def build_report(root: Path) -> tuple[dict[str, Any], list[str], list[str]]:
     repo_records, repo_warnings, repo_errors = load_json_records(root, REPO_MANIFEST)
     audit, audit_warnings, audit_errors = audit_summary(root)
     conversion, conversion_warnings, conversion_errors = conversion_summary(root)
+    conversion_quality, conversion_quality_warnings, conversion_quality_errors = conversion_quality_summary(
+        root
+    )
     recovery, recovery_warnings, recovery_errors = recovery_summary(root)
     overlap, overlap_warnings, overlap_errors = overlap_summary(root)
     benchmark, benchmark_warnings, benchmark_errors = benchmark_summary(root)
@@ -301,6 +333,7 @@ def build_report(root: Path) -> tuple[dict[str, Any], list[str], list[str]]:
         *repo_warnings,
         *audit_warnings,
         *conversion_warnings,
+        *conversion_quality_warnings,
         *recovery_warnings,
         *overlap_warnings,
         *benchmark_warnings,
@@ -311,6 +344,7 @@ def build_report(root: Path) -> tuple[dict[str, Any], list[str], list[str]]:
         *repo_errors,
         *audit_errors,
         *conversion_errors,
+        *conversion_quality_errors,
         *recovery_errors,
         *overlap_errors,
         *benchmark_errors,
@@ -322,6 +356,7 @@ def build_report(root: Path) -> tuple[dict[str, Any], list[str], list[str]]:
         "repo_manifest": manifest_summary(repo_records, "repo_id"),
         "audit": audit,
         "conversion": conversion,
+        "conversion_quality": conversion_quality,
         "recovery": recovery,
         "overlap": overlap,
         "benchmark": benchmark,
@@ -380,6 +415,17 @@ def print_human(root: Path, report: dict[str, Any], warnings: list[str], errors:
         f"medium={conversion.get('medium', 0)} "
         f"low={conversion.get('low', 0)}"
     )
+    conversion_quality = report["conversion_quality"]["summary"]
+    average = conversion_quality.get("average_score")
+    average_text = "n/a" if average is None else str(average)
+    print(
+        "pilot: conversion quality "
+        f"available={report['conversion_quality']['available']} "
+        f"records={conversion_quality.get('records', 0)} "
+        f"reviewed={conversion_quality.get('reviewed', 0)} "
+        f"missing={conversion_quality.get('missing_reviews', 0)} "
+        f"average_score={average_text}"
+    )
 
     recovery = report["recovery"]["summary"]
     print(
@@ -433,6 +479,7 @@ def print_worksheet_summary(report: dict[str, Any], warnings: list[str], errors:
     repo = report["repo_manifest"]
     audit = report["audit"]
     conversion = report["conversion"]["summary"]
+    conversion_quality = report["conversion_quality"]["summary"]
     recovery = report["recovery"]["summary"]
     overlap = report["overlap"]["summary"]
     overlap_config = report["overlap"].get("config", {})
@@ -441,6 +488,8 @@ def print_worksheet_summary(report: dict[str, Any], warnings: list[str], errors:
     results = benchmark.get("results", {})
     result_summary = results.get("summary", {}) if isinstance(results, dict) else {}
     result_available = bool(isinstance(results, dict) and results.get("available"))
+    quality_average = conversion_quality.get("average_score")
+    quality_average_text = "n/a" if quality_average is None else str(quality_average)
 
     print("# Vaultwright Pilot Evidence Summary")
     print()
@@ -467,6 +516,14 @@ def print_worksheet_summary(report: dict[str, Any], warnings: list[str], errors:
         f"high={conversion.get('high', 0)} "
         f"medium={conversion.get('medium', 0)} "
         f"low={conversion.get('low', 0)}"
+    )
+    print(
+        "- Conversion quality results: "
+        f"available={report['conversion_quality']['available']} "
+        f"records={conversion_quality.get('records', 0)} "
+        f"reviewed={conversion_quality.get('reviewed', 0)} "
+        f"missing={conversion_quality.get('missing_reviews', 0)} "
+        f"average_score={quality_average_text}"
     )
     print(
         "- Recovery queue: "

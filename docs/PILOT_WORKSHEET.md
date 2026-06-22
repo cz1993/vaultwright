@@ -34,6 +34,12 @@ Record from `python3.11 tools/vaultwright.py pilot --json` after first sync:
 - repo manifest records:
 - sync audit event count:
 - conversion high/medium/low counts:
+- conversion-quality result records:
+- conversion-quality reviewed records:
+- conversion-quality missing reviews:
+- conversion-quality average score:
+- conversion-quality issue-code counts:
+- conversion-quality correction count:
 - recovery action count:
 - overlap current candidate count:
 - overlap near-miss count:
@@ -69,6 +75,8 @@ python3.11 tools/vaultwright.py status
 python3.11 tools/vaultwright.py catalog
 python3.11 tools/vaultwright.py catalog --html
 python3.11 tools/vaultwright.py conversion --guide
+python3.11 tools/vaultwright.py conversion --init-results
+python3.11 tools/vaultwright.py conversion --results _meta/conversion-quality-results.yml --require-reviewed
 python3.11 tools/vaultwright.py recovery
 python3.11 tools/vaultwright.py overlap
 python3.11 tools/vaultwright.py overlap --worksheet
@@ -90,6 +98,10 @@ python3.11 tools/vaultwright.py lint
 - Conversion high-priority items reviewed:
 - Conversion medium-priority spot checks reviewed:
 - Conversion guide checklist completed:
+- Conversion-quality result pack completed:
+- Conversion-quality average score:
+- Conversion-quality correction count:
+- Conversion-quality issue-code counts:
 - Recovery items resolved:
 - Overlap candidates reviewed:
 - Overlap near misses spot-checked:

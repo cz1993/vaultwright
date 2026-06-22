@@ -394,7 +394,7 @@ Professional-services use should begin with a conservative operating model:
 | Repo sync | Plan/sync/status, repo manifest, audit events, manual-edit detection, lifecycle next-action guidance | Useful for code/source repositories |
 | Catalog gateway | `vaultwright catalog` writes generated `CATALOG.md`; `vaultwright catalog --html` writes generated `CATALOG.html` with static aggregate charts; both include source/mirror links, lifecycle states, format/domain counts, repo mirrors, unmanaged source candidates, and legacy-folder inventory | Useful for non-Obsidian review and agent preflight orientation |
 | Review ledger | `vaultwright review` appends metadata-only reviewer/status decisions to `_meta/review-ledger.jsonl` and reports stale approvals when artifact hashes change | Bridges human sign-off and generated artifacts without editing source files or mirror bodies |
-| CLI | Vault-local wrapper and source-installable `vaultwright` entry point; CI now installs the built wheel and verifies packaged init, doctor, plan, benchmark, Markdown/HTML catalog generation/check, conversion, overlap calibration, Microsoft 365 handoff readiness, review-ledger summary/check, migration, migration worksheets, pilot, redacted pilot worksheet output, JSON recovery delegation, and recovery worksheet output; tag workflow builds artifacts under read-only permissions, verifies the released wheel, and creates draft prereleases for owner review while refusing to overwrite non-draft releases; doctor reports dependency, manifest, audit, recovery-action counts, git/GitHub backup posture, optional Obsidian config/plugin posture, and `.gitignore` backup guard coverage; benchmark validates task packs, writes private task/result scaffolds, prints private run worksheets, and summarizes optional aggregate result packs; catalog writes the inventory gateway; conversion, overlap, m365, migration, pilot, and recovery print read-only operator reports | Better operator ergonomics; first alpha draft release is intended for owner review, not stable distribution |
+| CLI | Vault-local wrapper and source-installable `vaultwright` entry point; CI now installs the built wheel and verifies packaged init, doctor, plan, benchmark, Markdown/HTML catalog generation/check, conversion, overlap calibration, Microsoft 365 handoff readiness, review-ledger summary/check, migration, migration worksheets, pilot, redacted pilot worksheet output, JSON recovery delegation, and recovery worksheet output; tag workflow builds artifacts under read-only permissions, verifies the released wheel, and creates draft prereleases for owner review while refusing to overwrite non-draft releases; doctor reports dependency, manifest, audit, recovery-action counts, git/GitHub backup posture, optional Obsidian config/plugin posture, and `.gitignore` backup guard coverage; benchmark validates task packs, writes private task/result scaffolds, prints private run worksheets, and summarizes optional aggregate result packs; catalog writes the inventory gateway; conversion now validates private metadata-only quality result packs; conversion, overlap, m365, migration, pilot, and recovery print read-only operator reports | Better operator ergonomics; first alpha draft release is intended for owner review, not stable distribution |
 | Examples | Government-services showcase plus Northwind regression fixture | Better demo plus stable tests |
 | Provenance | Public fixture ledger with source URLs, licence posture, and review date | Good discipline; must be maintained |
 | Safety | No-data scanner, pre-commit hook, CI checks | Strong for repository hygiene |
@@ -412,11 +412,11 @@ Current evidence is encouraging but limited.
 | Example regeneration | Northwind and government examples regenerate in temp copies | CI can verify mirrors without committing generated residue |
 | Government showcase | Canadian business registration, GST/HST, CRA account, and funding/support fixtures | Better demonstration of a consulting-relevant pain point |
 | Office source manifest | Stable source IDs, hashes, mirror paths, lifecycle states, audit events, missing/manual-edit detection | Important lifecycle foundation, not finished operator UX |
-| Conversion spot-check report | Read-only manifest report prioritizes high/medium/low conversion review items from states, warnings, errors, formats, and source/mirror existence; `conversion --guide` adds a format-aware operator checklist | Useful pilot checklist; not a quantitative conversion-quality score |
+| Conversion spot-check and quality results | Read-only manifest report prioritizes high/medium/low conversion review items from states, warnings, errors, formats, and source/mirror existence; `conversion --guide` adds a format-aware operator checklist; `conversion --init-results` creates a private metadata-only result scaffold and `conversion --results ... --require-reviewed` validates reviewer-entered status, 0-2 score, correction count, booleans, and controlled issue codes | Useful pilot checklist and aggregate scoring evidence; still reviewer-entered and not automated conversion judgment |
 | Catalog gateway | Generated `CATALOG.md` and `CATALOG.html` summarize the manifest and workspace inventory using paths, metadata, and aggregate visual counts only | Useful review surfaces for agents, consultants, and non-Obsidian stakeholders; not a replacement for conversion review |
 | Microsoft 365 handoff | `docs/MICROSOFT_365_HANDOFF.md` and `vaultwright m365` define a read-only readiness report and handoff bundle for SharePoint, OneDrive, Copilot Studio, Dataverse, and connector review paths | Clarifies complement strategy; does not verify tenant permissions or production Copilot behavior |
 | Review ledger | `_meta/review-ledger.jsonl` stores artifact hash, reviewer, status, and short metadata notes from `vaultwright review` | Useful approval evidence; not a substitute for expert review of document meaning |
-| Pilot evidence report | Read-only aggregate report summarizes corpus shape, manifest states, audit counts, conversion priorities, recovery counts, overlap candidate/near-miss counts and thresholds, review-ledger counts, benchmark tasks, optional benchmark result scores, and a redacted Markdown worksheet summary without source content, source paths, artifact paths, overlap shared terms, or reviewer notes; benchmark can now initialize private task/result scaffolds and print a path-redacted run worksheet | Useful for private design-partner worksheets; not external validation by itself |
+| Pilot evidence report | Read-only aggregate report summarizes corpus shape, manifest states, audit counts, conversion priorities, optional conversion-quality result counts/scores, recovery counts, overlap candidate/near-miss counts and thresholds, review-ledger counts, benchmark tasks, optional benchmark result scores, and a redacted Markdown worksheet summary without source content, source paths, artifact paths, overlap shared terms, or reviewer notes; benchmark can now initialize private task/result scaffolds and print a path-redacted run worksheet | Useful for private design-partner worksheets; not external validation by itself |
 | Repo source manifest | Stable repo IDs, local-tree/remote-HEAD hashes, audit events, manual-edit detection | Useful coverage for repo mirrors |
 | Source-installable CLI | Console entry point delegates to vault-local tools and supports source-checkout `init` | Good development ergonomics |
 | Private dogfood | Copied local corpus outside this repository now has 40 source manifest records, 39 clean generated source mirrors, 1 unsupported legacy `.doc`, regenerated `CATALOG.md`/`CATALOG.html`, conversion/migration/recovery/Microsoft 365 reports, and no source-folder mirror clutter | Useful smoke test only; not public evidence and not a production-readiness claim |
@@ -425,8 +425,8 @@ Known gaps:
 
 - No external design partner has completed the workflow.
 - No benchmark covers hundreds or thousands of mixed client files.
-- No quantitative conversion-quality score exists yet; the current conversion report is a
-  conservative checklist, not automated quality measurement.
+- No automated or externally validated conversion-quality score exists yet. Vaultwright can now
+  validate private operator-entered quality result packs, but those scores need pilot calibration.
 - No retrieval task measures before/after usefulness.
 - No benchmark yet proves that AI agents perform better against Vaultwright-generated markdown than
   against raw source folders or ad hoc document-chat outputs; `docs/AGENT_READINESS_BENCHMARK.md`
@@ -446,7 +446,7 @@ Known gaps:
 | --- | --- | --- | --- |
 | Source-data leakage | High | Real client data gets committed or exposed | Keep no-data scans, hooks, CI, private pilot workspaces, and provenance rules mandatory |
 | Overclaiming product readiness | High | Reviewers perceive alpha software as production-ready | Maintain explicit alpha status and release gates |
-| Conversion quality gaps | High | Mirrors miss table/image/formula/comment meaning | Add conversion caveats, spot checks, quantitative scoring, and format-specific fallback paths |
+| Conversion quality gaps | High | Mirrors miss table/image/formula/comment meaning | Keep conversion caveats, spot checks, private quality result packs, pilot-calibrated thresholds, and format-specific fallback paths |
 | Lifecycle confusion | High | Users cannot tell whether a mirror is stale, moved, or manually changed | Continue manifest-backed lifecycle states and recovery UX |
 | Tax/legal interpretation risk | High | Users mistake generated notes for official advice | Keep citations, disclaimers, review workflow, and source authority clear |
 | AI note proliferation | Medium | The vault becomes another pile of generated files | Use configurable warning-level similarity/overlap linting and stricter hub/entity workflow |
@@ -513,7 +513,8 @@ Deliverables:
 - deeper lifecycle recovery UX beyond the current read-only report and recovery worksheet;
 - pilot-calibrated migration runbooks for legacy folder layouts, building on the current
   frontmatter-domain alias normalizer and initial folder-move runbook;
-- continued calibration of the conversion spot-check report and operator guide on pilot corpora;
+- continued calibration of the conversion spot-check report, operator guide, and private
+  conversion-quality result packs on pilot corpora;
 - Markdown and HTML catalog freshness checks in pilot runbooks so reviewers and agents begin from
   current inventory;
 - pilot evidence from Microsoft 365 handoff exercises that use `docs/MICROSOFT_365_HANDOFF.md` and
@@ -548,6 +549,7 @@ Metrics:
 - first-sync duration;
 - second-sync idempotency;
 - conversion exceptions by file type;
+- conversion-quality reviewed count, average score, correction count, and issue-code counts;
 - manual correction count and time;
 - provenance spot-check pass/fail rate;
 - stale or missing source detection after changes;
@@ -660,6 +662,7 @@ Outcome measures:
 - number of unsupported files;
 - number of conversion defects;
 - number of manual corrections;
+- reviewer-entered conversion-quality scores and issue-code distribution;
 - quality of citations;
 - ease of repeat sync;
 - willingness to use the workspace again one week later.
@@ -668,7 +671,8 @@ Outcome measures:
 
 Important unresolved questions:
 
-- What conversion-quality threshold is acceptable for consulting delivery?
+- What reviewer-entered conversion-quality threshold is acceptable for consulting delivery, and
+  how should it differ by format?
 - Which source formats create the most support burden?
 - Should PDF extraction have tiers such as text-only, OCR, and table-aware modes?
 - How much domain-specific taxonomy is useful before it becomes rigid?
@@ -699,6 +703,9 @@ Available today:
 - Private benchmark task scaffolds, run worksheets, and result scaffolds through
   `vaultwright benchmark --init-tasks`, `vaultwright benchmark --worksheet`, and
   `vaultwright benchmark --init-results`.
+- Private metadata-only conversion-quality result scaffolds and validators through
+  `vaultwright conversion --init-results` and
+  `vaultwright conversion --results _meta/conversion-quality-results.yml --require-reviewed`.
 - Thin `tools/vaultwright.py` wrapper for `plan`, `sync`, `status`, `catalog`, `conversion`,
   `m365`, `review`, `overlap`, `migration`, `pilot`, `recovery`, `sandbox`, `benchmark`,
   `lint`, and `doctor`.
@@ -725,13 +732,15 @@ Experimental or partially defined:
   operator reports outside the public repository.
 - Government-services showcase as a public demo of advisory workflows.
 - Pilot-calibrated migration guidance for legacy folder/domain structures.
-- Quantitative conversion-quality scoring beyond the current read-only spot-check report.
+- Automated or externally validated conversion-quality scoring beyond private reviewer-entered
+  result packs.
 
 Roadmap:
 
 - Full lifecycle transitions for rename, move, stale, conflict, converter change, and recovery.
 - Distribution-quality `vaultwright` packaging.
-- Richer quantitative conversion-quality scoring beyond checklist-based spot checks.
+- Pilot-calibrated conversion-quality thresholds and, later, automated scoring only if evidence
+  supports it.
 - Richer catalog UX only if pilots prove the static Markdown/HTML gateways are insufficient.
 - Recovery tests and external design-partner execution.
 - Higher-fidelity PDF/spreadsheet extraction tiers.
