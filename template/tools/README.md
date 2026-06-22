@@ -77,9 +77,11 @@ warnings are preflight context, not sync failures.
 generated source-path and manifest inventories, not content extraction layers: they list counts,
 lifecycle states, source/mirror links, repo mirror links, unmanaged source candidates, and legacy
 top-level folders without copying document text. The HTML gateway also includes static aggregate
-charts for domain mix, lifecycle states, source formats, and top-level file distribution. Use
-`--stdout` to preview, `--json` for automation, and `--check` in CI or review scripts to fail when
-the selected catalog is stale.
+charts for domain mix, source and repo lifecycle states, source formats, and top-level file
+distribution. Catalog generation compares `_meta/repo-manifest.json` with `tools/repos.yml` so
+retained repo mirrors whose config entry was removed appear as `repo_unconfigured` even before repo
+sync rewrites the manifest. Use `--stdout` to preview, `--json` for automation, and `--check` in CI
+or review scripts to fail when the selected catalog is stale.
 
 `conversion` is read-only unless `--init-results` is supplied. It reads
 `_meta/source-manifest.json` and turns lifecycle states, format risks, warnings, errors, and
@@ -97,6 +99,8 @@ not contain notes, source text, mirror text, prompts, answers, or excerpts. See
 `m365` is read-only. It checks whether the local mirror/catalog layer has the basic artifacts needed
 for a Microsoft 365, SharePoint, OneDrive, Copilot Studio, or connector handoff review. It does not
 query Microsoft 365, verify tenant permissions, inspect sensitivity labels, or print source content.
+It also compares repo manifests with `tools/repos.yml` so unconfigured retained repo mirrors block
+handoff readiness until the operator restores config or deliberately retires the mirror.
 See `docs/MICROSOFT_365_HANDOFF.md` in the source repository for the current guidance and
 Microsoft Learn references.
 

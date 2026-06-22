@@ -97,6 +97,9 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 - `vaultwright recovery` now compares `_meta/repo-manifest.json` with `tools/repos.yml` so removed
   repo config entries are surfaced as `repo_unconfigured` before another repo sync rewrites the
   manifest.
+- `vaultwright catalog` and `vaultwright m365` now use the same repo config comparison, so
+  retained repo mirrors whose `tools/repos.yml` entry was removed appear as `repo_unconfigured` in
+  inventory and handoff readiness reports before another repo sync runs.
 - Office sync/status now detects managed source frontmatter metadata drift as stale and normal
   sync rewrites the managed fields from the manifest/source.
 - Office sync now strips obvious spreadsheet extraction noise from `.xlsx` mirrors, including

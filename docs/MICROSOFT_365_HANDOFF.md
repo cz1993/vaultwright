@@ -122,6 +122,10 @@ Before handoff:
 8. Confirm the target Microsoft 365 location, owners, reviewers, and retention boundary.
 9. Record what was handed off in the private pilot worksheet.
 
+`vaultwright catalog`, `vaultwright catalog --html`, `vaultwright recovery`, and `vaultwright m365`
+compare `_meta/repo-manifest.json` with `tools/repos.yml`; retained repo mirrors whose config entry
+was removed are reported as `repo_unconfigured` even before another repo sync updates the manifest.
+
 ## Agent Prompt-Safety Boundary
 
 Generated mirrors and catalogs are easier for agents to inspect, but they are still derived from

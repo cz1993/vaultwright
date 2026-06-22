@@ -2212,6 +2212,8 @@ def test_vaultwright_pilot_report_summarizes_evidence_without_content(tmp_path: 
 def test_vaultwright_m365_report_summarizes_handoff_without_content(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     shutil.copytree(ROOT / "template", vault)
+    sync = load_sync_module()
+    repo_fixture_id = sync.repo_id_for("local/fixture", "fixture.md")
     source = vault / "40_delivery" / "client-plan.docx"
     mirror = vault / "_mirrors" / "40_delivery" / "client-plan.md"
     repo_note = vault / "80_sources" / "repos" / "fixture.md"
@@ -2220,7 +2222,22 @@ def test_vaultwright_m365_report_summarizes_handoff_without_content(tmp_path: Pa
     repo_note.parent.mkdir(parents=True, exist_ok=True)
     source.write_bytes(b"confidential source bytes")
     mirror.write_text("---\ntype: source-mirror\n---\nGenerated mirror text that should not appear\n", encoding="utf-8")
-    repo_note.write_text("---\ntype: repo-mirror\n---\nGenerated repo mirror text that should not appear\n", encoding="utf-8")
+    repo_note.write_text(
+        "---\n"
+        "type: repo-mirror\n"
+        f"repo_id: {repo_fixture_id}\n"
+        "---\n"
+        "Generated repo mirror text that should not appear\n",
+        encoding="utf-8",
+    )
+    (vault / "tools" / "repos.yml").write_text(
+        "settings:\n"
+        "  notes_dir: 80_sources/repos\n"
+        "repos:\n"
+        "  - repo: local/fixture\n"
+        "    note: fixture.md\n",
+        encoding="utf-8",
+    )
     (vault / "CATALOG.md").write_text("# Documentation Catalog\n", encoding="utf-8")
     (vault / "CATALOG.html").write_text("<!doctype html><title>Documentation Catalog</title>\n", encoding="utf-8")
     (vault / "_meta" / "source-manifest.json").write_text(
@@ -2256,7 +2273,7 @@ def test_vaultwright_m365_report_summarizes_handoff_without_content(tmp_path: Pa
                 "version": 1,
                 "records": [
                     {
-                        "repo_id": "repo-fixture",
+                        "repo_id": repo_fixture_id,
                         "configured_repo": "local/fixture",
                         "note_path": "80_sources/repos/fixture.md",
                         "lifecycle_state": "clean",
@@ -2309,6 +2326,98 @@ def test_vaultwright_m365_report_summarizes_handoff_without_content(tmp_path: Pa
     )
     assert "confidential source bytes" not in json_result.stdout
     assert "Generated mirror text" not in json_result.stdout
+
+
+def test_catalog_and_m365_surface_unconfigured_repo_mirror_before_resync(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    fixture = vault / "_fixtures" / "repo"
+    fixture.mkdir(parents=True)
+    (fixture / "README.md").write_text("# Fixture\n\nSynthetic repo docs that should not appear.\n", encoding="utf-8")
+    (vault / "tools" / "repos.yml").write_text(
+        "settings:\n"
+        "  notes_dir: 80_sources/repos\n"
+        "repos:\n"
+        "  - repo: local/fixture\n"
+        "    local_path: _fixtures/repo\n"
+        "    note: fixture.md\n",
+        encoding="utf-8",
+    )
+
+    first = subprocess.run(
+        [sys.executable, str(vault / "tools" / "sync_github_repos.py"), "--quiet"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+    assert first.returncode == 0, first.stderr or first.stdout
+    (vault / "tools" / "repos.yml").write_text(
+        "settings:\n"
+        "  notes_dir: 80_sources/repos\n"
+        "repos: []\n",
+        encoding="utf-8",
+    )
+    manifest = json.loads((vault / "_meta" / "repo-manifest.json").read_text(encoding="utf-8"))
+    assert manifest["records"][0]["lifecycle_state"] == "clean"
+
+    catalog_json = subprocess.run(
+        [sys.executable, str(vault / "tools" / "vaultwright.py"), "catalog", "--json"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+    catalog_md = subprocess.run(
+        [sys.executable, str(vault / "tools" / "vaultwright.py"), "catalog", "--stdout"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+    catalog_html = subprocess.run(
+        [sys.executable, str(vault / "tools" / "vaultwright.py"), "catalog", "--html", "--stdout"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+    m365 = subprocess.run(
+        [sys.executable, str(vault / "tools" / "vaultwright.py"), "m365"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+    m365_json = subprocess.run(
+        [sys.executable, str(vault / "tools" / "vaultwright.py"), "m365", "--json"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert catalog_json.returncode == 0, catalog_json.stderr or catalog_json.stdout
+    catalog_report = json.loads(catalog_json.stdout)["report"]
+    assert catalog_report["repo_states"] == {"repo_unconfigured": 1}
+    repo_item = catalog_report["repo_items"][0]
+    assert repo_item["state"] == "repo_unconfigured"
+    assert repo_item["manifest_state"] == "clean"
+    assert repo_item["warnings"] == 1
+    assert catalog_md.returncode == 0, catalog_md.stderr or catalog_md.stdout
+    assert "## Repo Lifecycle States" in catalog_md.stdout
+    assert "repo_unconfigured" in catalog_md.stdout
+    assert "manifest_state=clean" in catalog_md.stdout
+    assert "Synthetic repo docs" not in catalog_md.stdout
+    assert catalog_html.returncode == 0, catalog_html.stderr or catalog_html.stdout
+    assert "<h3>Repo Lifecycle States</h3>" in catalog_html.stdout
+    assert "repo_unconfigured" in catalog_html.stdout
+    assert "manifest_state=clean" in catalog_html.stdout
+    assert "Synthetic repo docs" not in catalog_html.stdout
+
+    assert m365.returncode == 0, m365.stderr or m365.stdout
+    assert "repo_unconfigured: 1" in m365.stdout
+    assert "1 repo manifest record(s) need lifecycle review before handoff." in m365.stdout
+    assert "Synthetic repo docs" not in m365.stdout
+    assert m365_json.returncode == 0, m365_json.stderr or m365_json.stdout
+    m365_report = json.loads(m365_json.stdout)["report"]
+    assert m365_report["repo_manifest"]["states"] == {"repo_unconfigured": 1}
+    assert m365_report["repo_manifest"]["warnings"] == 1
+    assert "Synthetic repo docs" not in m365_json.stdout
 
 
 def test_vaultwright_review_ledger_records_hashes_without_artifact_content(tmp_path: Path) -> None:
