@@ -35,6 +35,10 @@ Record from `python3.11 tools/vaultwright.py pilot --json` after first sync:
 - sync audit event count:
 - conversion high/medium/low counts:
 - recovery action count:
+- overlap current candidate count:
+- overlap near-miss count:
+- overlap comparable pair count:
+- overlap thresholds:
 - review-ledger reviewed artifacts:
 - review-ledger stale/missing or non-approved decisions:
 - benchmark task count:
@@ -66,6 +70,8 @@ python3.11 tools/vaultwright.py catalog
 python3.11 tools/vaultwright.py catalog --html
 python3.11 tools/vaultwright.py conversion --guide
 python3.11 tools/vaultwright.py recovery
+python3.11 tools/vaultwright.py overlap
+python3.11 tools/vaultwright.py overlap --worksheet
 python3.11 tools/vaultwright.py m365
 python3.11 tools/vaultwright.py review --json
 python3.11 tools/vaultwright.py pilot --json
@@ -85,6 +91,8 @@ python3.11 tools/vaultwright.py lint
 - Conversion medium-priority spot checks reviewed:
 - Conversion guide checklist completed:
 - Recovery items resolved:
+- Overlap candidates reviewed:
+- Overlap near misses spot-checked:
 - Review ledger current approvals:
 - Review ledger stale or non-approved items:
 - Manual corrections made:

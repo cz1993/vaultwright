@@ -1800,7 +1800,19 @@ def test_vaultwright_pilot_report_summarizes_evidence_without_content(tmp_path: 
     repo_note.parent.mkdir(parents=True, exist_ok=True)
     source.write_bytes(b"confidential source bytes")
     mirror.write_text("Generated mirror text that should not appear\n", encoding="utf-8")
-    repo_note.write_text("Generated repo mirror text that should not appear\n", encoding="utf-8")
+    repo_note.write_text(
+        "---\n"
+        "title: Fixture Repo Mirror\n"
+        "type: repo-mirror\n"
+        "status: active\n"
+        "domain: sources\n"
+        "created: 2026-01-01\n"
+        "updated: 2026-01-01\n"
+        "---\n"
+        "Generated repo mirror text that should not appear\n",
+        encoding="utf-8",
+    )
+    write_overlap_notes(vault)
     before_source = source.read_bytes()
     before_mirror = mirror.read_text(encoding="utf-8")
     before_repo_note = repo_note.read_text(encoding="utf-8")
@@ -1946,11 +1958,14 @@ def test_vaultwright_pilot_report_summarizes_evidence_without_content(tmp_path: 
     assert "pilot: audit events=1" in result.stdout
     assert "pilot: conversion available=True high=0 medium=1 low=0" in result.stdout
     assert "pilot: recovery available=True items=0" in result.stdout
+    assert "pilot: overlap available=True curated_notes=2 pairs=1 candidates=1 near_misses=0 thresholds=18/0.72/0.82" in result.stdout
     assert "pilot: benchmark available=True tasks=5" in result.stdout
     assert "pilot: review ledger available=True reviewed=1 stale_or_missing=0 non_approved=1" in result.stdout
     assert "confidential source bytes" not in result.stdout
     assert "Generated mirror text" not in result.stdout
     assert "Generated repo mirror text" not in result.stdout
+    assert "Confidential calibration body" not in result.stdout
+    assert "payroll evidence" not in result.stdout
     assert "private reviewer note" not in result.stdout
     assert "_mirrors/40_delivery/client-plan.md" not in result.stdout
     assert str(vault) not in result.stdout
@@ -1961,6 +1976,8 @@ def test_vaultwright_pilot_report_summarizes_evidence_without_content(tmp_path: 
     assert "confidential source bytes" not in payload
     assert "Generated mirror text" not in payload
     assert "Generated repo mirror text" not in payload
+    assert "Confidential calibration body" not in payload
+    assert "payroll evidence" not in payload
     assert "private reviewer note" not in payload
     assert "_mirrors/40_delivery/client-plan.md" not in payload
     assert str(vault) not in payload
@@ -1971,6 +1988,14 @@ def test_vaultwright_pilot_report_summarizes_evidence_without_content(tmp_path: 
     assert report["report"]["audit"]["events"] == 1
     assert report["report"]["conversion"]["summary"]["medium"] == 1
     assert report["report"]["recovery"]["summary"]["total"] == 0
+    assert report["report"]["overlap"]["summary"]["curated_notes"] == 2
+    assert report["report"]["overlap"]["summary"]["comparable_pairs"] == 1
+    assert report["report"]["overlap"]["summary"]["current_candidates"] == 1
+    assert report["report"]["overlap"]["config"] == {
+        "content_threshold": 0.72,
+        "min_shared_terms": 18,
+        "title_threshold": 0.82,
+    }
     assert report["report"]["benchmark"]["summary"]["tasks"] == 5
     review = report["report"]["review"]["summary"]
     assert review["reviewed_artifacts"] == 1
@@ -1985,12 +2010,15 @@ def test_vaultwright_pilot_report_summarizes_evidence_without_content(tmp_path: 
     assert "Source manifest records: 1" in worksheet_result.stdout
     assert "Conversion review queue: available=True high=0 medium=1 low=0" in worksheet_result.stdout
     assert "Recovery queue: available=True items=0" in worksheet_result.stdout
+    assert "Overlap calibration: available=True candidates=1 near_misses=0 pairs=1 thresholds=18/0.72/0.82" in worksheet_result.stdout
     assert "Benchmark tasks: available=True tasks=5" in worksheet_result.stdout
     assert "Review ledger: available=True reviewed=1 stale_or_missing=0 non_approved=1" in worksheet_result.stdout
     assert "Baseline time to answer fixed questions" in worksheet_result.stdout
     assert "confidential source bytes" not in worksheet_result.stdout
     assert "Generated mirror text" not in worksheet_result.stdout
     assert "Generated repo mirror text" not in worksheet_result.stdout
+    assert "Confidential calibration body" not in worksheet_result.stdout
+    assert "payroll evidence" not in worksheet_result.stdout
     assert "private reviewer note" not in worksheet_result.stdout
     assert "40_delivery/client-plan.docx" not in worksheet_result.stdout
     assert "_mirrors/40_delivery/client-plan.md" not in worksheet_result.stdout

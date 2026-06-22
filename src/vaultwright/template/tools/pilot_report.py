@@ -200,6 +200,21 @@ def recovery_summary(root: Path) -> tuple[dict[str, Any], list[str], list[str]]:
         return {"available": False, "summary": {}}, [], [f"recovery report failed: {exc.__class__.__name__}"]
 
 
+def overlap_summary(root: Path) -> tuple[dict[str, Any], list[str], list[str]]:
+    module, load_errors = load_tool_module(root, "overlap_report.py")
+    if not module:
+        return {"available": False, "summary": {}, "config": {}}, [], load_errors
+    try:
+        report, warnings = module.build_report(root, max_pairs=0)
+        summary = dict(report.get("summary", {}))
+        config = dict(report.get("config", {}))
+        summary["warnings"] = len(warnings)
+        messages = [f"overlap report has {len(warnings)} warnings; run `vaultwright overlap`"] if warnings else []
+        return {"available": True, "summary": summary, "config": config}, messages, []
+    except Exception as exc:
+        return {"available": False, "summary": {}, "config": {}}, [], [f"overlap report failed: {exc.__class__.__name__}"]
+
+
 def benchmark_summary(root: Path) -> tuple[dict[str, Any], list[str], list[str]]:
     task_path = root / BENCHMARK_TASKS
     if not task_path.exists():
@@ -278,6 +293,7 @@ def build_report(root: Path) -> tuple[dict[str, Any], list[str], list[str]]:
     audit, audit_warnings, audit_errors = audit_summary(root)
     conversion, conversion_warnings, conversion_errors = conversion_summary(root)
     recovery, recovery_warnings, recovery_errors = recovery_summary(root)
+    overlap, overlap_warnings, overlap_errors = overlap_summary(root)
     benchmark, benchmark_warnings, benchmark_errors = benchmark_summary(root)
     review, review_warnings, review_errors = review_summary(root)
     warnings.extend([
@@ -286,6 +302,7 @@ def build_report(root: Path) -> tuple[dict[str, Any], list[str], list[str]]:
         *audit_warnings,
         *conversion_warnings,
         *recovery_warnings,
+        *overlap_warnings,
         *benchmark_warnings,
         *review_warnings,
     ])
@@ -295,6 +312,7 @@ def build_report(root: Path) -> tuple[dict[str, Any], list[str], list[str]]:
         *audit_errors,
         *conversion_errors,
         *recovery_errors,
+        *overlap_errors,
         *benchmark_errors,
         *review_errors,
     ])
@@ -305,6 +323,7 @@ def build_report(root: Path) -> tuple[dict[str, Any], list[str], list[str]]:
         "audit": audit,
         "conversion": conversion,
         "recovery": recovery,
+        "overlap": overlap,
         "benchmark": benchmark,
         "review": review,
     }
@@ -369,6 +388,20 @@ def print_human(root: Path, report: dict[str, Any], warnings: list[str], errors:
         f"items={recovery.get('total', 0)}"
     )
 
+    overlap = report["overlap"]["summary"]
+    config = report["overlap"].get("config", {})
+    print(
+        "pilot: overlap "
+        f"available={report['overlap']['available']} "
+        f"curated_notes={overlap.get('curated_notes', 0)} "
+        f"pairs={overlap.get('comparable_pairs', 0)} "
+        f"candidates={overlap.get('current_candidates', 0)} "
+        f"near_misses={overlap.get('near_misses', 0)} "
+        f"thresholds={config.get('min_shared_terms', 'n/a')}/"
+        f"{config.get('content_threshold', 'n/a')}/"
+        f"{config.get('title_threshold', 'n/a')}"
+    )
+
     benchmark = report["benchmark"]["summary"]
     print(
         "pilot: benchmark "
@@ -401,6 +434,8 @@ def print_worksheet_summary(report: dict[str, Any], warnings: list[str], errors:
     audit = report["audit"]
     conversion = report["conversion"]["summary"]
     recovery = report["recovery"]["summary"]
+    overlap = report["overlap"]["summary"]
+    overlap_config = report["overlap"].get("config", {})
     benchmark = report["benchmark"]["summary"]
     review = report["review"]["summary"]
     results = benchmark.get("results", {})
@@ -437,6 +472,16 @@ def print_worksheet_summary(report: dict[str, Any], warnings: list[str], errors:
         "- Recovery queue: "
         f"available={report['recovery']['available']} "
         f"items={recovery.get('total', 0)}"
+    )
+    print(
+        "- Overlap calibration: "
+        f"available={report['overlap']['available']} "
+        f"candidates={overlap.get('current_candidates', 0)} "
+        f"near_misses={overlap.get('near_misses', 0)} "
+        f"pairs={overlap.get('comparable_pairs', 0)} "
+        f"thresholds={overlap_config.get('min_shared_terms', 'n/a')}/"
+        f"{overlap_config.get('content_threshold', 'n/a')}/"
+        f"{overlap_config.get('title_threshold', 'n/a')}"
     )
     print(
         "- Benchmark tasks: "

@@ -26,6 +26,8 @@ All notable changes to Vaultwright are documented here. Format loosely follows
   when reviewed artifacts change.
 - `vaultwright pilot` now summarizes review-ledger aggregate counts, including reviewed artifacts,
   stale/missing reviews, and non-approved decisions, without exposing artifact paths or notes.
+- `vaultwright pilot` now also summarizes overlap-calibration aggregate counts and current
+  thresholds, without exposing note bodies, shared terms, source text, paths, or reviewer notes.
 - `vaultwright doctor` now reports review-ledger approval posture and warns on stale/missing or
   non-approved artifact reviews without printing artifact paths, reviewer names, or notes.
 - `vaultwright migration` now reports legacy or unknown note frontmatter domains using
