@@ -255,6 +255,8 @@ generated sentinel plus manifest metadata. A fresh vault with no `tools/repos.ym
 sync and lint checks cleanly.
 Lint also treats repo frontmatter as managed evidence: if a generated mirror's `repo` or commit
 metadata drifts from `_meta/repo-manifest.json`, rerun repo sync before relying on the mirror.
+Lint also blocks repo manifest records that are no longer governed by `tools/repos.yml`, so retained
+repo mirrors cannot pass release gates after their config entry is removed.
 Repo plan/status also reports managed `repo` frontmatter identity drift as stale, and a normal sync
 rewrites the managed field from the configured/resolved repo identity without requiring `--force`.
 Repo plan/status output also prints `next actions` for changed, unreachable, conflicted, manually

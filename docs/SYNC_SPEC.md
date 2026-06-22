@@ -55,8 +55,8 @@ Current implementation status:
   unmanaged, and for generated repo mirrors whose manifest lifecycle state is no longer current,
   whose frontmatter repo or commit drifts from the manifest, or whose local source tree changed,
   plus repo sync/status detection and repair for managed repo frontmatter identity drift, plus
-  `repo_unconfigured` lifecycle reporting when a previously synced repo mirror is retained after
-  its `tools/repos.yml` entry is removed;
+  `repo_unconfigured` lifecycle reporting and lint blocking when a previously synced repo mirror is
+  retained after its `tools/repos.yml` entry is removed;
 - partially implemented: full move/rename UX beyond unique hash matching and ambiguous-move
   conflict detection;
 - not complete: full rename/move UX, rollback automation, automated conversion-quality scoring

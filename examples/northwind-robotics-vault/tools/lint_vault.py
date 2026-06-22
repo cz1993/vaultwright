@@ -421,6 +421,7 @@ MIRROR_CONFIG, mirror_config_errors = mirror_config()
 LINT_CONFIG, lint_config_errors = lint_config()
 CONFIGURED_REPOS, repo_config_errors = repo_config()
 CONFIGURED_REPO_NOTE_PATHS = {item["path"] for item in CONFIGURED_REPOS if isinstance(item.get("path"), Path)}
+CONFIGURED_REPO_IDS = {str(item.get("repo_id")) for item in CONFIGURED_REPOS if str(item.get("repo_id", "")).strip()}
 SOURCE_MANIFEST_RECORDS, source_manifest_errors = load_manifest_records(SOURCE_MANIFEST_REL, "source_id")
 REPO_MANIFEST_RECORDS, repo_manifest_errors = load_manifest_records(REPO_MANIFEST_REL, "repo_id")
 manifest_errors = source_manifest_errors + repo_manifest_errors
@@ -700,6 +701,7 @@ for p in md_notes:
 # mirror integrity
 mirror_gap = []
 repo_mirror_gap = []
+repo_unconfigured = []
 def expected_mirror_paths(src: Path) -> list[Path]:
     if MIRROR_CONFIG["mode"] == "sibling":
         preferred = src.with_suffix(".md")
@@ -727,6 +729,16 @@ for expected in CONFIGURED_REPOS:
     actual_repo_id = repo_mirror_ids.get(note_path, "")
     if actual_repo_id != expected_repo_id:
         repo_mirror_gap.append(str(note_path.relative_to(ROOT)) + "  (configured repo mirror repo_id mismatch; run vaultwright sync)")
+
+if not repo_config_errors:
+    for repo_id, record in sorted(REPO_MANIFEST_RECORDS.items()):
+        if repo_id in CONFIGURED_REPO_IDS:
+            continue
+        note_path = str(record.get("note_path", "") or "").strip()
+        label = note_path or repo_id
+        repo_unconfigured.append(
+            label + "  (repo manifest record not governed by tools/repos.yml; restore config or retire mirror)"
+        )
 
 orphan_exempt_names = {"INDEX.md", "CLAUDE.md", "AGENTS.md", "README.md", "RETENTION.md", "CATALOG.md", "log.md"}
 orphans = sorted(
@@ -790,12 +802,13 @@ section("Orphan notes (no inbound links)", orphans)
 section("Potential duplicate/overlap notes", overlap_candidates)
 section("Office files without a mirror", mirror_gap)
 section("Configured repos without a mirror", repo_mirror_gap)
+section("Unconfigured repo mirrors", repo_unconfigured)
 blocking = (
     missing_fm or bad_type or bad_status or bad_domain or domain_map_errors or mirror_config_errors
     or lint_config_errors
     or repo_config_errors or manifest_errors or bad_domain_folder or bad_account_client or bad_mirror_layout
     or stale_office_mirrors or stale_repo_mirrors
-    or markdown_case or mirror_gap or repo_mirror_gap
+    or markdown_case or mirror_gap or repo_mirror_gap or repo_unconfigured
 )
 print("\nOK" if not blocking else "\nISSUES FOUND (unresolved links, orphans & overlap candidates are warnings)")
 sys.exit(1 if blocking else 0)

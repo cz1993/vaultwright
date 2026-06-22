@@ -1235,6 +1235,66 @@ def test_template_linter_blocks_repo_mirror_with_noncurrent_manifest_state(tmp_p
     assert "repo-manifest lifecycle_state=repo_changed; run vaultwright sync/status before relying on mirror" in result.stdout
 
 
+def test_template_linter_blocks_unconfigured_repo_manifest_record(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    repo_id = repo_id_for("local/fixture", "fixture.md")
+    repo_note = vault / "80_sources" / "repos" / "fixture.md"
+    repo_note.parent.mkdir(parents=True, exist_ok=True)
+    repo_note.write_text(
+        "---\n"
+        "title: Fixture Repo\n"
+        "type: repo-mirror\n"
+        "status: active\n"
+        "domain: sources\n"
+        f"{repo_mirror_fields(repo_id=repo_id)}"
+        "last_commit: abc123\n"
+        "created: 2026-01-01\n"
+        "updated: 2026-01-01\n"
+        "---\n"
+        f"# Fixture Repo\n\n{SENTINEL}\n\n## Repository\n",
+        encoding="utf-8",
+    )
+    (vault / "tools" / "repos.yml").write_text(
+        "settings:\n"
+        "  notes_dir: 80_sources/repos\n"
+        "repos: []\n",
+        encoding="utf-8",
+    )
+    (vault / "_meta" / "repo-manifest.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "records": [
+                    {
+                        "repo_id": repo_id,
+                        "configured_repo": "local/fixture",
+                        "note_path": "80_sources/repos/fixture.md",
+                        "last_commit": "abc123",
+                        "lifecycle_state": "clean",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "lint_vault.py")],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 1
+    assert "Stale repo mirrors: 0" in result.stdout
+    assert "Unconfigured repo mirrors: 1" in result.stdout
+    assert (
+        "80_sources/repos/fixture.md  "
+        "(repo manifest record not governed by tools/repos.yml; restore config or retire mirror)"
+    ) in result.stdout
+
+
 def test_template_linter_blocks_repo_mirror_frontmatter_repo_drift(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     shutil.copytree(ROOT / "template", vault)
@@ -1288,6 +1348,15 @@ def test_template_linter_blocks_repo_mirror_frontmatter_repo_drift(tmp_path: Pat
 def test_template_linter_accepts_resolved_repo_identity_for_aliased_repo(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     shutil.copytree(ROOT / "template", vault)
+    repo_id = repo_id_for("old/fixture", "fixture.md")
+    (vault / "tools" / "repos.yml").write_text(
+        "settings:\n"
+        "  notes_dir: 80_sources/repos\n"
+        "repos:\n"
+        "  - repo: old/fixture\n"
+        "    note: fixture.md\n",
+        encoding="utf-8",
+    )
     repo_note = vault / "80_sources" / "repos" / "fixture.md"
     repo_note.parent.mkdir(parents=True, exist_ok=True)
     repo_note.write_text(
@@ -1296,7 +1365,7 @@ def test_template_linter_accepts_resolved_repo_identity_for_aliased_repo(tmp_pat
         "type: repo-mirror\n"
         "status: active\n"
         "domain: sources\n"
-        f"{repo_mirror_fields(repo='new/fixture')}"
+        f"{repo_mirror_fields(repo='new/fixture', repo_id=repo_id)}"
         "last_commit: abc123\n"
         "created: 2026-01-01\n"
         "updated: 2026-01-01\n"
@@ -1310,7 +1379,7 @@ def test_template_linter_accepts_resolved_repo_identity_for_aliased_repo(tmp_pat
                 "schema_version": 1,
                 "records": [
                     {
-                        "repo_id": "repo-test",
+                        "repo_id": repo_id,
                         "configured_repo": "old/fixture",
                         "resolved_repo": "new/fixture",
                         "note_path": "80_sources/repos/fixture.md",
@@ -1796,6 +1865,15 @@ def test_template_linter_skips_generated_mirrors_for_overlap_and_orphan_candidat
         ("src-first", "40_delivery/first.docx", "_mirrors/40_delivery/first.md"),
         ("src-second", "40_delivery/second.docx", "_mirrors/40_delivery/second.md"),
     )
+    repo_id = repo_id_for("local/fixture", "fixture.md")
+    (vault / "tools" / "repos.yml").write_text(
+        "settings:\n"
+        "  notes_dir: 80_sources/repos\n"
+        "repos:\n"
+        "  - repo: local/fixture\n"
+        "    note: fixture.md\n",
+        encoding="utf-8",
+    )
     repo_note = vault / "80_sources" / "repos" / "fixture.md"
     repo_note.parent.mkdir(parents=True, exist_ok=True)
     repo_note.write_text(
@@ -1804,7 +1882,7 @@ def test_template_linter_skips_generated_mirrors_for_overlap_and_orphan_candidat
         "type: repo-mirror\n"
         "status: active\n"
         "domain: sources\n"
-        f"{repo_mirror_fields()}"
+        f"{repo_mirror_fields(repo_id=repo_id)}"
         "created: 2026-01-01\n"
         "updated: 2026-01-01\n"
         "---\n"
@@ -1814,7 +1892,7 @@ def test_template_linter_skips_generated_mirrors_for_overlap_and_orphan_candidat
         "reporting cadence compliance risks review notes approval path and follow-up actions.\n",
         encoding="utf-8",
     )
-    write_repo_manifest(vault, ("repo-test", "80_sources/repos/fixture.md"))
+    write_repo_manifest(vault, (repo_id, "80_sources/repos/fixture.md"))
 
     result = subprocess.run(
         [sys.executable, str(vault / "tools" / "lint_vault.py")],
