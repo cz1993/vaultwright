@@ -64,6 +64,7 @@ jobs:
           "$tmp_build/venv/bin/vaultwright" --root "$tmp_vault" review --check
           "$tmp_build/venv/bin/vaultwright" --root "$tmp_vault" migration --json
           "$tmp_build/venv/bin/vaultwright" --root "$tmp_vault" migration --worksheet
+          "$tmp_build/venv/bin/vaultwright" --root "$tmp_vault" migration --runbook
           "$tmp_build/venv/bin/vaultwright" --root "$tmp_vault" migration --normalize-frontmatter-domains --worksheet
           "$tmp_build/venv/bin/vaultwright" --root "$tmp_vault" pilot --json
           "$tmp_build/venv/bin/vaultwright" --root "$tmp_vault" pilot --worksheet

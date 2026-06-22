@@ -64,7 +64,9 @@ Use subfolders and templates to adapt the starter map:
 
 Run `python3.11 tools/vaultwright.py migration` before moving folders. The report is read-only: it
 uses `_meta/domain-map.yml` aliases to identify old top-level folders and prints recommended
-canonical destinations, while unknown folders are flagged for human classification.
+canonical destinations, while unknown folders are flagged for human classification. Use
+`python3.11 tools/vaultwright.py migration --runbook` to print the reviewed execution protocol for
+legacy folder moves; it is intentionally manual and does not move files.
 
 | Old Starter Folder | New Function Domain |
 | --- | --- |

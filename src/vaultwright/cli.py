@@ -152,6 +152,7 @@ def build_parser() -> argparse.ArgumentParser:
     migration_output = migration.add_mutually_exclusive_group()
     migration_output.add_argument("--json", action="store_true", help="Print machine-readable migration JSON.")
     migration_output.add_argument("--worksheet", action="store_true", help="Print a Markdown migration review worksheet.")
+    migration_output.add_argument("--runbook", action="store_true", help="Print a Markdown legacy-folder migration runbook.")
     migration.add_argument(
         "--normalize-frontmatter-domains",
         action="store_true",
@@ -167,6 +168,7 @@ def build_parser() -> argparse.ArgumentParser:
         delegate_args=lambda args: (
             (["--json"] if args.json else [])
             + (["--worksheet"] if args.worksheet else [])
+            + (["--runbook"] if args.runbook else [])
             + (["--normalize-frontmatter-domains"] if args.normalize_frontmatter_domains else [])
             + (["--write"] if args.write else [])
         ),

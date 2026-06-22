@@ -245,8 +245,8 @@ instead of hard-coding one organization's assumptions.
 Remaining work:
 
 - Calibrate migration guidance on real legacy folder layouts; the current implementation can
-  preview, worksheet-review, and explicitly apply known frontmatter-domain alias cleanup, but
-  folder moves still need a reviewed runbook.
+  preview, worksheet-review, and explicitly apply known frontmatter-domain alias cleanup, and now
+  prints a conservative folder-move runbook, but the runbook still needs pilot calibration.
 - Improve domain-specific examples without creating a rigid taxonomy library too early.
 - Calibrate overlap/similarity thresholds with real pilot corpora before treating warnings as
   operational metrics.
@@ -388,7 +388,7 @@ Professional-services use should begin with a conservative operating model:
 | Area | Current status | Assessment |
 | --- | --- | --- |
 | Product positioning | Narrowed to governed document-to-markdown lifecycle with agent-ready substrate as the future direction | Stronger than generic AI wiki framing |
-| Information architecture | Function-based folder structure with configurable domain map; migration reporting covers legacy top-level folders and legacy/unknown note frontmatter domains; opt-in frontmatter alias normalization includes a review worksheet and handles approved canonical-domain cleanup without moving files | Better cross-industry baseline with a clearer cleanup path for copied corpora |
+| Information architecture | Function-based folder structure with configurable domain map; migration reporting covers legacy top-level folders and legacy/unknown note frontmatter domains; opt-in frontmatter alias normalization includes a review worksheet and handles approved canonical-domain cleanup without moving files; migration runbook prints a conservative manual folder-move protocol | Better cross-industry baseline with a clearer cleanup path for copied corpora |
 | Mirror storage | Office mirrors and optional text-based PDF mirrors live under `_mirrors/` | Fixes messy source-folder problem |
 | Office sync | Plan/sync/status, manifest, audit events, manual-edit detection, lifecycle next-action guidance | Useful alpha foundation |
 | Repo sync | Plan/sync/status, repo manifest, audit events, manual-edit detection, lifecycle next-action guidance | Useful for code/source repositories |
@@ -512,7 +512,7 @@ Deliverables:
 - continued `doctor` expansion beyond the current Obsidian/plugin checks and backup posture;
 - deeper lifecycle recovery UX beyond the current read-only report and recovery worksheet;
 - pilot-calibrated migration runbooks for legacy folder layouts, building on the current
-  frontmatter-domain alias normalizer;
+  frontmatter-domain alias normalizer and initial folder-move runbook;
 - continued calibration of the conversion spot-check report and operator guide on pilot corpora;
 - Markdown and HTML catalog freshness checks in pilot runbooks so reviewers and agents begin from
   current inventory;

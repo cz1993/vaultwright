@@ -134,6 +134,8 @@ def command_migration(args: argparse.Namespace) -> int:
         cmd.append("--json")
     if args.worksheet:
         cmd.append("--worksheet")
+    if args.runbook:
+        cmd.append("--runbook")
     if args.normalize_frontmatter_domains:
         cmd.append("--normalize-frontmatter-domains")
     if args.write:
@@ -668,6 +670,7 @@ def build_parser() -> argparse.ArgumentParser:
     migration_output = migration.add_mutually_exclusive_group()
     migration_output.add_argument("--json", action="store_true", help="Print machine-readable migration JSON.")
     migration_output.add_argument("--worksheet", action="store_true", help="Print a Markdown migration review worksheet.")
+    migration_output.add_argument("--runbook", action="store_true", help="Print a Markdown legacy-folder migration runbook.")
     migration.add_argument(
         "--normalize-frontmatter-domains",
         action="store_true",

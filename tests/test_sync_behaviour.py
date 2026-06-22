@@ -430,6 +430,19 @@ def test_packaged_vaultwright_cli_delegates_to_target_vault(tmp_path: Path) -> N
     assert "No legacy or unknown top-level folders found" in migration_worksheet.stdout
     assert "No legacy frontmatter domains found" in migration_worksheet.stdout
 
+    migration_runbook = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "migration", "--runbook"],
+        cwd=ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert migration_runbook.returncode == 0, migration_runbook.stderr or migration_runbook.stdout
+    assert "# Vaultwright Legacy Folder Migration Runbook" in migration_runbook.stdout
+    assert "Top-level folders needing review: 0 (alias=0, unknown=0)" in migration_runbook.stdout
+    assert "No legacy alias folders found" in migration_runbook.stdout
+
     migration_normalize = subprocess.run(
         [
             sys.executable,
@@ -2413,6 +2426,12 @@ def test_vaultwright_migration_reports_legacy_and_unknown_folders(tmp_path: Path
         text=True,
         capture_output=True,
     )
+    runbook_result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "vaultwright.py"), "migration", "--runbook"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
     normalize_preview = subprocess.run(
         [sys.executable, str(vault / "tools" / "vaultwright.py"), "migration", "--normalize-frontmatter-domains"],
         cwd=vault,
@@ -2492,6 +2511,19 @@ def test_vaultwright_migration_reports_legacy_and_unknown_folders(tmp_path: Path
     assert "- [ ] `marketing/campaign.md`: `marketing` -> `market`" in worksheet_result.stdout
     assert "- [ ] `client_uploads/unknown-domain.md`: `special-projects` -> `manual classification`" in worksheet_result.stdout
 
+    assert runbook_result.returncode == 0, runbook_result.stderr or runbook_result.stdout
+    assert "# Vaultwright Legacy Folder Migration Runbook" in runbook_result.stdout
+    assert "Read-only; no files were moved or changed." in runbook_result.stdout
+    assert "Top-level folders needing review: 4 (alias=1, unknown=3)" in runbook_result.stdout
+    assert "Frontmatter domains needing review: 2 (alias=1, unknown=1)" in runbook_result.stdout
+    assert "Resolve `vaultwright recovery --worksheet` items before trusting generated mirrors." in runbook_result.stdout
+    assert "Move one alias folder batch at a time into the recommended canonical folder." in runbook_result.stdout
+    assert "- [ ] `marketing/` -> `20_market/` (domain=`market`, files=1, markdown=1, office=0)" in (
+        runbook_result.stdout
+    )
+    assert "- [ ] Folder `client_uploads/`: classify before moving" in runbook_result.stdout
+    assert "- [ ] Note `client_uploads/unknown-domain.md`: classify domain `special-projects`" in runbook_result.stdout
+
     assert normalize_preview.returncode == 0, normalize_preview.stderr or normalize_preview.stdout
     assert "dry-run only; use --write to update files" in normalize_preview.stdout
     assert "1 alias domain(s) eligible, planned=1, updated=0, skipped=0, errors=0, unknown=1" in normalize_preview.stdout
@@ -2554,6 +2586,22 @@ def test_vaultwright_migration_reports_legacy_and_unknown_folders(tmp_path: Path
 
     assert normalize_write_worksheet.returncode != 0
     assert "--write cannot be combined with --worksheet" in normalize_write_worksheet.stderr
+
+    normalize_runbook = subprocess.run(
+        [
+            sys.executable,
+            str(vault / "tools" / "vaultwright.py"),
+            "migration",
+            "--normalize-frontmatter-domains",
+            "--runbook",
+        ],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert normalize_runbook.returncode != 0
+    assert "--normalize-frontmatter-domains cannot be combined with --json or --runbook" in normalize_runbook.stderr
 
 
 def test_vaultwright_recovery_reports_manifest_actions(tmp_path: Path) -> None:

@@ -39,6 +39,9 @@ All notable changes to Vaultwright are documented here. Format loosely follows
   checklist for planned frontmatter alias rewrites, skipped generated mirrors, and unknown domains
   before any write is approved.
 - CI and release smoke checks now exercise the normalizer worksheet through the packaged CLI.
+- `vaultwright migration --runbook` now prints a read-only legacy folder migration protocol with
+  preconditions, execution steps, stop conditions, and current alias/unknown cleanup queues.
+- CI and release smoke checks now exercise the migration runbook through the packaged CLI.
 - `vaultwright recovery --worksheet` now prints a read-only Markdown recovery checklist with
   lifecycle actions, previous mirror context, bounded conflict summaries, and latest audit context.
 - CI and release smoke checks now exercise recovery worksheet output through the packaged CLI.

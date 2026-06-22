@@ -47,6 +47,7 @@ python3.11 tools/vaultwright.py review --json
 python3.11 tools/vaultwright.py conversion --guide
 python3.11 tools/vaultwright.py migration
 python3.11 tools/vaultwright.py migration --worksheet
+python3.11 tools/vaultwright.py migration --runbook
 python3.11 tools/vaultwright.py migration --normalize-frontmatter-domains
 python3.11 tools/vaultwright.py migration --normalize-frontmatter-domains --worksheet
 python3.11 tools/vaultwright.py migration --normalize-frontmatter-domains --write
@@ -108,8 +109,9 @@ folders that need human classification before any manual move. Non-reserved hidd
 underscore-prefixed folders are reported too, because they may contain staged imports or legacy
 source material. It also scans note frontmatter for legacy alias domains such as
 `domain: marketing` or `domain: clients` and reports the canonical domain/folder recommendation without
-rewriting files. Use `--worksheet` to print a Markdown review checklist for a migration batch.
-Use `--normalize-frontmatter-domains` to preview rewriting known frontmatter aliases such as
+rewriting files. Use `--worksheet` to print a Markdown review checklist for a migration batch, and
+`--runbook` to print a step-by-step legacy-folder migration protocol before any manual folder
+move. Use `--normalize-frontmatter-domains` to preview rewriting known frontmatter aliases such as
 `domain: marketing` to `domain: market`; add `--worksheet` for a review checklist, then add
 `--write` only after approval. This write mode changes only known frontmatter domain aliases in
 markdown notes. It does not move files, delete folders, rewrite unknown domains, or edit generated

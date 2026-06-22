@@ -67,7 +67,10 @@ def test_release_workflow_verifies_built_wheel_before_release() -> None:
     assert "review --artifact CATALOG.html --status approved --reviewer Release --json" in text
     assert "review --check" in text
     assert "migration --worksheet" in text
+    assert "migration --runbook" in text
+    assert "migration --normalize-frontmatter-domains --worksheet" in text
     assert "pilot --worksheet" in text
+    assert "recovery --worksheet" in text
     assert "actions/upload-artifact@v7" in text
 
 
@@ -86,9 +89,12 @@ def test_ci_workflow_smokes_sandbox_command() -> None:
     assert "test -f \"$tmp_vault/tools/sandbox_report.py\"" in text
     assert "sandbox --source-root" in text
     assert "migration --worksheet" in text
+    assert "migration --runbook" in text
+    assert "migration --normalize-frontmatter-domains --worksheet" in text
     assert "m365 --json" in text
     assert "review --artifact CATALOG.html --status approved --reviewer CI --json" in text
     assert "review --check" in text
+    assert "recovery --worksheet" in text
 
 
 def test_release_workflow_isolates_write_token_to_publish_job() -> None:
