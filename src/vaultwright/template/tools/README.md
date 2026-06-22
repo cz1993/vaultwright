@@ -48,6 +48,7 @@ python3.11 tools/vaultwright.py conversion --guide
 python3.11 tools/vaultwright.py migration
 python3.11 tools/vaultwright.py migration --worksheet
 python3.11 tools/vaultwright.py migration --normalize-frontmatter-domains
+python3.11 tools/vaultwright.py migration --normalize-frontmatter-domains --worksheet
 python3.11 tools/vaultwright.py migration --normalize-frontmatter-domains --write
 python3.11 tools/vaultwright.py pilot
 python3.11 tools/vaultwright.py recovery
@@ -108,9 +109,10 @@ source material. It also scans note frontmatter for legacy alias domains such as
 `domain: marketing` or `domain: clients` and reports the canonical domain/folder recommendation without
 rewriting files. Use `--worksheet` to print a Markdown review checklist for a migration batch.
 Use `--normalize-frontmatter-domains` to preview rewriting known frontmatter aliases such as
-`domain: marketing` to `domain: market`; add `--write` only after review. This write mode changes
-only known frontmatter domain aliases in markdown notes. It does not move files, delete folders,
-rewrite unknown domains, or edit generated source/repo mirrors.
+`domain: marketing` to `domain: market`; add `--worksheet` for a review checklist, then add
+`--write` only after approval. This write mode changes only known frontmatter domain aliases in
+markdown notes. It does not move files, delete folders, rewrite unknown domains, or edit generated
+source/repo mirrors.
 
 `pilot` is read-only. It summarizes aggregate pilot evidence from manifests, audit events,
 conversion priorities, recovery action counts, review-ledger counts, benchmark tasks, and optional

@@ -450,6 +450,30 @@ def test_packaged_vaultwright_cli_delegates_to_target_vault(tmp_path: Path) -> N
     assert "normalize-frontmatter-domains" in migration_normalize.stdout
     assert "0 alias domain(s) eligible" in migration_normalize.stdout
 
+    migration_normalize_worksheet = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "vaultwright.cli",
+            "--root",
+            str(vault),
+            "migration",
+            "--normalize-frontmatter-domains",
+            "--worksheet",
+        ],
+        cwd=ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert migration_normalize_worksheet.returncode == 0, (
+        migration_normalize_worksheet.stderr or migration_normalize_worksheet.stdout
+    )
+    assert "# Vaultwright Frontmatter Domain Normalization Worksheet" in migration_normalize_worksheet.stdout
+    assert "Alias domains eligible for known canonical rewrite: 0" in migration_normalize_worksheet.stdout
+    assert "No known alias frontmatter updates found" in migration_normalize_worksheet.stdout
+
     recovery = subprocess.run(
         [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "recovery"],
         cwd=ROOT,
@@ -2382,6 +2406,18 @@ def test_vaultwright_migration_reports_legacy_and_unknown_folders(tmp_path: Path
         text=True,
         capture_output=True,
     )
+    normalize_worksheet = subprocess.run(
+        [
+            sys.executable,
+            str(vault / "tools" / "vaultwright.py"),
+            "migration",
+            "--normalize-frontmatter-domains",
+            "--worksheet",
+        ],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
 
     assert result.returncode == 0, result.stderr or result.stdout
     assert "migration: dry-run only; no files were moved" in result.stdout
@@ -2451,6 +2487,19 @@ def test_vaultwright_migration_reports_legacy_and_unknown_folders(tmp_path: Path
     preview_fm, _preview_body = (marketing / "campaign.md").read_text(encoding="utf-8").split("---\n", 2)[1:]
     assert yaml.safe_load(preview_fm)["domain"] == "marketing"
 
+    assert normalize_worksheet.returncode == 0, normalize_worksheet.stderr or normalize_worksheet.stdout
+    assert "# Vaultwright Frontmatter Domain Normalization Worksheet" in normalize_worksheet.stdout
+    assert "Dry-run only; no files were changed." in normalize_worksheet.stdout
+    assert "Alias domains eligible for known canonical rewrite: 1" in normalize_worksheet.stdout
+    assert "Planned frontmatter updates: 1" in normalize_worksheet.stdout
+    assert "Unknown domains needing manual classification: 1" in normalize_worksheet.stdout
+    assert "- [ ] `marketing/campaign.md`: `marketing` -> `market`" in normalize_worksheet.stdout
+    assert "Recommended folder: `20_market`" in normalize_worksheet.stdout
+    assert "- [ ] `client_uploads/unknown-domain.md`: `special-projects` -> `manual classification`" in (
+        normalize_worksheet.stdout
+    )
+    assert "vaultwright migration --normalize-frontmatter-domains --write" in normalize_worksheet.stdout
+
     normalize_write = subprocess.run(
         [
             sys.executable,
@@ -2475,6 +2524,23 @@ def test_vaultwright_migration_reports_legacy_and_unknown_folders(tmp_path: Path
     assert yaml.safe_load(unknown_fm)["domain"] == "special-projects"
     assert marketing.exists()
     assert custom.exists()
+
+    normalize_write_worksheet = subprocess.run(
+        [
+            sys.executable,
+            str(vault / "tools" / "vaultwright.py"),
+            "migration",
+            "--normalize-frontmatter-domains",
+            "--write",
+            "--worksheet",
+        ],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert normalize_write_worksheet.returncode != 0
+    assert "--write cannot be combined with --worksheet" in normalize_write_worksheet.stderr
 
 
 def test_vaultwright_recovery_reports_manifest_actions(tmp_path: Path) -> None:

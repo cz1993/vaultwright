@@ -35,6 +35,10 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 - `vaultwright migration --normalize-frontmatter-domains` now previews known legacy frontmatter
   domain alias rewrites, and `--write` applies only those `domain` frontmatter changes without
   moving files, touching unknown domains, or editing generated mirrors.
+- `vaultwright migration --normalize-frontmatter-domains --worksheet` now prints a dry-run review
+  checklist for planned frontmatter alias rewrites, skipped generated mirrors, and unknown domains
+  before any write is approved.
+- CI and release smoke checks now exercise the normalizer worksheet through the packaged CLI.
 - Added `tools/sandbox_report.py` and `vaultwright sandbox`, a read-only copied-vault preflight for
   safe pilot workspaces that checks source-root separation, mirror isolation, manifest/recovery
   readiness, and backup posture without printing source paths or document text.

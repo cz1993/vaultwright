@@ -245,8 +245,8 @@ instead of hard-coding one organization's assumptions.
 Remaining work:
 
 - Calibrate migration guidance on real legacy folder layouts; the current implementation can
-  preview and explicitly apply known frontmatter-domain alias cleanup, but folder moves still need
-  a reviewed runbook.
+  preview, worksheet-review, and explicitly apply known frontmatter-domain alias cleanup, but
+  folder moves still need a reviewed runbook.
 - Improve domain-specific examples without creating a rigid taxonomy library too early.
 - Calibrate overlap/similarity thresholds with real pilot corpora before treating warnings as
   operational metrics.
@@ -388,7 +388,7 @@ Professional-services use should begin with a conservative operating model:
 | Area | Current status | Assessment |
 | --- | --- | --- |
 | Product positioning | Narrowed to governed document-to-markdown lifecycle with agent-ready substrate as the future direction | Stronger than generic AI wiki framing |
-| Information architecture | Function-based folder structure with configurable domain map; migration reporting covers legacy top-level folders and legacy/unknown note frontmatter domains; opt-in frontmatter alias normalization handles reviewed canonical-domain cleanup without moving files | Better cross-industry baseline with a clearer cleanup path for copied corpora |
+| Information architecture | Function-based folder structure with configurable domain map; migration reporting covers legacy top-level folders and legacy/unknown note frontmatter domains; opt-in frontmatter alias normalization includes a review worksheet and handles approved canonical-domain cleanup without moving files | Better cross-industry baseline with a clearer cleanup path for copied corpora |
 | Mirror storage | Office mirrors and optional text-based PDF mirrors live under `_mirrors/` | Fixes messy source-folder problem |
 | Office sync | Plan/sync/status, manifest, audit events, manual-edit detection, lifecycle next-action guidance | Useful alpha foundation |
 | Repo sync | Plan/sync/status, repo manifest, audit events, manual-edit detection, lifecycle next-action guidance | Useful for code/source repositories |
