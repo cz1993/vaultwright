@@ -85,6 +85,7 @@ def test_vaultwright_cli_doctor_passes_on_template() -> None:
     assert "info: source-manifest.json: not generated yet" in result.stdout
     assert "info: repo-manifest.json: not generated yet" in result.stdout
     assert "info: sync-audit.jsonl: not generated yet" in result.stdout
+    assert "info: lifecycle contract: office=13 states, repo=11 states" in result.stdout
     assert "info: recovery: no action items" in result.stdout
     assert "info: review ledger: no reviewed artifacts yet" in result.stdout
     assert "info: Obsidian Bases index: Documents.base present" in result.stdout

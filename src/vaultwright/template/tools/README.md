@@ -66,12 +66,18 @@ python3.11 tools/vaultwright.py benchmark
 python3.11 tools/vaultwright.py doctor
 ```
 
-`doctor` is read-only. It checks required files and copied tools, Python dependencies, source/repo
-manifest lifecycle counts, sync audit presence, recovery action counts, review-ledger approval
-posture, git backup posture, and GitHub auth posture. It also reports optional Obsidian
-config/plugin posture and `.gitignore` backup guard coverage. A fresh vault may warn that
-manifests, audit logs, repo config, git history, or Obsidian UI config are not generated yet; those
-warnings are preflight context, not sync failures.
+`doctor` is read-only. It checks required files and copied tools, Python dependencies, the
+machine-readable `_meta/lifecycle-states.yml` contract, source/repo manifest lifecycle counts, sync
+audit presence, recovery action counts, review-ledger approval posture, git backup posture, and
+GitHub auth posture. It also reports optional Obsidian config/plugin posture and `.gitignore`
+backup guard coverage. A fresh vault may warn that manifests, audit logs, repo config, git
+history, or Obsidian UI config are not generated yet; those warnings are preflight context, not
+sync failures.
+
+`_meta/lifecycle-states.yml` is the release-facing lifecycle contract for generated Office/source
+mirrors and repo mirrors. Every state used by sync/recovery/reporting must have an entry condition,
+user-visible explanation, permitted next actions, and exit condition. Treat it as operator guidance
+and a tooling contract; it does not make destructive cleanup automatic.
 
 `catalog` writes `CATALOG.md` by default, and `CATALOG.html` when called with `--html`. Both are
 generated source-path and manifest inventories, not content extraction layers: they list counts,

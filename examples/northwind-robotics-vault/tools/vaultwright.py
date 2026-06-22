@@ -21,6 +21,13 @@ from pathlib import Path
 
 TOOL_DIR = Path(__file__).resolve().parent
 DEFAULT_ROOT = TOOL_DIR.parent
+LIFECYCLE_CONTRACT = Path("_meta/lifecycle-states.yml")
+LIFECYCLE_REQUIRED_FIELDS = {
+    "entry_condition",
+    "explanation",
+    "permitted_next_actions",
+    "exit_condition",
+}
 GITIGNORE_REQUIRED_PATTERNS = {
     "data/": "data/.vaultwright-doctor-check",
     "secrets/": "secrets/.vaultwright-doctor-check",
@@ -467,6 +474,57 @@ def github_auth_preflight(root: Path) -> tuple[list[str], list[str]]:
     return info, warnings
 
 
+def lifecycle_contract_preflight(root: Path) -> tuple[list[str], list[str]]:
+    info: list[str] = []
+    warnings: list[str] = []
+    path = root / LIFECYCLE_CONTRACT
+    if not path.exists():
+        warnings.append(f"lifecycle contract: missing {LIFECYCLE_CONTRACT.as_posix()}")
+        return info, warnings
+    try:
+        import yaml  # type: ignore
+    except ImportError:
+        warnings.append("lifecycle contract: PyYAML unavailable; contract not checked")
+        return info, warnings
+    try:
+        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        warnings.append(f"lifecycle contract: unreadable ({exc.__class__.__name__})")
+        return info, warnings
+    if not isinstance(data, dict) or data.get("schema_version") != 1:
+        warnings.append("lifecycle contract: schema_version must be 1")
+        return info, warnings
+
+    counts: dict[str, int] = {}
+    for section in ("office", "repo"):
+        states = data.get(section)
+        if not isinstance(states, dict) or not states:
+            warnings.append(f"lifecycle contract: missing {section} states")
+            continue
+        counts[section] = len(states)
+        for state, spec in states.items():
+            label = f"lifecycle contract: {section}.{state}"
+            if not isinstance(spec, dict):
+                warnings.append(f"{label} must be a mapping")
+                continue
+            missing = sorted(field for field in LIFECYCLE_REQUIRED_FIELDS if not spec.get(field))
+            if missing:
+                warnings.append(f"{label} missing field(s): {', '.join(missing)}")
+            actions = spec.get("permitted_next_actions")
+            if (
+                not isinstance(actions, list)
+                or not actions
+                or not all(isinstance(item, str) and item.strip() for item in actions)
+            ):
+                warnings.append(f"{label} permitted_next_actions must be a non-empty string list")
+    if counts and not any(warning.startswith("lifecycle contract:") for warning in warnings):
+        info.append(
+            "lifecycle contract: "
+            + ", ".join(f"{section}={counts[section]} states" for section in sorted(counts))
+        )
+    return info, warnings
+
+
 def recovery_preflight(root: Path) -> tuple[list[str], list[str]]:
     info: list[str] = []
     warnings: list[str] = []
@@ -565,7 +623,13 @@ def command_doctor(args: argparse.Namespace) -> int:
         errors.append("Python 3.11+ is required.")
     else:
         info.append(f"Python: {sys.version.split()[0]}")
-    for rel in ("CLAUDE.md", "INDEX.md", "_meta/domain-map.yml", "_meta/mirror-config.yml"):
+    for rel in (
+        "CLAUDE.md",
+        "INDEX.md",
+        "_meta/domain-map.yml",
+        "_meta/mirror-config.yml",
+        LIFECYCLE_CONTRACT.as_posix(),
+    ):
         if not (root / rel).exists():
             errors.append(f"Missing required vault file: {rel}")
     if (root / "_mirrors").exists():
@@ -618,6 +682,9 @@ def command_doctor(args: argparse.Namespace) -> int:
     backup_info, backup_warnings = backup_preflight(root)
     git_info, git_warnings = git_preflight(root)
     gh_info, gh_warnings = github_auth_preflight(root)
+    lifecycle_info, lifecycle_warnings = lifecycle_contract_preflight(root)
+    info.extend(lifecycle_info)
+    warnings.extend(lifecycle_warnings)
     info.extend(recovery_info)
     warnings.extend(recovery_warnings)
     info.extend(review_info)

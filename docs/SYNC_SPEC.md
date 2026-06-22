@@ -57,6 +57,11 @@ Current implementation status:
   plus repo sync/status detection and repair for managed repo frontmatter identity drift, plus
   `repo_unconfigured` lifecycle reporting and lint blocking when a previously synced repo mirror is
   retained after its `tools/repos.yml` entry is removed;
+- implemented for lifecycle operator semantics: the template now includes
+  `_meta/lifecycle-states.yml`, a machine-readable Office/repo state contract with entry
+  conditions, user-visible explanations, permitted next actions, exit conditions, and
+  manifest-state markers; `vaultwright doctor` validates the contract during preflight and tests
+  ensure sync/report states remain covered;
 - partially implemented: full move/rename UX beyond unique hash matching and ambiguous-move
   conflict detection;
 - not complete: full rename/move UX, rollback automation, automated conversion-quality scoring
@@ -91,6 +96,10 @@ Every release-ready state must have:
 - user-visible explanation;
 - permitted next actions;
 - exit condition.
+
+The authoritative machine-readable contract lives in `_meta/lifecycle-states.yml` in every
+initialized vault. Sync/reporting code may still keep local constants for concise terminal output,
+but new lifecycle states must be added to the contract and covered by tests before release.
 
 ## Rename, Move, and Delete Handling
 

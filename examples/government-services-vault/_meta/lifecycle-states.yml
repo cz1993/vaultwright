@@ -1,0 +1,225 @@
+schema_version: 1
+description: >
+  Vaultwright lifecycle state contract for generated Office/source mirrors and repo mirrors.
+  Every state used in manifests or release guidance must have an entry condition, user-facing
+  explanation, permitted next actions, and an exit condition.
+
+office:
+  clean:
+    manifest_state: true
+    entry_condition: Source bytes, converter/configuration metadata, generated-region hash, and mirror path match the manifest.
+    explanation: The generated Office/source mirror is current for search, review, and citation triage.
+    permitted_next_actions:
+      - Use the mirror for navigation while treating the original source as authoritative.
+      - Record artifact review decisions with the review ledger when human sign-off is needed.
+      - Rerun status after source, converter, or mirror-configuration changes.
+    exit_condition: Source bytes, converter/configuration metadata, generated-region content, or mirror routing changes.
+  planned:
+    manifest_state: true
+    entry_condition: A supported source has no current generated mirror or manifest-backed mirror record.
+    explanation: Vaultwright can create a generated mirror, but no mirror has been written yet.
+    permitted_next_actions:
+      - Review the plan output.
+      - Run sync to create the generated mirror.
+      - Exclude or move the source if it should not be mirrored.
+    exit_condition: Sync creates the mirror, or the source is removed, excluded, or becomes unsupported/error.
+  source_changed:
+    manifest_state: true
+    entry_condition: The current source path still exists, but its bytes differ from the manifest source hash.
+    explanation: The retained mirror may describe an older source version.
+    permitted_next_actions:
+      - Run sync to refresh the generated region.
+      - Review linked curated notes after regeneration.
+      - Use the original source as authority until refreshed.
+    exit_condition: Sync regenerates the mirror from the new source bytes, or the record enters conflict/error.
+  source_moved:
+    manifest_state: true
+    entry_condition: A source with matching bytes is detected at a new path and the previous generated mirror path still needs review.
+    explanation: Vaultwright found a likely move but will not strand or duplicate generated mirrors automatically.
+    permitted_next_actions:
+      - Confirm the move is intentional.
+      - Preserve, archive, or remove the old generated mirror after backup review.
+      - Rerun sync after resolving the old mirror path.
+    exit_condition: The old mirror path is resolved and sync updates the manifest/mirror path, or the move is rejected.
+  stale:
+    manifest_state: true
+    entry_condition: Manifest, mirror frontmatter, converter metadata, or mirror configuration indicates the mirror is older than current evidence.
+    explanation: The mirror should not be trusted until refreshed or reviewed.
+    permitted_next_actions:
+      - Run status to inspect the stale reason.
+      - Run sync when the refresh is acceptable.
+      - Review conversion quality and linked curated notes after refresh.
+    exit_condition: Sync updates the mirror and manifest, or a blocking conflict/error is recorded.
+  converter_changed:
+    manifest_state: true
+    entry_condition: The converter name or version differs from the converter metadata stored in the manifest.
+    explanation: Regeneration may change mirror text even if source bytes did not change.
+    permitted_next_actions:
+      - Review conversion-quality risk for the affected format.
+      - Run sync only when the new converter output is acceptable.
+      - Keep prior mirror evidence until review is complete.
+    exit_condition: Sync regenerates with the current converter, or the operator defers/blocks the update.
+  unsupported:
+    manifest_state: true
+    entry_condition: The source format is not supported by the current converter path or was explicitly skipped as unsupported.
+    explanation: The original source remains inventoried, but Vaultwright did not create a reliable mirror.
+    permitted_next_actions:
+      - Keep the original as source of truth.
+      - Convert the file manually to a supported format if mirroring is required.
+      - Record the exception in pilot/conversion review outputs.
+    exit_condition: The source is converted to a supported format, excluded from scope, or handled by a future converter.
+  source_missing:
+    manifest_state: true
+    entry_condition: A manifest record exists, but the current source path is no longer present.
+    explanation: Vaultwright retains the mirror and manifest record for review instead of deleting evidence.
+    permitted_next_actions:
+      - Locate or restore the source.
+      - Confirm whether the source was intentionally moved, archived, or deleted.
+      - Retire or archive the mirror only after review.
+    exit_condition: The source is restored, a move is resolved, or the manifest/mirror is deliberately retired.
+  manual_modification:
+    manifest_state: true
+    entry_condition: The generated region, generated sentinel, or manifest-generated baseline no longer matches the last successful sync.
+    explanation: Human or external edits may exist inside machine-owned content.
+    permitted_next_actions:
+      - Inspect content below the generated sentinel.
+      - Preserve human edits in curated notes before force regeneration.
+      - Rerun sync only after the review is complete.
+    exit_condition: Human edits are preserved and sync regenerates the machine-owned region, or the mirror is intentionally retired.
+  conflict:
+    manifest_state: true
+    entry_condition: Source, mirror, manifest, or routing evidence is ambiguous or unsafe to choose automatically.
+    explanation: Vaultwright cannot safely decide the correct source/mirror identity without an operator.
+    permitted_next_actions:
+      - Read the conflict reason and candidate paths.
+      - Resolve duplicate, ambiguous, or ownership conflicts manually.
+      - Rerun status/sync after the evidence is unambiguous.
+    exit_condition: The conflicting evidence is corrected and sync produces clean/planned output, or the item is retired.
+  error:
+    manifest_state: true
+    entry_condition: Conversion, hashing, manifest parsing, mirror writing, or another sync operation failed.
+    explanation: The previous successful mirror is preserved where possible, and the item needs operator attention.
+    permitted_next_actions:
+      - Fix the reported error.
+      - Rerun plan/status before trusting or syncing the mirror.
+      - Preserve existing mirror evidence until a clean regeneration succeeds.
+    exit_condition: The error is fixed and sync completes, or the source is excluded/retired after review.
+  regenerated:
+    manifest_state: false
+    entry_condition: Sync has just refreshed a generated mirror from current source evidence.
+    explanation: This is a transition/audit concept; retained manifests normally settle back to clean after successful sync.
+    permitted_next_actions:
+      - Review generated output when the source, converter, or format risk changed.
+      - Record review-ledger approval when the artifact is accepted.
+      - Rerun lint/status to confirm clean state.
+    exit_condition: The regenerated artifact is verified as clean, reviewed, or moved into another lifecycle state.
+  reviewed:
+    manifest_state: false
+    entry_condition: A human review decision is recorded against the current artifact hash or note metadata.
+    explanation: Review is evidence about an artifact version, not proof that the source can be ignored.
+    permitted_next_actions:
+      - Treat approval as current only while the artifact hash remains unchanged.
+      - Re-review after regeneration or source changes.
+      - Keep detailed review notes outside generated mirror bodies.
+    exit_condition: The artifact changes, the review expires, or a newer review decision replaces it.
+
+repo:
+  clean:
+    manifest_state: true
+    entry_condition: Repo mirror frontmatter, repo identity, commit/head metadata, generated-region hash, and manifest record agree.
+    explanation: The repo mirror is current for search, review, and citation triage.
+    permitted_next_actions:
+      - Use the mirror for navigation while treating the source repo as authoritative.
+      - Record artifact review decisions when human sign-off is needed.
+      - Rerun status after repo, config, or note changes.
+    exit_condition: Repo HEAD, resolved repo identity, mirror note content, or config changes.
+  planned:
+    manifest_state: true
+    entry_condition: A configured repo has no current generated repo mirror note.
+    explanation: Vaultwright can create a repo mirror after plan review.
+    permitted_next_actions:
+      - Review the repo config and note target.
+      - Run sync to create the repo mirror.
+      - Remove or correct the config entry if the repo should not be mirrored.
+    exit_condition: Sync creates the repo mirror, the repo becomes unreachable/error, or the config is removed.
+  repo_changed:
+    manifest_state: true
+    entry_condition: The configured repo HEAD or local-tree hash differs from the manifest record.
+    explanation: The retained repo mirror may describe an older repo state.
+    permitted_next_actions:
+      - Run sync to refresh README, docs, and metadata.
+      - Review linked curated notes after refresh.
+      - Use the source repo as authority until refreshed.
+    exit_condition: Sync refreshes the mirror, or a conflict/error/manual modification blocks the update.
+  stale:
+    manifest_state: true
+    entry_condition: Manifest, mirror frontmatter, resolved repo identity, or configuration evidence is newer than the retained mirror.
+    explanation: The repo mirror should not be trusted until refreshed or reviewed.
+    permitted_next_actions:
+      - Run status to inspect the stale reason.
+      - Run sync when the refresh is acceptable.
+      - Review linked curated notes after refresh.
+    exit_condition: Sync updates the mirror and manifest, or a blocking state is recorded.
+  unreachable:
+    manifest_state: true
+    entry_condition: The configured repo cannot be reached because of spelling, network, permission, auth, or source availability.
+    explanation: Existing mirror content is retained but may be outdated or incomplete.
+    permitted_next_actions:
+      - Check repo spelling, network access, and GitHub authentication.
+      - Confirm whether the repo was renamed, archived, or made private.
+      - Rerun status/sync after access is restored.
+    exit_condition: Repo access is restored and sync runs, or the repo mirror is intentionally retired.
+  repo_unconfigured:
+    manifest_state: true
+    entry_condition: A repo manifest record exists but no longer has a matching tools/repos.yml entry.
+    explanation: The retained repo mirror is no longer governed by repo sync configuration.
+    permitted_next_actions:
+      - Restore the config entry if the mirror should remain managed.
+      - Archive or remove the mirror after retirement review.
+      - Retire the manifest state deliberately instead of letting it drift.
+    exit_condition: Config is restored and sync runs, or the mirror/manifest record is retired after review.
+  manual_modification:
+    manifest_state: true
+    entry_condition: The repo mirror generated region, sentinel, or generated baseline no longer matches the last successful sync.
+    explanation: Human or external edits may exist inside machine-owned repo mirror content.
+    permitted_next_actions:
+      - Inspect content below the generated sentinel.
+      - Preserve human edits in curated notes before force regeneration.
+      - Rerun sync only after the review is complete.
+    exit_condition: Human edits are preserved and sync regenerates the machine-owned region, or the mirror is retired.
+  conflict:
+    manifest_state: true
+    entry_condition: Repo note ownership, repo identity, note target, or manifest evidence is ambiguous or unsafe to choose automatically.
+    explanation: Vaultwright cannot safely decide the correct repo/note identity without an operator.
+    permitted_next_actions:
+      - Read the conflict reason and affected note path.
+      - Resolve ownership, duplicate target, or repo identity conflicts manually.
+      - Rerun status/sync after the evidence is unambiguous.
+    exit_condition: The conflict is corrected and sync produces clean/planned output, or the repo mirror is retired.
+  error:
+    manifest_state: true
+    entry_condition: Repo metadata retrieval, local hashing, manifest parsing, mirror writing, or another sync operation failed.
+    explanation: Existing mirror content is preserved where possible, and the item needs operator attention.
+    permitted_next_actions:
+      - Fix the reported error.
+      - Rerun plan/status before trusting or syncing the mirror.
+      - Preserve existing mirror evidence until a clean refresh succeeds.
+    exit_condition: The error is fixed and sync completes, or the repo mirror is excluded/retired after review.
+  regenerated:
+    manifest_state: false
+    entry_condition: Sync has just refreshed a repo mirror from current repo evidence.
+    explanation: This is a transition/audit concept; retained manifests normally settle back to clean after successful sync.
+    permitted_next_actions:
+      - Review generated output when repo identity, HEAD, or config changed.
+      - Record review-ledger approval when the artifact is accepted.
+      - Rerun lint/status to confirm clean state.
+    exit_condition: The regenerated artifact is verified as clean, reviewed, or moved into another lifecycle state.
+  reviewed:
+    manifest_state: false
+    entry_condition: A human review decision is recorded against the current artifact hash or note metadata.
+    explanation: Review is evidence about an artifact version, not proof that the source repo can be ignored.
+    permitted_next_actions:
+      - Treat approval as current only while the artifact hash remains unchanged.
+      - Re-review after regeneration or repo changes.
+      - Keep detailed review notes outside generated repo mirror bodies.
+    exit_condition: The artifact changes, the review expires, or a newer review decision replaces it.

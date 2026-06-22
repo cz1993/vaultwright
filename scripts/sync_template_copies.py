@@ -18,6 +18,7 @@ from pathlib import Path
 IGNORED_PARTS = {"__pycache__"}
 IGNORED_SUFFIXES = {".pyc"}
 EXAMPLE_ALLOWED_EXTRA_TOOL_FILES = {"repos.yml"}
+EXAMPLE_SHARED_META_FILES = {"lifecycle-states.yml"}
 
 
 @dataclass(frozen=True)
@@ -138,6 +139,33 @@ def sync_example_tools(root: Path, write: bool) -> list[Drift]:
     return drifts
 
 
+def sync_example_shared_meta(root: Path, write: bool) -> list[Drift]:
+    source_meta = root / "template" / "_meta"
+    drifts: list[Drift] = []
+
+    for example in sorted((root / "examples").glob("*-vault")):
+        meta_dir = example / "_meta"
+        scope = f"examples/{example.name}/_meta"
+        for rel in sorted(EXAMPLE_SHARED_META_FILES):
+            source_path = source_meta / rel
+            target_path = meta_dir / rel
+            if not source_path.exists():
+                continue
+            if not target_path.exists():
+                drifts.append(Drift(scope, "missing", rel))
+                if write:
+                    copy_file(source_path, target_path)
+                continue
+            kind = file_drift_kind(source_path, target_path)
+            if not kind:
+                continue
+            drifts.append(Drift(scope, kind, rel))
+            if write:
+                copy_file(source_path, target_path)
+
+    return drifts
+
+
 def sync_template_copies(root: Path, write: bool) -> list[Drift]:
     drifts = sync_exact_tree(
         root / "template",
@@ -146,6 +174,7 @@ def sync_template_copies(root: Path, write: bool) -> list[Drift]:
         write,
     )
     drifts.extend(sync_example_tools(root, write))
+    drifts.extend(sync_example_shared_meta(root, write))
     return drifts
 
 

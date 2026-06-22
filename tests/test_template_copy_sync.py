@@ -31,8 +31,11 @@ def test_template_copy_sync_check_passes_repository() -> None:
 
 def test_template_copy_sync_check_reports_drift_without_mutating(tmp_path: Path) -> None:
     write(tmp_path / "template" / "CLAUDE.md", "canonical template\n")
+    write(tmp_path / "template" / "_meta" / "lifecycle-states.yml", "canonical lifecycle\n")
     write(tmp_path / "template" / "tools" / "lint_vault.py", "canonical tool\n")
     write(tmp_path / "src" / "vaultwright" / "template" / "CLAUDE.md", "stale template\n")
+    write(tmp_path / "src" / "vaultwright" / "template" / "_meta" / "lifecycle-states.yml", "canonical lifecycle\n")
+    write(tmp_path / "examples" / "demo-vault" / "_meta" / "lifecycle-states.yml", "stale lifecycle\n")
     write(tmp_path / "examples" / "demo-vault" / "tools" / "lint_vault.py", "stale tool\n")
     write(tmp_path / "examples" / "demo-vault" / "tools" / "repos.yml", "custom repo config\n")
 
@@ -41,9 +44,13 @@ def test_template_copy_sync_check_reports_drift_without_mutating(tmp_path: Path)
     assert result.returncode == 1
     assert "src/vaultwright/template: differs: CLAUDE.md" in result.stdout
     assert "examples/demo-vault/tools: differs: lint_vault.py" in result.stdout
+    assert "examples/demo-vault/_meta: differs: lifecycle-states.yml" in result.stdout
     assert "Run: python3.11 scripts/sync_template_copies.py --write" in result.stdout
     assert (tmp_path / "src" / "vaultwright" / "template" / "CLAUDE.md").read_text(encoding="utf-8") == (
         "stale template\n"
+    )
+    assert (tmp_path / "examples" / "demo-vault" / "_meta" / "lifecycle-states.yml").read_text(encoding="utf-8") == (
+        "stale lifecycle\n"
     )
     assert (tmp_path / "examples" / "demo-vault" / "tools" / "repos.yml").read_text(encoding="utf-8") == (
         "custom repo config\n"
@@ -80,11 +87,14 @@ def test_template_copy_sync_rejects_invalid_root(tmp_path: Path) -> None:
 def test_template_copy_sync_write_repairs_copies_and_preserves_repo_configs(tmp_path: Path) -> None:
     write(tmp_path / "template" / ".gitignore", "_mirrors/\n")
     write(tmp_path / "template" / "CLAUDE.md", "canonical template\n")
+    write(tmp_path / "template" / "_meta" / "lifecycle-states.yml", "canonical lifecycle\n")
     write(tmp_path / "template" / "tools" / "lint_vault.py", "canonical tool\n")
     write(tmp_path / "template" / "tools" / "sync_all.sh", "#!/usr/bin/env bash\n")
     write(tmp_path / "src" / "vaultwright" / "template" / "CLAUDE.md", "stale template\n")
     write(tmp_path / "src" / "vaultwright" / "template" / "obsolete.md", "remove me\n")
     write(tmp_path / "src" / "vaultwright" / "template" / "tools" / "sync_all.sh", "#!/usr/bin/env bash\n")
+    write(tmp_path / "examples" / "demo-vault" / "_meta" / "custom-example.yml", "keep me\n")
+    write(tmp_path / "examples" / "demo-vault" / "_meta" / "lifecycle-states.yml", "stale lifecycle\n")
     write(tmp_path / "examples" / "demo-vault" / "tools" / "lint_vault.py", "stale tool\n")
     write(tmp_path / "examples" / "demo-vault" / "tools" / "sync_all.sh", "#!/usr/bin/env bash\n")
     write(tmp_path / "examples" / "demo-vault" / "tools" / "obsolete.py", "remove me\n")
@@ -104,6 +114,12 @@ def test_template_copy_sync_write_repairs_copies_and_preserves_repo_configs(tmp_
         "canonical template\n"
     )
     assert not (tmp_path / "src" / "vaultwright" / "template" / "obsolete.md").exists()
+    assert (tmp_path / "examples" / "demo-vault" / "_meta" / "lifecycle-states.yml").read_text(encoding="utf-8") == (
+        "canonical lifecycle\n"
+    )
+    assert (tmp_path / "examples" / "demo-vault" / "_meta" / "custom-example.yml").read_text(encoding="utf-8") == (
+        "keep me\n"
+    )
     assert (tmp_path / "examples" / "demo-vault" / "tools" / "lint_vault.py").read_text(encoding="utf-8") == (
         "canonical tool\n"
     )
