@@ -154,7 +154,8 @@ not broad industry expansion. Prove the narrow promise first:
   complete lifecycle states, rename / move / delete / stale / conflict handling, recovery tests,
   and source-byte integrity tests.
 - **Thin operator CLI:** `tools/vaultwright.py plan`, `sync`, `status`, `catalog`, `conversion`,
-  `m365`, `review`, `migration`, `pilot`, `recovery`, `sandbox`, `lint`, and `doctor` exist; keep them thin. The source-installable
+  `m365`, `review`, `overlap`, `migration`, `pilot`, `recovery`, `sandbox`, `lint`,
+  `benchmark`, and `doctor` exist; keep them thin. The source-installable
   `vaultwright` console entry point delegates to the same vault-local wrapper. `plan` must remain
   non-destructive; keep improving its sensitive-file risks, duplicate warnings, and
   conversion-quality estimates before writing. `conversion`, `m365`, `migration`, `pilot`, and `recovery` must
@@ -163,7 +164,8 @@ not broad industry expansion. Prove the narrow promise first:
   or client identifiers. `catalog` writes generated path-and-metadata-only
   `CATALOG.md` and `CATALOG.html` gateways; neither may copy source document text. HTML catalog
   charts must stay aggregate-only and deterministic.
-  `sandbox` must remain a read-only copied-vault preflight that
+  `overlap` must remain a read-only calibration report that prints paths and scores but not note
+  bodies, shared terms, source text, or reviewer notes. `sandbox` must remain a read-only copied-vault preflight that
   verifies the pilot workspace is separate from the original source collection and does not print
   source paths or document bodies.
 - **Fresh-vault automation reliability:** `sync_all.sh` fails on required sync failures, missing

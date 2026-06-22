@@ -97,6 +97,7 @@ python3.11 tools/vaultwright.py catalog              # generate CATALOG.md inven
 python3.11 tools/vaultwright.py catalog --html       # generate CATALOG.html visual inventory gateway
 python3.11 tools/vaultwright.py m365                 # Microsoft 365/Copilot handoff readiness
 python3.11 tools/vaultwright.py review --json        # summarize metadata-only human review decisions
+python3.11 tools/vaultwright.py overlap              # calibrate overlap thresholds without note bodies
 python3.11 tools/vaultwright.py pilot                # aggregate pilot evidence, no source content
 python3.11 tools/vaultwright.py pilot --worksheet    # redacted Markdown private-pilot summary
 python3.11 tools/vaultwright.py benchmark            # validate agent-readiness task pack, if present

@@ -96,6 +96,7 @@ def test_vaultwright_cli_doctor_passes_on_template() -> None:
     assert (ROOT / "template/tools/conversion_report.py").exists()
     assert (ROOT / "template/tools/m365_report.py").exists()
     assert (ROOT / "template/tools/migration_report.py").exists()
+    assert (ROOT / "template/tools/overlap_report.py").exists()
     assert (ROOT / "template/tools/pilot_report.py").exists()
     assert (ROOT / "template/tools/recovery_report.py").exists()
     assert (ROOT / "template/tools/review_ledger.py").exists()
@@ -549,6 +550,31 @@ def test_packaged_vaultwright_cli_delegates_to_target_vault(tmp_path: Path) -> N
     assert m365_report["report"]["catalogs"]["markdown"]["path"] == "CATALOG.md"
     assert "CATALOG.html" in m365_report["report"]["handoff_bundle"]
 
+    overlap_json = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "overlap", "--json", "--max-pairs", "1"],
+        cwd=ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert overlap_json.returncode == 0, overlap_json.stderr or overlap_json.stdout
+    overlap_report = json.loads(overlap_json.stdout)
+    assert overlap_report["report"]["summary"]["current_candidates"] == 0
+    assert overlap_report["report"]["current_candidates"] == []
+
+    overlap_worksheet = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "overlap", "--worksheet"],
+        cwd=ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert overlap_worksheet.returncode == 0, overlap_worksheet.stderr or overlap_worksheet.stdout
+    assert "# Vaultwright Overlap Calibration Worksheet" in overlap_worksheet.stdout
+    assert "No note bodies, shared terms, source text, or reviewer notes are included." in overlap_worksheet.stdout
+
     catalog = subprocess.run(
         [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "catalog"],
         cwd=ROOT,
@@ -663,6 +689,78 @@ def test_packaged_vaultwright_cli_delegates_to_target_vault(tmp_path: Path) -> N
     assert sandbox.returncode == 0, sandbox.stderr or sandbox.stdout
     sandbox_report = json.loads(sandbox.stdout)
     assert sandbox_report["report"]["source_boundary"]["status"] == "distinct"
+
+
+def write_overlap_notes(vault: Path) -> None:
+    body = (
+        "Confidential calibration body reviews eligibility incorporation payroll evidence "
+        "tax registration cashflow runway milestone plan owner responsibilities supporting "
+        "documents application deadline budget assumptions reporting cadence compliance risks "
+        "grant program fit review notes approval path and follow-up actions.\n"
+    )
+    for filename, title in (
+        ("grant-readiness.md", "Grant Readiness Checklist"),
+        ("funding-readiness.md", "Funding Readiness Checklist"),
+    ):
+        (vault / "40_delivery" / filename).write_text(
+            "---\n"
+            f"title: {title}\n"
+            "type: guide\n"
+            "status: active\n"
+            "domain: delivery\n"
+            "created: 2026-01-01\n"
+            "updated: 2026-01-01\n"
+            "---\n"
+            f"# {title}\n\n{body}",
+            encoding="utf-8",
+        )
+
+
+def test_vaultwright_overlap_report_calibrates_thresholds_without_content(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    write_overlap_notes(vault)
+
+    result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "vaultwright.py"), "overlap"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+    worksheet = subprocess.run(
+        [sys.executable, str(vault / "tools" / "vaultwright.py"), "overlap", "--worksheet"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+    as_json = subprocess.run(
+        [sys.executable, str(vault / "tools" / "vaultwright.py"), "overlap", "--json", "--max-pairs", "1"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+    assert worksheet.returncode == 0, worksheet.stderr or worksheet.stdout
+    assert as_json.returncode == 0, as_json.stderr or as_json.stdout
+    assert "overlap: read-only calibration report" in result.stdout
+    assert "current_candidates=1" in result.stdout
+    assert "## Content threshold matrix" in result.stdout
+    assert "40_delivery/grant-readiness.md" in result.stdout
+    assert "40_delivery/funding-readiness.md" in result.stdout
+    assert "Confidential calibration body" not in result.stdout
+    assert "payroll evidence" not in result.stdout
+    assert "# Vaultwright Overlap Calibration Worksheet" in worksheet.stdout
+    assert "Reviewer decision: duplicate / related-but-distinct / false-positive" in worksheet.stdout
+    assert "payroll evidence" not in worksheet.stdout
+    payload = json.loads(as_json.stdout)
+    assert payload["warnings"] == []
+    assert payload["report"]["summary"]["current_candidates"] == 1
+    assert len(payload["report"]["current_candidates"]) == 1
+    assert payload["report"]["current_candidates"][0]["shared_terms"] >= 18
+    serialized = json.dumps(payload)
+    assert "Confidential calibration body" not in serialized
+    assert "payroll evidence" not in serialized
 
 
 def write_agent_benchmark_fixture(vault: Path) -> None:

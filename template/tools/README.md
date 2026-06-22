@@ -6,8 +6,9 @@ These keep your knowledge base current and healthy. See `../CLAUDE.md` §6 for t
 | --- | --- |
 | `sync_office_md.py` | markdown **mirror** under `_mirrors/` for every `.docx/.pptx/.xlsx` (Microsoft markitdown), refreshed on content change |
 | `sync_github_repos.py` | markdown **mirror** under `80_sources/repos/` for each repo in `repos.yml` (README + docs + metadata), refreshed on HEAD change |
-| `vaultwright.py` | thin operator wrapper: `plan`, `sync`, `status`, `catalog`, `conversion`, `m365`, `migration`, `pilot`, `recovery`, `sandbox`, `lint`, `benchmark`, `doctor`, and repo-root `init` |
+| `vaultwright.py` | thin operator wrapper: `plan`, `sync`, `status`, `catalog`, `conversion`, `m365`, `migration`, `overlap`, `pilot`, `recovery`, `sandbox`, `lint`, `benchmark`, `doctor`, and repo-root `init` |
 | `lint_vault.py` | health check — frontmatter, broken wikilinks, orphans, overlap warnings, mirror gaps, configured repo mirror gaps, stale generated mirrors |
+| `overlap_report.py` | prints a read-only overlap-threshold calibration report without note bodies or shared terms |
 | `benchmark_tasks.py` | validates `_meta/agent-readiness-tasks.yml` task packs and optional aggregate result packs |
 | `catalog_report.py` | writes source-path-only `CATALOG.md` or `CATALOG.html` inventory gateways for reviewers and agents |
 | `conversion_report.py` | prints a read-only conversion spot-check report from the source manifest |
@@ -21,9 +22,10 @@ These keep your knowledge base current and healthy. See `../CLAUDE.md` §6 for t
 
 `lint_vault.py` reads `_meta/lint-config.yml` for warning-level overlap thresholds. Overlap
 warnings include human-gated consolidation suggestions and prefer the note with more inbound links
-when that signal is available. Keep the template defaults until copied pilot vaults show too many
-false positives or false negatives, then record any threshold changes in the private pilot
-worksheet.
+when that signal is available. Use `vaultwright overlap` in copied pilot vaults to see candidate
+counts across threshold bands before changing defaults. Keep the template defaults until real
+corpora show too many false positives or false negatives, then record any threshold changes in the
+private pilot worksheet.
 
 ## Install
 
@@ -44,6 +46,8 @@ python3.11 tools/vaultwright.py catalog
 python3.11 tools/vaultwright.py catalog --html
 python3.11 tools/vaultwright.py m365
 python3.11 tools/vaultwright.py review --json
+python3.11 tools/vaultwright.py overlap
+python3.11 tools/vaultwright.py overlap --worksheet
 python3.11 tools/vaultwright.py conversion --guide
 python3.11 tools/vaultwright.py migration
 python3.11 tools/vaultwright.py migration --worksheet
@@ -102,6 +106,12 @@ python3.11 tools/vaultwright.py review --check
 `review --check` fails unless every latest recorded artifact decision is `approved` and the current
 artifact hash still matches the reviewed hash. It is intended for private pilot and release-review
 workflows, not as proof that conversion quality is objectively complete.
+
+`overlap` is read-only. It scans curated markdown notes, skips generated source/repo mirrors and
+archived/superseded notes, then reports aggregate candidate counts across content and title
+threshold bands. It prints paths, scores, inbound-link counts, note types, and domains for candidate
+pairs, but does not print note bodies, shared terms, source text, or reviewer notes. Use
+`--worksheet` to create a private calibration checklist before changing `_meta/lint-config.yml`.
 
 `migration` is read-only by default. It scans top-level folders, reports old aliases from
 `_meta/domain-map.yml` such as `marketing/`, `legal/`, `clients/`, or `hr/`, and flags unknown

@@ -87,8 +87,9 @@ Most agent-wiki projects happily spawn notes. Disciplined restraint is a deliber
 - **Query** — read `INDEX.md` / the relevant MOC first, follow links, answer with citations to note
   paths; file reusable answers back as notes so work compounds.
 - **Lint** — periodically check frontmatter, links, orphans, overlap candidates, mirror gaps, and
-  stale generated mirrors; fix mechanically where safe, flag judgment calls. Tune overlap
-  sensitivity in copied pilot vaults through `_meta/lint-config.yml`.
+  stale generated mirrors; fix mechanically where safe, flag judgment calls. Run
+  `vaultwright overlap` before tuning overlap sensitivity in copied pilot vaults through
+  `_meta/lint-config.yml`.
 - **Log** — append one greppable line per change to `log.md`.
 
 ## 6. Governance (because this is business data)

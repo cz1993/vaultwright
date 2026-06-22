@@ -40,6 +40,7 @@ jobs:
           test -f "$tmp_vault/tools/catalog_report.py"
           test -f "$tmp_vault/tools/conversion_report.py"
           test -f "$tmp_vault/tools/m365_report.py"
+          test -f "$tmp_vault/tools/overlap_report.py"
           test -f "$tmp_vault/tools/review_ledger.py"
           test -f "$tmp_vault/tools/sandbox_report.py"
           "$RUNNER_TEMP/vaultwright-release-venv/bin/vaultwright" --root "$tmp_vault" doctor
@@ -51,6 +52,8 @@ jobs:
           "$RUNNER_TEMP/vaultwright-release-venv/bin/vaultwright" --root "$tmp_vault" catalog --html
           "$RUNNER_TEMP/vaultwright-release-venv/bin/vaultwright" --root "$tmp_vault" catalog --html --check
           "$RUNNER_TEMP/vaultwright-release-venv/bin/vaultwright" --root "$tmp_vault" conversion --guide --json
+          "$RUNNER_TEMP/vaultwright-release-venv/bin/vaultwright" --root "$tmp_vault" overlap --json
+          "$RUNNER_TEMP/vaultwright-release-venv/bin/vaultwright" --root "$tmp_vault" overlap --worksheet
           "$RUNNER_TEMP/vaultwright-release-venv/bin/vaultwright" --root "$tmp_vault" m365 --json
           "$RUNNER_TEMP/vaultwright-release-venv/bin/vaultwright" --root "$tmp_vault" review --artifact CATALOG.html --status approved --reviewer Release --json
           "$RUNNER_TEMP/vaultwright-release-venv/bin/vaultwright" --root "$tmp_vault" review --check

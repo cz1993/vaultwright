@@ -700,8 +700,8 @@ Available today:
   `vaultwright benchmark --init-tasks`, `vaultwright benchmark --worksheet`, and
   `vaultwright benchmark --init-results`.
 - Thin `tools/vaultwright.py` wrapper for `plan`, `sync`, `status`, `catalog`, `conversion`,
-  `m365`, `review`, `migration`, `pilot`, `recovery`, `sandbox`, `benchmark`, `lint`, and
-  `doctor`.
+  `m365`, `review`, `overlap`, `migration`, `pilot`, `recovery`, `sandbox`, `benchmark`,
+  `lint`, and `doctor`.
 - Source-installable `vaultwright` console entry point via `pyproject.toml`.
 - Warning-level plan risk reporting for sensitive-looking paths, duplicate bytes, and
   format-specific conversion caveats.
@@ -735,8 +735,8 @@ Roadmap:
 - Richer catalog UX only if pilots prove the static Markdown/HTML gateways are insufficient.
 - Recovery tests and external design-partner execution.
 - Higher-fidelity PDF/spreadsheet extraction tiers.
-- Better similarity/overlap scoring, using `_meta/lint-config.yml` as the pilot calibration surface
-  and design-partner corpora as the evidence source.
+- Better similarity/overlap scoring, using `vaultwright overlap` plus `_meta/lint-config.yml` as
+  the pilot calibration surface and design-partner corpora as the evidence source.
 - Typed links and richer evidence relationships.
 - Agent-readiness benchmarks comparing raw source folders, document-chat transcripts, and
   Vaultwright-generated markdown for question answering, reconciliation, update, and audit tasks,

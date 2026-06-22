@@ -85,6 +85,18 @@ def command_lint(args: argparse.Namespace) -> int:
     return run(python_cmd(root, "lint_vault.py"), root)
 
 
+def command_overlap(args: argparse.Namespace) -> int:
+    root = args.root.resolve()
+    cmd = python_cmd(root, "overlap_report.py")
+    if args.json:
+        cmd.append("--json")
+    if args.worksheet:
+        cmd.append("--worksheet")
+    if args.max_pairs != 40:
+        cmd.extend(["--max-pairs", str(args.max_pairs)])
+    return run(cmd, root)
+
+
 def command_benchmark(args: argparse.Namespace) -> int:
     root = args.root.resolve()
     cmd = python_cmd(root, "benchmark_tasks.py")
@@ -554,6 +566,7 @@ def command_doctor(args: argparse.Namespace) -> int:
         "sync_office_md.py",
         "sync_github_repos.py",
         "lint_vault.py",
+        "overlap_report.py",
         "benchmark_tasks.py",
         "catalog_report.py",
         "conversion_report.py",
@@ -638,6 +651,12 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("sync", help="Run Office and repo mirror syncs.").set_defaults(func=command_sync)
     sub.add_parser("status", help="Report manifest-backed lifecycle status.").set_defaults(func=command_status)
     sub.add_parser("lint", help="Run vault health checks.").set_defaults(func=command_lint)
+    overlap = sub.add_parser("overlap", help="Print a read-only overlap threshold calibration report.")
+    overlap_output = overlap.add_mutually_exclusive_group()
+    overlap_output.add_argument("--json", action="store_true", help="Print machine-readable overlap calibration JSON.")
+    overlap_output.add_argument("--worksheet", action="store_true", help="Print a Markdown calibration worksheet.")
+    overlap.add_argument("--max-pairs", type=int, default=40, help="Maximum current/near-miss pairs to print.")
+    overlap.set_defaults(func=command_overlap)
     benchmark = sub.add_parser("benchmark", help="Validate the agent-readiness benchmark task pack and optional result pack.")
     benchmark.add_argument("--tasks", type=Path, help="Task pack path relative to the vault root.")
     benchmark.add_argument("--results", type=Path, help="Optional benchmark results path relative to the vault root.")

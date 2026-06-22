@@ -51,6 +51,7 @@ python3.11 tools/vaultwright.py catalog         # write CATALOG.md inventory gat
 python3.11 tools/vaultwright.py catalog --html  # write CATALOG.html visual inventory gateway
 python3.11 tools/vaultwright.py m365            # Microsoft 365/Copilot handoff readiness
 python3.11 tools/vaultwright.py review --json   # summarize metadata-only review decisions
+python3.11 tools/vaultwright.py overlap         # calibrate overlap thresholds without note bodies
 python3.11 tools/vaultwright.py conversion --guide # read-only conversion spot-check and guide
 python3.11 tools/vaultwright.py migration       # dry-run report for legacy/unknown folders
 python3.11 tools/vaultwright.py migration --worksheet # Markdown cleanup checklist

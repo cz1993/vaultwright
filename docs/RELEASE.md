@@ -12,9 +12,10 @@ The tag workflow in `.github/workflows/release.yml` runs on `v*` tags. It:
 - installs the built wheel into a fresh virtual environment;
 - scaffolds a new vault from that installed wheel;
 - runs smoke checks for `doctor`, `plan`, `sandbox`, `benchmark`, `catalog`, `catalog --html`,
-  `conversion --guide`, `m365`, `review`, `review --check`, `migration`, `migration --worksheet`,
-  `migration --runbook`, `migration --normalize-frontmatter-domains --worksheet`, `pilot`,
-  `pilot --worksheet`, `recovery`, and `recovery --worksheet`;
+  `conversion --guide`, `overlap`, `overlap --worksheet`, `m365`, `review`, `review --check`,
+  `migration`, `migration --worksheet`, `migration --runbook`,
+  `migration --normalize-frontmatter-domains --worksheet`, `pilot`, `pilot --worksheet`,
+  `recovery`, and `recovery --worksheet`;
 - uploads `dist/*` as workflow artifacts;
 - creates or updates a draft, prerelease GitHub Release for owner review.
 

@@ -93,6 +93,19 @@ def build_parser() -> argparse.ArgumentParser:
         ("doctor", "Check required files, Python version, and dependencies."),
     ):
         sub.add_parser(name, help=help_text).set_defaults(func=command_delegate, delegate_args=[])
+    overlap = sub.add_parser("overlap", help="Print a read-only overlap threshold calibration report.")
+    overlap_output = overlap.add_mutually_exclusive_group()
+    overlap_output.add_argument("--json", action="store_true", help="Print machine-readable overlap calibration JSON.")
+    overlap_output.add_argument("--worksheet", action="store_true", help="Print a Markdown calibration worksheet.")
+    overlap.add_argument("--max-pairs", type=int, default=40, help="Maximum current/near-miss pairs to print.")
+    overlap.set_defaults(
+        func=command_delegate,
+        delegate_args=lambda args: (
+            (["--json"] if args.json else [])
+            + (["--worksheet"] if args.worksheet else [])
+            + (["--max-pairs", str(args.max_pairs)] if args.max_pairs != 40 else [])
+        ),
+    )
     benchmark = sub.add_parser("benchmark", help="Validate the agent-readiness benchmark task pack and optional result pack.")
     benchmark.add_argument("--tasks", type=Path, help="Task pack path relative to the vault root.")
     benchmark.add_argument("--results", type=Path, help="Optional benchmark results path relative to the vault root.")

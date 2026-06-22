@@ -93,6 +93,11 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 - Lint now reports legacy frontmatter domain aliases with canonical recommendations, for example
   `marketing -> market (20_market/)`, so copied-vault cleanup queues align with `vaultwright
   migration`.
+- Added `tools/overlap_report.py` and `vaultwright overlap`, a read-only overlap-threshold
+  calibration report that summarizes candidate counts across threshold bands without printing note
+  bodies, shared terms, source text, or reviewer notes.
+- CI and release smoke checks now exercise `overlap --json` and `overlap --worksheet` through the
+  packaged CLI.
 
 ### Known TODO before stable release hardening
 - Decide CLA vs DCO; secure the "Vaultwright" name; draft the commercial agreement.
