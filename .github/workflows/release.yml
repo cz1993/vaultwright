@@ -60,6 +60,7 @@ jobs:
           "$RUNNER_TEMP/vaultwright-release-venv/bin/vaultwright" --root "$tmp_vault" pilot --json
           "$RUNNER_TEMP/vaultwright-release-venv/bin/vaultwright" --root "$tmp_vault" pilot --worksheet
           "$RUNNER_TEMP/vaultwright-release-venv/bin/vaultwright" --root "$tmp_vault" recovery --json
+          "$RUNNER_TEMP/vaultwright-release-venv/bin/vaultwright" --root "$tmp_vault" recovery --worksheet
       - name: Upload workflow artifacts
         uses: actions/upload-artifact@v7
         with:

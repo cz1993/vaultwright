@@ -52,6 +52,7 @@ python3.11 tools/vaultwright.py migration --normalize-frontmatter-domains --work
 python3.11 tools/vaultwright.py migration --normalize-frontmatter-domains --write
 python3.11 tools/vaultwright.py pilot
 python3.11 tools/vaultwright.py recovery
+python3.11 tools/vaultwright.py recovery --worksheet
 python3.11 tools/vaultwright.py sandbox --source-root /path/to/original-documents
 python3.11 tools/vaultwright.py lint
 python3.11 tools/vaultwright.py benchmark
@@ -126,7 +127,8 @@ the latest matching `_meta/sync-audit.jsonl` events, then prints only records th
 action, such as missing sources, manual generated-region edits, conflicts, unreachable repos,
 missing mirrors, stale atomic temp files from interrupted writes, or error states.
 For moved sources and mirror-root conflicts, it also prints the previous generated mirror path that
-must be reviewed before regeneration.
+must be reviewed before regeneration. Use `--worksheet` to print a Markdown recovery checklist for
+private pilot review before changing files.
 
 `sandbox` is read-only. Run it from a duplicated pilot vault before the first sync:
 

@@ -55,7 +55,7 @@ python3.11 tools/vaultwright.py conversion --guide # read-only conversion spot-c
 python3.11 tools/vaultwright.py migration       # dry-run report for legacy/unknown folders
 python3.11 tools/vaultwright.py migration --worksheet # Markdown cleanup checklist
 python3.11 tools/vaultwright.py migration --normalize-frontmatter-domains --worksheet # domain cleanup checklist
-python3.11 tools/vaultwright.py recovery        # read-only recovery checklist, if states need action
+python3.11 tools/vaultwright.py recovery --worksheet # manifest recovery checklist
 python3.11 tools/vaultwright.py pilot           # aggregate pilot evidence, no source content
 python3.11 tools/vaultwright.py pilot --worksheet # redacted Markdown private-pilot summary
 python3.11 tools/vaultwright.py benchmark       # validate benchmark tasks, if configured

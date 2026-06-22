@@ -485,6 +485,19 @@ def test_packaged_vaultwright_cli_delegates_to_target_vault(tmp_path: Path) -> N
     assert recovery.returncode == 0, recovery.stderr or recovery.stdout
     assert "recovery: no manifest records need operator action" in recovery.stdout
 
+    recovery_worksheet = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "recovery", "--worksheet"],
+        cwd=ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert recovery_worksheet.returncode == 0, recovery_worksheet.stderr or recovery_worksheet.stdout
+    assert "# Vaultwright Recovery Worksheet" in recovery_worksheet.stdout
+    assert "Recovery items needing operator action: 0 (office=0, repo=0, temp=0)" in recovery_worksheet.stdout
+    assert "No manifest records need operator action" in recovery_worksheet.stdout
+
     recovery_json = subprocess.run(
         [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "recovery", "--json"],
         cwd=ROOT,
@@ -2708,6 +2721,29 @@ def test_vaultwright_recovery_reports_manifest_actions(tmp_path: Path) -> None:
     assert "audit warning: Generated region hash changed." in result.stdout
     assert "latest audit: 2026-06-20T00:02:00Z status=skipped:conflict" in result.stdout
     assert "audit error: Target note belongs to another repo_id." in result.stdout
+
+    worksheet_result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "vaultwright.py"), "recovery", "--worksheet"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert worksheet_result.returncode == 0, worksheet_result.stderr or worksheet_result.stdout
+    assert "# Vaultwright Recovery Worksheet" in worksheet_result.stdout
+    assert "Read-only; no files were changed." in worksheet_result.stdout
+    assert "Recovery items needing operator action: 6 (office=5, repo=1, temp=0)" in worksheet_result.stdout
+    assert "- [ ] `office:source_missing` `src-missing`" in worksheet_result.stdout
+    assert "Source: `40_delivery/missing.docx`" in worksheet_result.stdout
+    assert "Action: Locate, restore, or intentionally archive the source" in worksheet_result.stdout
+    assert "- [ ] `office:manual_modification` `src-manual`" in worksheet_result.stdout
+    assert "Latest audit: 2026-06-20T00:01:00Z status=skipped:manual_modification" in worksheet_result.stdout
+    assert "Audit warning: Generated region hash changed." in worksheet_result.stdout
+    assert "- [ ] `office:source_moved` `src-moved`" in worksheet_result.stdout
+    assert "Previous target: `_mirrors/40_delivery/registration.md` (exists; reason=source_moved)" in worksheet_result.stdout
+    assert "Ambiguous move candidates: 6 candidate(s): 40_delivery/duplicate-a.docx" in worksheet_result.stdout
+    assert "- [ ] `repo:conflict` `repo-conflict`" in worksheet_result.stdout
+    assert "Audit error: Target note belongs to another repo_id." in worksheet_result.stdout
 
     json_result = subprocess.run(
         [sys.executable, str(vault / "tools" / "vaultwright.py"), "recovery", "--json"],

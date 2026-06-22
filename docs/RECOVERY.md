@@ -89,12 +89,14 @@ Use the read-only recovery report before changing files:
 
 ```bash
 python3.11 tools/vaultwright.py recovery
+python3.11 tools/vaultwright.py recovery --worksheet
 python3.11 tools/vaultwright.py recovery --json
 ```
 
 The report reads `_meta/source-manifest.json`, `_meta/repo-manifest.json`, and the latest matching
 events in `_meta/sync-audit.jsonl`, then lists only records that need operator action. It does not
-move, delete, regenerate, or archive anything. Treat it as a triage checklist for:
+move, delete, regenerate, or archive anything. Use `--worksheet` when you need a Markdown review
+checklist for a private pilot record before changing files. Treat it as a triage checklist for:
 
 - `planned`, `source_changed`, `source_moved`, `stale`, `converter_changed`, `unsupported`,
   `source_missing`, `manual_modification`, `conflict`, and `error` Office records;

@@ -156,6 +156,8 @@ def command_recovery(args: argparse.Namespace) -> int:
     cmd = python_cmd(root, "recovery_report.py")
     if args.json:
         cmd.append("--json")
+    if args.worksheet:
+        cmd.append("--worksheet")
     return run(cmd, root)
 
 
@@ -687,7 +689,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     pilot.set_defaults(func=command_pilot)
     recovery = sub.add_parser("recovery", help="Print a read-only manifest recovery checklist.")
-    recovery.add_argument("--json", action="store_true", help="Print machine-readable recovery JSON.")
+    recovery_output = recovery.add_mutually_exclusive_group()
+    recovery_output.add_argument("--json", action="store_true", help="Print machine-readable recovery JSON.")
+    recovery_output.add_argument("--worksheet", action="store_true", help="Print a Markdown recovery review worksheet.")
     recovery.set_defaults(func=command_recovery)
     m365 = sub.add_parser("m365", help="Print a read-only Microsoft 365/Copilot handoff report.")
     m365.add_argument("--json", action="store_true", help="Print machine-readable handoff JSON.")
