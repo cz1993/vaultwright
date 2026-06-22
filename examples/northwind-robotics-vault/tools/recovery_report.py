@@ -4,16 +4,23 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import sys
 from pathlib import Path
+
+try:
+    import yaml
+except ImportError:  # pragma: no cover - exercised in installed vaults, not unit env
+    yaml = None
 
 
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE_MANIFEST = Path("_meta/source-manifest.json")
 REPO_MANIFEST = Path("_meta/repo-manifest.json")
 AUDIT_LOG = Path("_meta/sync-audit.jsonl")
+REPO_CONFIG = Path("tools/repos.yml")
 CLEAN_STATES = {"clean", "reviewed"}
 SOURCE_EXTS = {".docx", ".pptx", ".xlsx", ".doc", ".pdf"}
 EXCLUDED_PARTS = {"_mirrors", "_templates", "_tmp", "tools", "node_modules", ".git"}
@@ -49,6 +56,24 @@ TEMP_ACTION = (
     "temp file after backup review."
 )
 AMBIGUOUS_CANDIDATE_DISPLAY_LIMIT = 5
+UNCONFIGURED_REPO_WARNING = (
+    "Repo config entry is missing; retained repo mirror is no longer governed by tools/repos.yml."
+)
+
+
+def unique_list(items: list[str]) -> list[str]:
+    seen: set[str] = set()
+    out: list[str] = []
+    for item in items:
+        if item and item not in seen:
+            seen.add(item)
+            out.append(item)
+    return out
+
+
+def repo_id_for(repo: str, note: str) -> str:
+    digest = hashlib.sha256(f"{repo}\0{note}".encode("utf-8")).hexdigest()[:20]
+    return f"repo_{digest}"
 
 
 def rel_exists(root: Path, value: object) -> bool | None:
@@ -153,7 +178,7 @@ def has_repo_evidence(root: Path) -> bool:
     repo_notes = root / "80_sources" / "repos"
     if repo_notes.exists() and any(repo_notes.glob("*.md")):
         return True
-    repos_yml = root / "tools" / "repos.yml"
+    repos_yml = root / REPO_CONFIG
     if not repos_yml.exists():
         return False
     for line in repos_yml.read_text(encoding="utf-8", errors="ignore").splitlines():
@@ -161,6 +186,40 @@ def has_repo_evidence(root: Path) -> bool:
         if stripped.startswith("- repo:"):
             return True
     return False
+
+
+def configured_repo_ids(root: Path) -> tuple[set[str] | None, list[str]]:
+    config_path = root / REPO_CONFIG
+    if not config_path.exists():
+        return set(), []
+    if yaml is None:
+        return None, ["PyYAML unavailable; repo config comparison skipped."]
+    try:
+        data = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+    except yaml.YAMLError as exc:
+        return None, [f"{REPO_CONFIG.as_posix()}: invalid YAML; repo config comparison skipped ({exc.__class__.__name__})."]
+    if not isinstance(data, dict):
+        return None, [f"{REPO_CONFIG.as_posix()}: config must be a mapping; repo config comparison skipped."]
+    repos = data.get("repos", [])
+    if repos is None:
+        repos = []
+    if not isinstance(repos, list):
+        return None, [f"{REPO_CONFIG.as_posix()}: repos must be a list; repo config comparison skipped."]
+    repo_ids: set[str] = set()
+    warnings: list[str] = []
+    for index, entry in enumerate(repos):
+        if not isinstance(entry, dict):
+            warnings.append(f"{REPO_CONFIG.as_posix()}: repos[{index}] is not a mapping; skipped for config comparison.")
+            continue
+        repo = entry.get("repo")
+        note = entry.get("note")
+        if not isinstance(repo, str) or not repo.strip() or not isinstance(note, str) or not note.strip():
+            warnings.append(
+                f"{REPO_CONFIG.as_posix()}: repos[{index}] needs repo and note for config comparison; skipped."
+            )
+            continue
+        repo_ids.add(repo_id_for(repo.strip(), note.strip()))
+    return repo_ids, warnings
 
 
 def stale_atomic_temp_items(root: Path) -> list[dict]:
@@ -246,28 +305,46 @@ def office_item(root: Path, record: dict) -> dict | None:
     }
 
 
-def repo_item(root: Path, record: dict) -> dict | None:
-    state = str(record.get("lifecycle_state", "unknown"))
+def repo_item(root: Path, record: dict, configured_ids: set[str] | None = None) -> dict | None:
+    manifest_state = str(record.get("lifecycle_state", "unknown"))
+    state = manifest_state
+    repo_id = record.get("repo_id")
+    config_missing = (
+        configured_ids is not None
+        and isinstance(repo_id, str)
+        and bool(repo_id)
+        and repo_id not in configured_ids
+    )
+    if config_missing:
+        state = "repo_unconfigured"
     note_path = record.get("note_path")
     note_exists = rel_exists(root, note_path)
     reasons: list[str] = []
     if state not in CLEAN_STATES:
         reasons.append(f"state={state}")
+    if config_missing:
+        reasons.append("repo config entry missing")
+        if manifest_state != state:
+            reasons.append(f"manifest_state={manifest_state}")
     if note_exists is False and state != "planned":
         reasons.append("repo mirror note missing")
     if not reasons:
         return None
+    warnings = record.get("warnings") if isinstance(record.get("warnings"), list) else []
+    if config_missing:
+        warnings = unique_list([*warnings, UNCONFIGURED_REPO_WARNING])
     return {
         "kind": "repo",
-        "id": record.get("repo_id", ""),
+        "id": repo_id or "",
         "state": state,
+        "manifest_state": manifest_state,
         "source": record.get("configured_repo") or record.get("resolved_repo") or "",
         "target": note_path or "",
         "source_exists": None,
         "target_exists": note_exists,
         "reasons": reasons,
         "action": REPO_ACTIONS.get(state, "Review the manifest record, then rerun plan/status before syncing."),
-        "warnings": record.get("warnings") if isinstance(record.get("warnings"), list) else [],
+        "warnings": warnings,
         "errors": record.get("errors") if isinstance(record.get("errors"), list) else [],
     }
 
@@ -279,19 +356,23 @@ def build_report(root: Path) -> tuple[list[dict], list[str], list[str]]:
     source_records, source_errors = load_manifest(root, SOURCE_MANIFEST)
     repo_records, repo_errors = load_manifest(root, REPO_MANIFEST)
     latest_audit, audit_warnings = load_latest_audit_events(root)
+    configured_ids, config_warnings = configured_repo_ids(root)
     errors.extend(source_errors)
     errors.extend(repo_errors)
     warnings.extend(audit_warnings)
+    warnings.extend(config_warnings)
     if not source_records and not (root / SOURCE_MANIFEST).exists() and has_source_evidence(root):
         warnings.append(f"{SOURCE_MANIFEST.as_posix()} not found; run sync/status or restore it from backup.")
     if not repo_records and not (root / REPO_MANIFEST).exists() and has_repo_evidence(root):
         warnings.append(f"{REPO_MANIFEST.as_posix()} not found; repo recovery has no manifest evidence yet.")
+    if repo_records and configured_ids is not None and not (root / REPO_CONFIG).exists():
+        warnings.append(f"{REPO_CONFIG.as_posix()} not found; manifest-backed repo mirrors need config review.")
     for record in source_records:
         item = office_item(root, record)
         if item:
             items.append(item)
     for record in repo_records:
-        item = repo_item(root, record)
+        item = repo_item(root, record, configured_ids)
         if item:
             items.append(item)
     items.extend(stale_atomic_temp_items(root))

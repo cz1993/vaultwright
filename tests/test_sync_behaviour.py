@@ -106,6 +106,16 @@ def test_vaultwright_cli_doctor_passes_on_template() -> None:
 def test_vaultwright_cli_doctor_reports_manifest_lifecycle_counts(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     shutil.copytree(ROOT / "template", vault)
+    sync = load_sync_module()
+    repo_clean_id = sync.repo_id_for("local/clean", "clean.md")
+    (vault / "tools" / "repos.yml").write_text(
+        "settings:\n"
+        "  notes_dir: 80_sources/repos\n"
+        "repos:\n"
+        "  - repo: local/clean\n"
+        "    note: clean.md\n",
+        encoding="utf-8",
+    )
     (vault / "_meta" / "source-manifest.json").write_text(
         json.dumps(
             {
@@ -119,7 +129,7 @@ def test_vaultwright_cli_doctor_reports_manifest_lifecycle_counts(tmp_path: Path
         encoding="utf-8",
     )
     (vault / "_meta" / "repo-manifest.json").write_text(
-        json.dumps({"version": 1, "records": [{"repo_id": "repo-clean", "lifecycle_state": "clean"}]}),
+        json.dumps({"version": 1, "records": [{"repo_id": repo_clean_id, "lifecycle_state": "clean"}]}),
         encoding="utf-8",
     )
     (vault / "_meta" / "sync-audit.jsonl").write_text(
@@ -1921,6 +1931,8 @@ def test_vaultwright_conversion_report_prioritizes_spot_checks(tmp_path: Path) -
 def test_vaultwright_pilot_report_summarizes_evidence_without_content(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     shutil.copytree(ROOT / "template", vault)
+    sync = load_sync_module()
+    repo_fixture_id = sync.repo_id_for("local/fixture", "fixture.md")
     source = vault / "40_delivery" / "client-plan.docx"
     mirror = vault / "_mirrors" / "40_delivery" / "client-plan.md"
     repo_note = vault / "80_sources" / "repos" / "fixture.md"
@@ -1937,8 +1949,17 @@ def test_vaultwright_pilot_report_summarizes_evidence_without_content(tmp_path: 
         "domain: sources\n"
         "created: 2026-01-01\n"
         "updated: 2026-01-01\n"
+        f"repo_id: {repo_fixture_id}\n"
         "---\n"
         "Generated repo mirror text that should not appear\n",
+        encoding="utf-8",
+    )
+    (vault / "tools" / "repos.yml").write_text(
+        "settings:\n"
+        "  notes_dir: 80_sources/repos\n"
+        "repos:\n"
+        "  - repo: local/fixture\n"
+        "    note: fixture.md\n",
         encoding="utf-8",
     )
     write_overlap_notes(vault)
@@ -1971,7 +1992,7 @@ def test_vaultwright_pilot_report_summarizes_evidence_without_content(tmp_path: 
                 "version": 1,
                 "records": [
                     {
-                        "repo_id": "repo-fixture",
+                        "repo_id": repo_fixture_id,
                         "configured_repo": "local/fixture",
                         "note_path": "80_sources/repos/fixture.md",
                         "lifecycle_state": "clean",
@@ -3102,6 +3123,16 @@ def test_vaultwright_migration_reports_legacy_and_unknown_folders(tmp_path: Path
 def test_vaultwright_recovery_reports_manifest_actions(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     shutil.copytree(ROOT / "template", vault)
+    sync = load_sync_module()
+    repo_conflict_id = sync.repo_id_for("local/fixture", "fixture.md")
+    (vault / "tools" / "repos.yml").write_text(
+        "settings:\n"
+        "  notes_dir: 80_sources/repos\n"
+        "repos:\n"
+        "  - repo: local/fixture\n"
+        "    note: fixture.md\n",
+        encoding="utf-8",
+    )
     source = vault / "40_delivery" / "registration.docx"
     moved_source = vault / "50_operations" / "registration.docx"
     mirror = vault / "_mirrors" / "40_delivery" / "registration.md"
@@ -3187,7 +3218,7 @@ def test_vaultwright_recovery_reports_manifest_actions(tmp_path: Path) -> None:
                 "version": 1,
                 "records": [
                     {
-                        "repo_id": "repo-conflict",
+                        "repo_id": repo_conflict_id,
                         "configured_repo": "local/fixture",
                         "note_path": "80_sources/repos/fixture.md",
                         "lifecycle_state": "conflict",
@@ -3222,7 +3253,7 @@ def test_vaultwright_recovery_reports_manifest_actions(tmp_path: Path) -> None:
         {
             "timestamp": "2026-06-20T00:02:00Z",
             "tool": "sync_github_repos",
-            "repo_id": "repo-conflict",
+            "repo_id": repo_conflict_id,
             "note_path": "80_sources/repos/fixture.md",
             "status": "skipped:conflict",
             "lifecycle_state": "conflict",
@@ -3285,7 +3316,7 @@ def test_vaultwright_recovery_reports_manifest_actions(tmp_path: Path) -> None:
     assert "- [ ] `office:source_moved` `src-moved`" in worksheet_result.stdout
     assert "Previous target: `_mirrors/40_delivery/registration.md` (exists; reason=source_moved)" in worksheet_result.stdout
     assert "Ambiguous move candidates: 6 candidate(s): 40_delivery/duplicate-a.docx" in worksheet_result.stdout
-    assert "- [ ] `repo:conflict` `repo-conflict`" in worksheet_result.stdout
+    assert f"- [ ] `repo:conflict` `{repo_conflict_id}`" in worksheet_result.stdout
     assert "Audit error: Target note belongs to another repo_id." in worksheet_result.stdout
 
     json_result = subprocess.run(
@@ -3315,12 +3346,31 @@ def test_vaultwright_recovery_reports_manifest_actions(tmp_path: Path) -> None:
     ]
     assert by_id["src-manual"]["latest_audit"]["timestamp"] == "2026-06-20T00:01:00Z"
     assert by_id["src-manual"]["latest_audit"]["status"] == "skipped:manual_modification"
-    assert by_id["repo-conflict"]["latest_audit"]["errors"] == ["Target note belongs to another repo_id."]
+    assert by_id[repo_conflict_id]["latest_audit"]["errors"] == ["Target note belongs to another repo_id."]
 
 
 def test_vaultwright_recovery_reports_refresh_and_planned_states(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     shutil.copytree(ROOT / "template", vault)
+    sync = load_sync_module()
+    repo_changed_id = sync.repo_id_for("local/changed", "changed.md")
+    repo_unreachable_id = sync.repo_id_for("local/unreachable", "unreachable.md")
+    repo_stale_id = sync.repo_id_for("local/stale", "stale.md")
+    repo_planned_id = sync.repo_id_for("local/planned", "planned.md")
+    (vault / "tools" / "repos.yml").write_text(
+        "settings:\n"
+        "  notes_dir: 80_sources/repos\n"
+        "repos:\n"
+        "  - repo: local/changed\n"
+        "    note: changed.md\n"
+        "  - repo: local/unreachable\n"
+        "    note: unreachable.md\n"
+        "  - repo: local/stale\n"
+        "    note: stale.md\n"
+        "  - repo: local/planned\n"
+        "    note: planned.md\n",
+        encoding="utf-8",
+    )
     refresh_source = vault / "40_delivery" / "refresh.docx"
     converter_source = vault / "40_delivery" / "converter.docx"
     planned_source = vault / "40_delivery" / "planned.docx"
@@ -3381,25 +3431,25 @@ def test_vaultwright_recovery_reports_refresh_and_planned_states(tmp_path: Path)
                 "version": 1,
                 "records": [
                     {
-                        "repo_id": "repo-changed",
+                        "repo_id": repo_changed_id,
                         "configured_repo": "local/changed",
                         "note_path": "80_sources/repos/changed.md",
                         "lifecycle_state": "repo_changed",
                     },
                     {
-                        "repo_id": "repo-unreachable",
+                        "repo_id": repo_unreachable_id,
                         "configured_repo": "local/unreachable",
                         "note_path": "80_sources/repos/unreachable.md",
                         "lifecycle_state": "unreachable",
                     },
                     {
-                        "repo_id": "repo-stale",
+                        "repo_id": repo_stale_id,
                         "configured_repo": "local/stale",
                         "note_path": "80_sources/repos/stale.md",
                         "lifecycle_state": "stale",
                     },
                     {
-                        "repo_id": "repo-planned",
+                        "repo_id": repo_planned_id,
                         "configured_repo": "local/planned",
                         "note_path": "80_sources/repos/planned.md",
                         "lifecycle_state": "planned",
@@ -3451,10 +3501,10 @@ def test_vaultwright_recovery_reports_refresh_and_planned_states(tmp_path: Path)
     assert states[("office", "src-stale")] == "stale"
     assert states[("office", "src-converter")] == "converter_changed"
     assert states[("office", "src-planned")] == "planned"
-    assert states[("repo", "repo-changed")] == "repo_changed"
-    assert states[("repo", "repo-unreachable")] == "unreachable"
-    assert states[("repo", "repo-stale")] == "stale"
-    assert states[("repo", "repo-planned")] == "planned"
+    assert states[("repo", repo_changed_id)] == "repo_changed"
+    assert states[("repo", repo_unreachable_id)] == "unreachable"
+    assert states[("repo", repo_stale_id)] == "stale"
+    assert states[("repo", repo_planned_id)] == "planned"
 
 
 def test_vaultwright_recovery_reports_stale_atomic_temp_files(tmp_path: Path) -> None:
@@ -6043,12 +6093,25 @@ def test_repo_sync_marks_manifest_record_unconfigured_when_config_entry_removed(
         "repos: []\n",
         encoding="utf-8",
     )
+    recovery_before_sync = subprocess.run(
+        [sys.executable, str(tools / "recovery_report.py")],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
     status = subprocess.run(
         [sys.executable, str(tools / "sync_github_repos.py"), "--status"],
         cwd=vault,
         text=True,
         capture_output=True,
     )
+
+    manifest_before_resync = json.loads((vault / "_meta" / "repo-manifest.json").read_text(encoding="utf-8"))
+    assert manifest_before_resync["records"][0]["lifecycle_state"] == "clean"
+    assert recovery_before_sync.returncode == 0, recovery_before_sync.stderr or recovery_before_sync.stdout
+    assert "[repo:repo_unconfigured" in recovery_before_sync.stdout
+    assert "repo config entry missing" in recovery_before_sync.stdout
+    assert "restore its repos.yml entry" in recovery_before_sync.stdout
     second = subprocess.run(
         [sys.executable, str(tools / "sync_github_repos.py"), "--quiet"],
         cwd=vault,

@@ -93,16 +93,19 @@ python3.11 tools/vaultwright.py recovery --worksheet
 python3.11 tools/vaultwright.py recovery --json
 ```
 
-The report reads `_meta/source-manifest.json`, `_meta/repo-manifest.json`, and the latest matching
-events in `_meta/sync-audit.jsonl`, then lists only records that need operator action. It does not
-move, delete, regenerate, or archive anything. Use `--worksheet` when you need a Markdown review
-checklist for a private pilot record before changing files. Treat it as a triage checklist for:
+The report reads `_meta/source-manifest.json`, `_meta/repo-manifest.json`, `tools/repos.yml`, and
+the latest matching events in `_meta/sync-audit.jsonl`, then lists only records that need operator
+action. It does not move, delete, regenerate, or archive anything. Use `--worksheet` when you need
+a Markdown review checklist for a private pilot record before changing files. Treat it as a triage
+checklist for:
 
 - `planned`, `source_changed`, `source_moved`, `stale`, `converter_changed`, `unsupported`,
   `source_missing`, `manual_modification`, `conflict`, and `error` Office records;
 - missing generated mirror paths;
 - `planned`, `repo_changed`, `stale`, `unreachable`, `repo_unconfigured`,
   `manual_modification`, `conflict`, and `error` repo records;
+- previously synced repo manifest records whose `tools/repos.yml` entry is now missing, even before
+  the repo sync has persisted `repo_unconfigured` back to `_meta/repo-manifest.json`;
 - missing repo mirror notes;
 - stale atomic temp files left by interrupted writes.
 

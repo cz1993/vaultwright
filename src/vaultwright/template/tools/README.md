@@ -143,10 +143,11 @@ artifact paths, or repository document bodies. Use `--json` to attach the aggreg
 anonymized design-partner worksheet. Use `--worksheet` to print a redacted Markdown summary that
 can be pasted into a private pilot record without source paths or document content.
 
-`recovery` is also read-only. It reads `_meta/source-manifest.json`, `_meta/repo-manifest.json`, and
-the latest matching `_meta/sync-audit.jsonl` events, then prints only records that need operator
-action, such as missing sources, manual generated-region edits, conflicts, unreachable repos,
-missing mirrors, stale atomic temp files from interrupted writes, or error states.
+`recovery` is also read-only. It reads `_meta/source-manifest.json`, `_meta/repo-manifest.json`,
+`tools/repos.yml`, and the latest matching `_meta/sync-audit.jsonl` events, then prints only records
+that need operator action, such as missing sources, manual generated-region edits, conflicts,
+unreachable or unconfigured repos, missing mirrors, stale atomic temp files from interrupted writes,
+or error states.
 For moved sources and mirror-root conflicts, it also prints the previous generated mirror path that
 must be reviewed before regeneration. Use `--worksheet` to print a Markdown recovery checklist for
 private pilot review before changing files.
