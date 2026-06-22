@@ -60,6 +60,70 @@ jobs:
           "$tmp_build/venv/bin/vaultwright" --root "$tmp_vault" catalog --html
           "$tmp_build/venv/bin/vaultwright" --root "$tmp_vault" catalog --html --check
           python -c 'import json, pathlib, sys; root = pathlib.Path(sys.argv[1]); (root / "40_delivery").mkdir(exist_ok=True); (root / "_mirrors" / "40_delivery").mkdir(parents=True, exist_ok=True); (root / "40_delivery" / "release-smoke.docx").write_bytes(b"synthetic release smoke source"); (root / "_mirrors" / "40_delivery" / "release-smoke.md").write_text("---\ntitle: Release Smoke\n---\n# Release Smoke\n", encoding="utf-8"); (root / "_meta" / "source-manifest.json").write_text(json.dumps({"version": 1, "records": [{"source_id": "release-smoke-source", "current_source_path": "40_delivery/release-smoke.docx", "mirror_path": "_mirrors/40_delivery/release-smoke.md", "source_format": "docx", "source_size": 30, "lifecycle_state": "clean", "warnings": [], "errors": []}]}), encoding="utf-8")' "$tmp_vault"
+          python - "$tmp_vault" <<'PY'
+          import pathlib
+          import sys
+
+          root = pathlib.Path(sys.argv[1])
+          task_pack = """schema_version: 1
+          corpus: ci-wheel-smoke
+          comparison_modes: [raw_source_folder, document_chat_transcript, vaultwright_markdown]
+          scoring:
+            scale: 0-2
+          tasks:
+            - id: smoke-answer
+              family: answer
+              prompt: What does the release smoke source prove?
+              source_paths: [40_delivery/release-smoke.docx]
+              generated_mirror_paths: [_mirrors/40_delivery/release-smoke.md]
+              curated_paths: []
+              success_criteria: [Uses source-backed evidence]
+            - id: smoke-reconcile
+              family: reconcile
+              prompt: Does the release smoke evidence conflict?
+              source_paths: [40_delivery/release-smoke.docx]
+              generated_mirror_paths: [_mirrors/40_delivery/release-smoke.md]
+              curated_paths: []
+              success_criteria: [Identifies conflict state]
+            - id: smoke-update
+              family: update
+              prompt: What should be reviewed after a source update?
+              source_paths: [40_delivery/release-smoke.docx]
+              generated_mirror_paths: [_mirrors/40_delivery/release-smoke.md]
+              curated_paths: []
+              success_criteria: [Names refresh action]
+            - id: smoke-audit
+              family: audit
+              prompt: What evidence supports the smoke task?
+              source_paths: [40_delivery/release-smoke.docx]
+              generated_mirror_paths: [_mirrors/40_delivery/release-smoke.md]
+              curated_paths: []
+              success_criteria: [Finds provenance]
+            - id: smoke-consolidate
+              family: consolidate
+              prompt: Where should release smoke facts live?
+              source_paths: [40_delivery/release-smoke.docx]
+              generated_mirror_paths: [_mirrors/40_delivery/release-smoke.md]
+              curated_paths: []
+              success_criteria: [Avoids duplicate notes]
+          """
+          result_pack = """schema_version: 1
+          corpus: ci-wheel-smoke
+          results:
+            - task_id: smoke-answer
+              mode: vaultwright_markdown
+              score: 2
+              reviewer_corrections: 0
+              cited_source_paths: [40_delivery/release-smoke.docx]
+              cited_generated_mirror_paths: [_mirrors/40_delivery/release-smoke.md]
+              privacy_or_provenance_violation: false
+              prompt_safety_reviewed: true
+              prompt_safety_violation: false
+          """
+          (root / "_meta" / "agent-readiness-tasks.yml").write_text(task_pack, encoding="utf-8")
+          (root / "_meta" / "agent-readiness-results.yml").write_text(result_pack, encoding="utf-8")
+          PY
+          "$tmp_build/venv/bin/vaultwright" --root "$tmp_vault" benchmark --results _meta/agent-readiness-results.yml --require-citations --require-prompt-safety --json
           "$tmp_build/venv/bin/vaultwright" --root "$tmp_vault" conversion --json
           "$tmp_build/venv/bin/vaultwright" --root "$tmp_vault" conversion --init-results
           python -c 'import pathlib, sys; root = pathlib.Path(sys.argv[1]); (root / "_meta" / "conversion-quality-results.yml").write_text("schema_version: 1\ncorpus: ci-wheel-smoke\nreviews:\n- source_id: release-smoke-source\n  source_format: docx\n  priority: low\n  status: pass\n  score: 2\n  reviewer_corrections: 0\n  checked_source: true\n  checked_mirror: true\n  checked_links: true\n  issue_codes: []\n", encoding="utf-8")' "$tmp_vault"

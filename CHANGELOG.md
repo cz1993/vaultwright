@@ -64,6 +64,8 @@ All notable changes to Vaultwright are documented here. Format loosely follows
   agent-readiness results can be gated on declared source or generated-mirror evidence.
 - `vaultwright benchmark` now tracks prompt-safety review and prompt-safety violations in private
   result packs, with `--require-prompt-safety` for strict design-partner gates.
+- CI and release wheel smoke checks now exercise benchmark result validation with
+  `--require-citations` and `--require-prompt-safety` through the packaged CLI.
 - `vaultwright benchmark --init-tasks` now writes a private task-pack scaffold from synced
   source/mirror manifest metadata, giving copied pilot vaults a starting benchmark without reading
   or copying document bodies.

@@ -67,6 +67,8 @@ def test_release_workflow_verifies_built_wheel_before_release() -> None:
     assert "conversion --init-results" in text
     assert "conversion --results _meta/conversion-quality-results.yml --require-reviewed --json" in text
     assert "release-smoke-source" in text
+    assert "agent-readiness-results.yml" in text
+    assert "--require-prompt-safety" in text
     assert "overlap --json" in text
     assert "overlap --worksheet" in text
     assert "m365 --json" in text
@@ -99,6 +101,8 @@ def test_ci_workflow_smokes_sandbox_command() -> None:
     assert "conversion --init-results" in text
     assert "conversion --results _meta/conversion-quality-results.yml --require-reviewed --json" in text
     assert "release-smoke-source" in text
+    assert "agent-readiness-results.yml" in text
+    assert "--require-prompt-safety" in text
     assert "migration --worksheet" in text
     assert "migration --runbook" in text
     assert "migration --normalize-frontmatter-domains --worksheet" in text
