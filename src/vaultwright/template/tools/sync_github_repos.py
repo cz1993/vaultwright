@@ -60,6 +60,7 @@ LIFECYCLE_GUIDANCE = {
     "repo_changed": "run sync to refresh README/docs/metadata, then review curated notes.",
     "stale": "run sync before relying on the mirror; the repo or configuration is newer.",
     "unreachable": "check repo spelling, network access, and GitHub auth; existing mirror content is retained.",
+    "repo_unconfigured": "confirm whether the repo mirror is retired, restore its repos.yml entry, or archive/remove the mirror deliberately.",
     "manual_modification": "inspect the repo mirror below the generated sentinel and preserve human edits before forcing regeneration.",
     "conflict": "resolve the target note/repo identity conflict before syncing.",
     "error": "fix the reported error, then rerun plan/status before syncing.",
@@ -470,6 +471,23 @@ def upsert_repo_record(manifest: dict, record: dict) -> None:
     manifest["records"] = records
 
 
+def mark_unconfigured_repos(manifest: dict, seen_repo_ids: set[str]) -> int:
+    unconfigured = 0
+    for record in list(manifest.get("records", [])):
+        repo_id = record.get("repo_id")
+        if not isinstance(repo_id, str) or not repo_id or repo_id in seen_repo_ids:
+            continue
+        updated = dict(record)
+        updated["lifecycle_state"] = "repo_unconfigured"
+        updated["warnings"] = unique_list((updated.get("warnings") or []) + [
+            "Repo config entry is missing; retained repo mirror is no longer governed by tools/repos.yml.",
+        ])
+        updated["errors"] = []
+        upsert_repo_record(manifest, updated)
+        unconfigured += 1
+    return unconfigured
+
+
 def repo_record_by_id(manifest: dict, repo_id: str) -> dict | None:
     for record in manifest.get("records", []):
         if isinstance(record, dict) and record.get("repo_id") == repo_id:
@@ -869,21 +887,35 @@ def update_manifest_after_sync(manifest: dict, plan: dict, status: str) -> None:
 def print_plan_or_status(settings, repos, token, manifest, mode: str, quiet: bool) -> int:
     action_counts = {"create": 0, "update": 0, "unchanged": 0, "skip": 0, "review": 0, "error": 0}
     state_counts: dict[str, int] = {}
+    seen_repo_ids: set[str] = set()
     for entry in repos:
         plan = plan_one(entry, settings, token, manifest)
         action = plan["action"]
         state = plan["record"]["lifecycle_state"]
         action_counts[action] = action_counts.get(action, 0) + 1
         state_counts[state] = state_counts.get(state, 0) + 1
+        seen_repo_ids.add(plan["record"]["repo_id"])
         if not quiet:
             print(f"  [{status_for_plan(plan):<28}] {entry.get('repo', '')} -> {plan['record']['note_path']}")
+    unconfigured = 0
+    for record in manifest.get("records", []):
+        repo_id = record.get("repo_id")
+        if not isinstance(repo_id, str) or not repo_id or repo_id in seen_repo_ids:
+            continue
+        unconfigured += 1
+        state_counts["repo_unconfigured"] = state_counts.get("repo_unconfigured", 0) + 1
+        action_counts["review"] = action_counts.get("review", 0) + 1
+        if not quiet:
+            source = record.get("configured_repo") or record.get("resolved_repo") or ""
+            target = record.get("note_path") or ""
+            print(f"  [{'review:repo_unconfigured':<28}] {source} -> {target}")
     summary = (
         f"{action_counts.get('create', 0)} create, {action_counts.get('update', 0)} update, "
         f"{action_counts.get('unchanged', 0)} unchanged, {action_counts.get('skip', 0)} skip, "
         f"{action_counts.get('review', 0)} review, {action_counts.get('error', 0)} error"
     )
     state_summary = ", ".join(f"{state}={count}" for state, count in sorted(state_counts.items())) or "no states"
-    print(f"\nsync_github_repos {mode}: {len(repos)} configured repos -> {summary}")
+    print(f"\nsync_github_repos {mode}: {len(repos)} configured repos, {unconfigured} unconfigured manifest repos -> {summary}")
     print(f"lifecycle: {state_summary}")
     print_lifecycle_guidance(state_counts)
     return 1 if action_counts.get("error", 0) else 0
@@ -1051,10 +1083,12 @@ def main():
 
     counts = {"created": 0, "updated": 0, "unchanged": 0, "stub": 0, "skipped": 0, "error": 0}
     changed = []
+    seen_repo_ids: set[str] = set()
     if not args.quiet:
         print(f"github sync: {len(repos)} repos · auth={'yes' if token else 'NONE (stubs only for private repos)'}")
     for entry in repos:
         plan = plan_one(entry, settings, token, manifest)
+        seen_repo_ids.add(plan["record"]["repo_id"])
         if plan["action"] == "review" and (not args.force or review_blocks_force(plan["record"])):
             status = f"skipped:{plan['record']['lifecycle_state']}"
         elif plan["action"] == "error":
@@ -1080,11 +1114,14 @@ def main():
             append_audit(sync_audit_event(plan, manifest, status, entry), ROOT)
 
     manifest_changed = False
+    unconfigured = 0
     if not args.dry_run:
+        unconfigured = mark_unconfigured_repos(manifest, seen_repo_ids)
         manifest_changed = write_repo_manifest(manifest, ROOT)
 
     summary = (f"{counts['created']} created, {counts['updated']} updated, {counts['unchanged']} unchanged, "
-               f"{counts['stub']} stub, {counts['skipped']} skipped, {counts['error']} error")
+               f"{counts['stub']} stub, {counts['skipped']} skipped, {counts['error']} error, "
+               f"{unconfigured} unconfigured")
     print(f"\nsync_github_repos: {summary}"
           + (" [dry-run]" if args.dry_run else "")
           + (" [manifest updated]" if manifest_changed else ""))

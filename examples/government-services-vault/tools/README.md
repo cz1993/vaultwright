@@ -254,6 +254,9 @@ Repo plan/status also reports managed `repo` frontmatter identity drift as stale
 rewrites the managed field from the configured/resolved repo identity without requiring `--force`.
 Repo plan/status output also prints `next actions` for changed, unreachable, conflicted, manually
 modified, and errored repo mirrors.
+If a previously synced repo mirror is retained after its `tools/repos.yml` entry is removed, repo
+sync/status reports `repo_unconfigured` so the operator can restore the config entry, archive the
+mirror, or deliberately retire the manifest record.
 If writing a repo mirror note fails, sync records an `error` state and keeps the previous note; fix
 the filesystem issue and rerun sync to recover.
 

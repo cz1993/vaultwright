@@ -38,6 +38,7 @@ REPO_ACTIONS = {
     "repo_changed": "Run sync to refresh README/docs/metadata, then review curated notes.",
     "stale": "Run sync before relying on the mirror; the repo or configuration is newer.",
     "unreachable": "Check repo spelling, network access, and GitHub auth; existing mirror content is retained.",
+    "repo_unconfigured": "Confirm whether the repo mirror is retired, restore its repos.yml entry, or archive/remove the mirror deliberately.",
     "manual_modification": "Preserve human edits below the sentinel before forcing regeneration.",
     "conflict": "Resolve the target note/repo identity conflict before syncing.",
     "error": "Fix the reported error, then rerun plan/status before syncing.",
@@ -392,6 +393,7 @@ def print_worksheet(root: Path, items: list[dict], warnings: list[str], errors: 
     print("- Preserve or archive retained generated mirrors before regenerating moved or conflicted paths.")
     print("- For manual modifications, preserve human edits below the sentinel before forcing regeneration.")
     print("- For unreachable repos, verify repo identity, network access, and GitHub auth before editing mirrors.")
+    print("- For unconfigured repos, confirm retirement before archiving mirrors or removing manifest records.")
     print("- Run `vaultwright catalog` and `vaultwright lint` after recovery work is complete.")
     print()
     print("## Recovery Item Checklist")

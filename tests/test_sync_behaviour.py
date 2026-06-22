@@ -5450,11 +5450,13 @@ def test_repo_lifecycle_guidance_explains_review_states() -> None:
         "clean": 1,
         "manual_modification": 1,
         "repo_changed": 2,
+        "repo_unconfigured": 1,
         "unreachable": 1,
     })
 
     assert any("manual_modification (1): inspect the repo mirror below the generated sentinel" in line for line in lines)
     assert any("repo_changed (2): run sync to refresh README/docs/metadata" in line for line in lines)
+    assert any("repo_unconfigured (1): confirm whether the repo mirror is retired" in line for line in lines)
     assert any("unreachable (1): check repo spelling, network access, and GitHub auth" in line for line in lines)
     assert not any(line.startswith("clean") for line in lines)
 
@@ -6004,6 +6006,77 @@ def test_repo_frontmatter_prefers_account_and_supports_legacy_client() -> None:
     normalized = sync.base_fm({"account": "[[Acme]]", "client": "[[Other]]"}, {"repo": "local/repo", "note": "repo.md"}, "local/repo")
     assert normalized["account"] == "[[Acme]]"
     assert normalized["client"] == "[[Acme]]"
+
+
+def test_repo_sync_marks_manifest_record_unconfigured_when_config_entry_removed(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    tools = vault / "tools"
+    fixture = vault / "_fixtures" / "repo"
+    tools.mkdir(parents=True)
+    fixture.mkdir(parents=True)
+    (fixture / "README.md").write_text("# Fixture\n\nSynthetic repo docs.\n", encoding="utf-8")
+    shutil.copy(ROOT / "template/tools/sync_github_repos.py", tools / "sync_github_repos.py")
+    shutil.copy(ROOT / "template/tools/recovery_report.py", tools / "recovery_report.py")
+    repos_yml = tools / "repos.yml"
+    repos_yml.write_text(
+        "settings:\n"
+        "  notes_dir: 80_sources/repos\n"
+        "repos:\n"
+        "  - repo: local/fixture\n"
+        "    local_path: _fixtures/repo\n"
+        "    note: fixture.md\n",
+        encoding="utf-8",
+    )
+
+    first = subprocess.run(
+        [sys.executable, str(tools / "sync_github_repos.py"), "--quiet"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+    assert first.returncode == 0, first.stderr or first.stdout
+    assert (vault / "80_sources" / "repos" / "fixture.md").exists()
+
+    repos_yml.write_text(
+        "settings:\n"
+        "  notes_dir: 80_sources/repos\n"
+        "repos: []\n",
+        encoding="utf-8",
+    )
+    status = subprocess.run(
+        [sys.executable, str(tools / "sync_github_repos.py"), "--status"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+    second = subprocess.run(
+        [sys.executable, str(tools / "sync_github_repos.py"), "--quiet"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+    recovery = subprocess.run(
+        [sys.executable, str(tools / "recovery_report.py")],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert status.returncode == 0, status.stderr or status.stdout
+    assert "review:repo_unconfigured" in status.stdout
+    assert "0 configured repos, 1 unconfigured manifest repos" in status.stdout
+    assert "repo_unconfigured=1" in status.stdout
+    assert "restore its repos.yml entry" in status.stdout
+    assert second.returncode == 0, second.stderr or second.stdout
+    assert "1 unconfigured" in second.stdout
+    manifest = json.loads((vault / "_meta" / "repo-manifest.json").read_text(encoding="utf-8"))
+    record = manifest["records"][0]
+    assert record["lifecycle_state"] == "repo_unconfigured"
+    assert record["last_successful_sync"]
+    assert any("Repo config entry is missing" in warning for warning in record["warnings"])
+    assert recovery.returncode == 0, recovery.stderr or recovery.stdout
+    assert "[repo:repo_unconfigured" in recovery.stdout
+    assert "restore its repos.yml entry" in recovery.stdout
 
 
 def test_local_path_repo_mirror_rejects_escape(tmp_path: Path) -> None:

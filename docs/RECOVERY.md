@@ -101,8 +101,8 @@ checklist for a private pilot record before changing files. Treat it as a triage
 - `planned`, `source_changed`, `source_moved`, `stale`, `converter_changed`, `unsupported`,
   `source_missing`, `manual_modification`, `conflict`, and `error` Office records;
 - missing generated mirror paths;
-- `planned`, `repo_changed`, `stale`, `unreachable`, `manual_modification`, `conflict`, and
-  `error` repo records;
+- `planned`, `repo_changed`, `stale`, `unreachable`, `repo_unconfigured`,
+  `manual_modification`, `conflict`, and `error` repo records;
 - missing repo mirror notes;
 - stale atomic temp files left by interrupted writes.
 
@@ -222,8 +222,9 @@ Before public release, recovery must be tested on a copied vault:
 - change one source and verify `source_changed`, change mirror configuration and verify `stale`,
   and change converter metadata or version and verify `converter_changed`;
 - configure one new source/repo and verify `planned`;
-- change one repo fixture or HEAD and verify `repo_changed`, then make a configured repo
-  unreachable and verify `unreachable`;
+- change one repo fixture or HEAD and verify `repo_changed`, make a configured repo unreachable
+  and verify `unreachable`, then remove a synced repo config entry and verify
+  `repo_unconfigured`;
 - edit a generated region and verify `manual_modification`;
 - move one source and verify `source_moved` blocks new mirror generation while the previous mirror
   exists, then remove or move the previous mirror and verify the new mirror can be generated;

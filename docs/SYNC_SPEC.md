@@ -54,7 +54,9 @@ Current implementation status:
   blocking lint checks for configured repo entries whose expected generated note is missing or
   unmanaged, and for generated repo mirrors whose manifest lifecycle state is no longer current,
   whose frontmatter repo or commit drifts from the manifest, or whose local source tree changed,
-  plus repo sync/status detection and repair for managed repo frontmatter identity drift;
+  plus repo sync/status detection and repair for managed repo frontmatter identity drift, plus
+  `repo_unconfigured` lifecycle reporting when a previously synced repo mirror is retained after
+  its `tools/repos.yml` entry is removed;
 - partially implemented: full move/rename UX beyond unique hash matching and ambiguous-move
   conflict detection;
 - not complete: full rename/move UX, rollback automation, automated conversion-quality scoring
@@ -105,6 +107,9 @@ Every release-ready state must have:
   created.
 - Source deletion should not delete mirrors automatically. It should mark the manifest record as
   `source_missing` and surface a review action.
+- Repo config removal should not delete repo mirrors automatically. It should mark the manifest
+  record as `repo_unconfigured` and surface a review action so the operator can restore the config
+  entry, archive the mirror, or deliberately remove retired manifest state.
 - Mirror path changes should be planned before writes and reported after writes.
 
 ## Conflict Rules

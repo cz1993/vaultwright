@@ -118,7 +118,7 @@ Before handoff:
 5. Run `vaultwright m365`.
 6. Record approvals or issues for `CATALOG.html`, `CATALOG.md`, and any handoff report with
    `vaultwright review`.
-7. Resolve unsupported, stale, conflict, missing, or unreachable lifecycle states.
+7. Resolve unsupported, stale, conflict, missing, unreachable, or unconfigured lifecycle states.
 8. Confirm the target Microsoft 365 location, owners, reviewers, and retention boundary.
 9. Record what was handed off in the private pilot worksheet.
 

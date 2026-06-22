@@ -25,6 +25,7 @@ REVIEW_STATES = {
     "manual_modification",
     "missing_mirror",
     "repo_changed",
+    "repo_unconfigured",
     "source_changed",
     "source_missing",
     "stale",
