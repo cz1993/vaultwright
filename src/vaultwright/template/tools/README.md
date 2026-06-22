@@ -154,13 +154,14 @@ anonymized design-partner worksheet. Use `--worksheet` to print a redacted Markd
 can be pasted into a private pilot record without source paths or document content.
 
 `recovery` is also read-only. It reads `_meta/source-manifest.json`, `_meta/repo-manifest.json`,
-`tools/repos.yml`, and the latest matching `_meta/sync-audit.jsonl` events, then prints only records
-that need operator action, such as missing sources, manual generated-region edits, conflicts,
-unreachable or unconfigured repos, missing mirrors, stale atomic temp files from interrupted writes,
-or error states.
+`_meta/lifecycle-states.yml`, `tools/repos.yml`, and the latest matching `_meta/sync-audit.jsonl`
+events, then prints only records that need operator action, such as missing sources, manual
+generated-region edits, conflicts, unreachable or unconfigured repos, missing mirrors, stale atomic
+temp files from interrupted writes, or error states.
 For moved sources and mirror-root conflicts, it also prints the previous generated mirror path that
 must be reviewed before regeneration. Use `--worksheet` to print a Markdown recovery checklist for
-private pilot review before changing files.
+private pilot review before changing files. JSON and worksheet output include lifecycle-contract
+explanations, permitted next actions, and exit conditions for Office/repo states.
 
 `sandbox` is read-only. Run it from a duplicated pilot vault before the first sync:
 

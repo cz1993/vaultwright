@@ -3387,6 +3387,8 @@ def test_vaultwright_recovery_reports_manifest_actions(tmp_path: Path) -> None:
     assert "recovery: 6 items need operator action (office=5, repo=1, temp=0)" in result.stdout
     assert "[office:source_missing" in result.stdout
     assert "Locate, restore, or intentionally archive the source" in result.stdout
+    assert "state explanation: Vaultwright retains the mirror and manifest record for review instead of deleting evidence." in result.stdout
+    assert "exit condition: The source is restored, a move is resolved, or the manifest/mirror is deliberately retired." in result.stdout
     assert "[office:manual_modification" in result.stdout
     assert "Preserve human edits below the sentinel" in result.stdout
     assert "[office:source_moved" in result.stdout
@@ -3420,6 +3422,10 @@ def test_vaultwright_recovery_reports_manifest_actions(tmp_path: Path) -> None:
     assert "- [ ] `office:source_missing` `src-missing`" in worksheet_result.stdout
     assert "Source: `40_delivery/missing.docx`" in worksheet_result.stdout
     assert "Action: Locate, restore, or intentionally archive the source" in worksheet_result.stdout
+    assert "State explanation: Vaultwright retains the mirror and manifest record for review instead of deleting evidence." in worksheet_result.stdout
+    assert "Contract next actions:" in worksheet_result.stdout
+    assert "Locate or restore the source." in worksheet_result.stdout
+    assert "Exit condition: The source is restored, a move is resolved, or the manifest/mirror is deliberately retired." in worksheet_result.stdout
     assert "- [ ] `office:manual_modification` `src-manual`" in worksheet_result.stdout
     assert "Latest audit: 2026-06-20T00:01:00Z status=skipped:manual_modification" in worksheet_result.stdout
     assert "Audit warning: Generated region hash changed." in worksheet_result.stdout
@@ -3441,6 +3447,13 @@ def test_vaultwright_recovery_reports_manifest_actions(tmp_path: Path) -> None:
     assert report["summary"] == {"office": 5, "repo": 1, "temp": 0, "total": 6}
     by_id = {item["id"]: item for item in report["items"]}
     assert by_id["src-moved"]["previous_target"] == "_mirrors/40_delivery/registration.md"
+    assert by_id["src-moved"]["lifecycle"]["explanation"] == (
+        "Vaultwright found a likely move but will not strand or duplicate generated mirrors automatically."
+    )
+    assert "Rerun sync after resolving the old mirror path." in by_id["src-moved"]["lifecycle"]["permitted_next_actions"]
+    assert by_id["src-moved"]["lifecycle"]["exit_condition"] == (
+        "The old mirror path is resolved and sync updates the manifest/mirror path, or the move is rejected."
+    )
     assert by_id["src-moved"]["previous_target_exists"] is True
     assert by_id["src-moved"]["previous_target_reason"] == "source_moved"
     assert by_id["src-root-conflict"]["previous_target"] == "_mirrors/40_delivery/registration.md"

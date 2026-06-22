@@ -21,6 +21,7 @@ SOURCE_MANIFEST = Path("_meta/source-manifest.json")
 REPO_MANIFEST = Path("_meta/repo-manifest.json")
 AUDIT_LOG = Path("_meta/sync-audit.jsonl")
 REPO_CONFIG = Path("tools/repos.yml")
+LIFECYCLE_CONTRACT = Path("_meta/lifecycle-states.yml")
 CLEAN_STATES = {"clean", "reviewed"}
 SOURCE_EXTS = {".docx", ".pptx", ".xlsx", ".doc", ".pdf"}
 EXCLUDED_PARTS = {"_mirrors", "_templates", "_tmp", "tools", "node_modules", ".git"}
@@ -111,6 +112,58 @@ def load_manifest(root: Path, rel: Path) -> tuple[list[dict], list[str]]:
     bad = sum(1 for record in records if not isinstance(record, dict))
     errors = [f"{rel.as_posix()}: {bad} records are not objects"] if bad else []
     return [record for record in records if isinstance(record, dict)], errors
+
+
+def load_lifecycle_contract(root: Path) -> tuple[dict[str, dict[str, dict]], list[str]]:
+    path = root / LIFECYCLE_CONTRACT
+    if not path.exists():
+        return {}, [f"{LIFECYCLE_CONTRACT.as_posix()} not found; recovery will use fallback action text only."]
+    if yaml is None:
+        return {}, ["PyYAML unavailable; lifecycle contract guidance skipped."]
+    try:
+        data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    except yaml.YAMLError as exc:
+        return {}, [f"{LIFECYCLE_CONTRACT.as_posix()}: invalid YAML; lifecycle guidance skipped ({exc.__class__.__name__})."]
+    except UnicodeDecodeError:
+        return {}, [f"{LIFECYCLE_CONTRACT.as_posix()}: unreadable text; lifecycle guidance skipped."]
+    if not isinstance(data, dict):
+        return {}, [f"{LIFECYCLE_CONTRACT.as_posix()}: contract must be a mapping; lifecycle guidance skipped."]
+    contract: dict[str, dict[str, dict]] = {}
+    warnings: list[str] = []
+    for section in ("office", "repo"):
+        states = data.get(section)
+        if not isinstance(states, dict):
+            warnings.append(f"{LIFECYCLE_CONTRACT.as_posix()}: missing {section} lifecycle states.")
+            continue
+        contract[section] = {str(state): spec for state, spec in states.items() if isinstance(spec, dict)}
+    return contract, warnings
+
+
+def lifecycle_contract_for(item: dict, contract: dict[str, dict[str, dict]]) -> dict | None:
+    kind = str(item.get("kind", ""))
+    if kind not in {"office", "repo"}:
+        return None
+    state = str(item.get("state", ""))
+    spec = contract.get(kind, {}).get(state)
+    if not isinstance(spec, dict):
+        return None
+    actions = spec.get("permitted_next_actions")
+    if not isinstance(actions, list):
+        actions = []
+    return {
+        "entry_condition": str(spec.get("entry_condition", "") or ""),
+        "explanation": str(spec.get("explanation", "") or ""),
+        "permitted_next_actions": [str(action) for action in actions if str(action).strip()],
+        "exit_condition": str(spec.get("exit_condition", "") or ""),
+        "manifest_state": bool(spec.get("manifest_state", False)),
+    }
+
+
+def enrich_lifecycle_items(items: list[dict], contract: dict[str, dict[str, dict]]) -> None:
+    for item in items:
+        lifecycle = lifecycle_contract_for(item, contract)
+        if lifecycle:
+            item["lifecycle"] = lifecycle
 
 
 def compact_audit_event(event: dict) -> dict:
@@ -355,10 +408,12 @@ def build_report(root: Path) -> tuple[list[dict], list[str], list[str]]:
     items: list[dict] = []
     source_records, source_errors = load_manifest(root, SOURCE_MANIFEST)
     repo_records, repo_errors = load_manifest(root, REPO_MANIFEST)
+    lifecycle_contract, lifecycle_warnings = load_lifecycle_contract(root)
     latest_audit, audit_warnings = load_latest_audit_events(root)
     configured_ids, config_warnings = configured_repo_ids(root)
     errors.extend(source_errors)
     errors.extend(repo_errors)
+    warnings.extend(lifecycle_warnings)
     warnings.extend(audit_warnings)
     warnings.extend(config_warnings)
     if not source_records and not (root / SOURCE_MANIFEST).exists() and has_source_evidence(root):
@@ -376,6 +431,7 @@ def build_report(root: Path) -> tuple[list[dict], list[str], list[str]]:
         if item:
             items.append(item)
     items.extend(stale_atomic_temp_items(root))
+    enrich_lifecycle_items(items, lifecycle_contract)
     for item in items:
         item["latest_audit"] = latest_audit.get(f"{item['kind']}:{item['id']}")
     return items, warnings, errors
@@ -392,6 +448,24 @@ def summary_counts(items: list[dict]) -> dict[str, int]:
 
 def md_escape(value: object) -> str:
     return str(value).replace("\\", "\\\\").replace("[", "\\[").replace("]", "\\]")
+
+
+def lifecycle_text(item: dict, key: str) -> str:
+    lifecycle = item.get("lifecycle")
+    if not isinstance(lifecycle, dict):
+        return ""
+    value = lifecycle.get(key)
+    return value if isinstance(value, str) else ""
+
+
+def lifecycle_actions(item: dict) -> list[str]:
+    lifecycle = item.get("lifecycle")
+    if not isinstance(lifecycle, dict):
+        return []
+    actions = lifecycle.get("permitted_next_actions")
+    if not isinstance(actions, list):
+        return []
+    return [str(action) for action in actions if str(action).strip()]
 
 
 def print_human(root: Path, items: list[dict], warnings: list[str], errors: list[str]) -> None:
@@ -429,6 +503,12 @@ def print_human(root: Path, items: list[dict], warnings: list[str], errors: list
             print(f"    duplicate source IDs: {source_id_summary([str(source_id) for source_id in duplicate_source_ids])}")
         print(f"    reasons: {', '.join(item['reasons'])}")
         print(f"    action: {item['action']}")
+        explanation = lifecycle_text(item, "explanation")
+        if explanation:
+            print(f"    state explanation: {explanation}")
+        exit_condition = lifecycle_text(item, "exit_condition")
+        if exit_condition:
+            print(f"    exit condition: {exit_condition}")
         for warning in item["warnings"][:3]:
             print(f"    warning: {warning}")
         for error in item["errors"][:3]:
@@ -513,6 +593,17 @@ def print_worksheet(root: Path, items: list[dict], warnings: list[str], errors: 
             )
         print(f"  - Reasons: {md_escape(', '.join(item['reasons']))}")
         print(f"  - Action: {md_escape(item['action'])}")
+        explanation = lifecycle_text(item, "explanation")
+        if explanation:
+            print(f"  - State explanation: {md_escape(explanation)}")
+        next_actions = lifecycle_actions(item)
+        if next_actions:
+            print("  - Contract next actions:")
+            for action in next_actions:
+                print(f"    - {md_escape(action)}")
+        exit_condition = lifecycle_text(item, "exit_condition")
+        if exit_condition:
+            print(f"  - Exit condition: {md_escape(exit_condition)}")
         for warning in item["warnings"][:3]:
             print(f"  - Warning: {md_escape(warning)}")
         for error in item["errors"][:3]:

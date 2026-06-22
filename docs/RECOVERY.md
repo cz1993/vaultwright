@@ -93,11 +93,11 @@ python3.11 tools/vaultwright.py recovery --worksheet
 python3.11 tools/vaultwright.py recovery --json
 ```
 
-The report reads `_meta/source-manifest.json`, `_meta/repo-manifest.json`, `tools/repos.yml`, and
-the latest matching events in `_meta/sync-audit.jsonl`, then lists only records that need operator
-action. It does not move, delete, regenerate, or archive anything. Use `--worksheet` when you need
-a Markdown review checklist for a private pilot record before changing files. Treat it as a triage
-checklist for:
+The report reads `_meta/source-manifest.json`, `_meta/repo-manifest.json`,
+`_meta/lifecycle-states.yml`, `tools/repos.yml`, and the latest matching events in
+`_meta/sync-audit.jsonl`, then lists only records that need operator action. It does not move,
+delete, regenerate, or archive anything. Use `--worksheet` when you need a Markdown review
+checklist for a private pilot record before changing files. Treat it as a triage checklist for:
 
 - `planned`, `source_changed`, `source_moved`, `stale`, `converter_changed`, `unsupported`,
   `source_missing`, `manual_modification`, `conflict`, and `error` Office records;
@@ -110,8 +110,12 @@ checklist for:
 - stale atomic temp files left by interrupted writes.
 
 The JSON form includes `summary.total`, `summary.office`, `summary.repo`, and `summary.temp`
-counts for automation, plus the same item-level reasons, actions, warnings, errors, and latest
-audit context as the human report.
+counts for automation, plus the same item-level reasons, fallback actions, warnings, errors, and
+latest audit context as the human report. Office and repo items also include a structured
+`lifecycle` object from `_meta/lifecycle-states.yml` with `entry_condition`, `explanation`,
+`permitted_next_actions`, `exit_condition`, and `manifest_state`. The worksheet prints the
+contract-backed explanation, next actions, and exit condition for each item so operators can see
+how to leave the state safely.
 For Office move and mirror-root conflict records, the report also includes `previous_target`,
 `previous_target_exists`, and `previous_target_reason` so operators can identify the retained
 generated mirror that must be preserved, moved, archived, or removed before syncing again.

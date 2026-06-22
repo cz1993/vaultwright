@@ -45,7 +45,8 @@ All notable changes to Vaultwright are documented here. Format loosely follows
   preconditions, execution steps, stop conditions, and current alias/unknown cleanup queues.
 - CI and release smoke checks now exercise the migration runbook through the packaged CLI.
 - `vaultwright recovery --worksheet` now prints a read-only Markdown recovery checklist with
-  lifecycle actions, previous mirror context, bounded conflict summaries, and latest audit context.
+  lifecycle actions, lifecycle-contract explanations/exit conditions, previous mirror context,
+  bounded conflict summaries, and latest audit context.
 - CI and release smoke checks now exercise recovery worksheet output through the packaged CLI.
 - Added `tools/sandbox_report.py` and `vaultwright sandbox`, a read-only copied-vault preflight for
   safe pilot workspaces that checks source-root separation, mirror isolation, manifest/recovery
