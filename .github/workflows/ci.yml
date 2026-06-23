@@ -34,6 +34,7 @@ jobs:
           VAULTWRIGHT_REPO="$PWD" vaultwright init "$tmp_vault"
           vaultwright --root "$tmp_vault" profile diff 0.1.0
           vaultwright --root "$tmp_vault" profile migrate --plan
+          vaultwright --root "$tmp_vault" profile migrate --write --json
           vaultwright --root "$tmp_vault" migrate annotations --plan
           vaultwright --root "$tmp_vault" doctor
           vaultwright --root "$tmp_vault" lint
@@ -69,6 +70,7 @@ jobs:
           test -f "$tmp_vault/tools/sandbox_report.py"
           "$tmp_build/venv/bin/vaultwright" --root "$tmp_vault" profile diff 0.1.0
           "$tmp_build/venv/bin/vaultwright" --root "$tmp_vault" profile migrate --plan
+          "$tmp_build/venv/bin/vaultwright" --root "$tmp_vault" profile migrate --write --json
           "$tmp_build/venv/bin/vaultwright" --root "$tmp_vault" migrate annotations --plan
           "$tmp_build/venv/bin/vaultwright" --root "$tmp_vault" doctor
           "$tmp_build/venv/bin/vaultwright" --root "$tmp_vault" plan

@@ -27,8 +27,8 @@ Stage 1 remains the active lane. Current status:
 | Requirement | Status |
 | --- | --- |
 | V1-C1 package-owned runtime | In progress. Package CLI exists; `plan`, `sync`, `status`, `doctor`, `catalog`, `lint`, `conversion`, `m365`, `migration`, `overlap`, `benchmark`, `pilot`, `sandbox`, `recovery`, and `review` are package-owned; Office mirror planning/sync/status lives in `vaultwright.mirrors.office`; GitHub repo mirror planning/sync/status lives in `vaultwright.mirrors.github_repos`; sync, lint, conversion, m365, migration, overlap, benchmark, pilot, sandbox, recovery, review-ledger, and operator-wrapper scripts remain compatibility shims. |
-| V1-C2 versioned profile contract | In progress. Schema validation and read-only profile commands exist; full schema docs, write migration, and remaining profile-driven behavior are not done. |
-| V1-C4 safe migration path | In progress. Reports and read-only plans exist; write-mode workspace/profile migration is still needed. |
+| V1-C2 versioned profile contract | In progress. Schema validation, schema documentation, read-only profile commands, and conservative write-mode profile migration exist; remaining profile-driven behavior is not done. |
+| V1-C4 safe migration path | In progress. Reports, read-only plans, and conservative write-mode profile migration exist; broader workspace/profile migration coverage will be needed as profile-driven behavior expands. |
 | V1-C5 machine-owned mirrors | Stage 1 closed by this batch. Fresh mirrors are machine-owned, sync blocks unmigrated mirror annotations, sidecar-aware sync rewrites migrated mirrors as machine-owned, and lint blocks unmigrated annotations. |
 
 Stages 2 through 6 have not started and should remain gated until Stage 1 exits.
@@ -39,11 +39,11 @@ Stages 2 through 6 have not started and should remain gated until Stage 1 exits.
    - keep vault-local tools as compatibility shims only and prevent implementation drift;
    - preserve current no-data, lifecycle, recovery, catalog, benchmark, and example gates.
 2. Finish the profile contract:
-   - document the profile schema;
    - move remaining business folder/type/status assumptions into `business-operations` profile data;
    - make linter/sync/report behavior read those contracts consistently.
 3. Add write-mode profile migration:
-   - migrate current business-template vaults to the profile contract;
+   - expand beyond conservative missing-file/profile bootstrap only when the next profile-driven
+     behavior requires it;
    - preserve curated knowledge and annotation sidecars;
    - prove original sources are byte-for-byte unchanged.
 4. Start Stage 2 only after Stage 1 exit criteria pass:
@@ -55,8 +55,8 @@ Stages 2 through 6 have not started and should remain gated until Stage 1 exits.
 
 ## Next Recommended Slice
 
-Move the next Stage 1 gap from runtime migration into profile convergence: document the profile
-schema, add write-mode `profile migrate`, and keep removing hard-coded business folder/type/status
-assumptions from core behavior. Preserve the example regeneration gates and require no-data,
-lifecycle, recovery, catalog, package-install, and profile-validation coverage before treating the
-slice as closed.
+Move the next Stage 1 gap deeper into profile-driven behavior: keep removing hard-coded business
+folder/type/status assumptions from sync, reports, docs, and generated views, and make those paths
+read `business-operations` profile data consistently. Preserve the example regeneration gates and
+require no-data, lifecycle, recovery, catalog, package-install, and profile-validation coverage
+before treating the slice as closed.

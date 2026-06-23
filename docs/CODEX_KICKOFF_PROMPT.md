@@ -15,9 +15,9 @@ to narrow, harden, and validate the first promise before broadening the roadmap.
 **Read first (in order):** `AGENTS.md`, `README.md`, `docs/PRODUCT.md`,
 `docs/VAULTWRIGHT_WHITEPAPER_2026-06-23.md`,
 `docs/adr/0001-profile-driven-v1-architecture.md`, `docs/V1_FINISH_LINE.md`,
-`docs/SYNC_SPEC.md`, `docs/SECURITY_MODEL.md`, `docs/VAULTWRIGHT_WHITEPAPER.md`,
-`docs/methodology.md`, `docs/positioning.md`, `CHANGELOG.md`, `LICENSING.md`, then the scripts in
-`template/tools/` and `template/CLAUDE.md`.
+`docs/PROFILE_SCHEMA.md`, `docs/SYNC_SPEC.md`, `docs/SECURITY_MODEL.md`,
+`docs/VAULTWRIGHT_WHITEPAPER.md`, `docs/methodology.md`, `docs/positioning.md`, `CHANGELOG.md`,
+`LICENSING.md`, then the scripts in `template/tools/` and `template/CLAUDE.md`.
 Internalize the differentiators in `positioning.md` — lead with them, never drift into "another
 generic LLM-wiki," and do not add a vector database as a substitute for provenance, mirrors, and
 managed lifecycle state.
@@ -62,9 +62,8 @@ backlog.
 
 **Next execution order**
 1. Keep safety gates green: no-data scan, template-copy sync, pytest, example lint, CI.
-2. Start Stage 1 by moving runtime behavior from copied vault-local scripts into package-owned
-   modules under `src/vaultwright/`, leaving compatibility shims only where needed.
-3. Define the versioned profile contract before adding research/software profiles.
+2. Keep Stage 1 runtime behavior package-owned and prevent compatibility-shim drift.
+3. Keep the versioned profile contract current before adding research/software profiles.
 4. Convert hard-coded business taxonomy assumptions into `business-operations` profile data.
 5. Preserve current lifecycle, catalog, review, recovery, safety, and benchmark behavior while
    refactoring.

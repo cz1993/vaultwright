@@ -29,12 +29,15 @@ vaultwright init --profile business-operations ~/my-business-vault
 vaultwright --root ~/my-business-vault profile validate
 vaultwright --root ~/my-business-vault profile diff 0.1.0
 vaultwright --root ~/my-business-vault profile migrate --plan
+vaultwright --root ~/my-business-vault profile migrate --write
 vaultwright --root ~/my-business-vault migrate annotations --plan
 ```
 
 `business-operations` is currently the only packaged profile. The v1 finish line tracks
 research-learning, software-project, and blank profiles, but the CLI intentionally rejects them
 until their profile contracts and fixtures exist.
+
+Profile schema reference: [`PROFILE_SCHEMA.md`](PROFILE_SCHEMA.md).
 
 ## 2. Open it in Obsidian
 

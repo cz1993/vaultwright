@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 import json
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -145,6 +146,90 @@ def test_profile_cli_migrate_plan_reports_missing_profile_file(tmp_path: Path) -
     assert payload["actions"][0]["action"] == "copy-template-file"
     assert payload["actions"][0]["path"] == "Documents.base"
     assert not (vault / "Documents.base").exists()
+
+
+def test_profile_cli_migrate_plan_bootstraps_missing_profile_contract(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    init = run_cli("init", "--profile", "business-operations", str(vault))
+    assert init.returncode == 0, init.stderr
+    (vault / "_meta" / "profile.yml").unlink()
+
+    plan = run_cli("--root", str(vault), "profile", "migrate", "--plan", "--json")
+
+    assert plan.returncode == 0, plan.stderr
+    payload = json.loads(plan.stdout)
+    assert payload["profile_id"] == "business-operations"
+    assert payload["current_version"] is None
+    assert payload["target_version"] == "0.1.0"
+    assert {
+        "field": "_meta/profile.yml",
+        "kind": "missing",
+        "target": "0.1.0",
+    } in payload["differences"]
+    assert any(
+        action["action"] == "copy-template-file" and action["path"] == "_meta/profile.yml"
+        for action in payload["actions"]
+    )
+    assert not (vault / "_meta" / "profile.yml").exists()
+
+
+def test_profile_cli_migrate_write_bootstraps_missing_profile_without_overwrites(
+    tmp_path: Path,
+) -> None:
+    vault = tmp_path / "vault"
+    init = run_cli("init", "--profile", "business-operations", str(vault))
+    assert init.returncode == 0, init.stderr
+    source = vault / "40_delivery" / "private-plan.docx"
+    source.parent.mkdir(parents=True, exist_ok=True)
+    source.write_bytes(b"private source bytes must not change")
+    index = vault / "INDEX.md"
+    custom_index = "# Custom operator index\n\nKeep this local note.\n"
+    index.write_text(custom_index, encoding="utf-8")
+    (vault / "_meta" / "profile.yml").unlink()
+    (vault / "Documents.base").unlink()
+    shutil.rmtree(vault / "70_people")
+
+    write = run_cli("--root", str(vault), "profile", "migrate", "--write", "--json")
+
+    assert write.returncode == 0, write.stderr
+    payload = json.loads(write.stdout)
+    written_paths = {item["path"] for item in payload["write"]["written"]}
+    skipped = {(item["action"], item["path"]) for item in payload["write"]["skipped"]}
+    assert "_meta/profile.yml" in written_paths
+    assert "Documents.base" in written_paths
+    assert "70_people" in written_paths
+    assert ("review-template-drift", "INDEX.md") in skipped
+    assert payload["write"]["summary"]["errors"] == 0
+    assert load_profile(vault / "_meta" / "profile.yml").id == "business-operations"
+    assert (vault / "Documents.base").exists()
+    assert (vault / "70_people").is_dir()
+    assert index.read_text(encoding="utf-8") == custom_index
+    assert source.read_bytes() == b"private source bytes must not change"
+
+    validation = run_cli("--root", str(vault), "profile", "validate")
+    assert validation.returncode == 0, validation.stderr
+
+
+def test_profile_cli_migrate_write_skips_template_drift(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    init = run_cli("init", "--profile", "business-operations", str(vault))
+    assert init.returncode == 0, init.stderr
+    index = vault / "INDEX.md"
+    custom_index = "# Custom operator index\n"
+    index.write_text(custom_index, encoding="utf-8")
+
+    write = run_cli("--root", str(vault), "profile", "migrate", "--write", "--json")
+
+    assert write.returncode == 0, write.stderr
+    payload = json.loads(write.stdout)
+    assert payload["write"]["summary"]["written"] == 0
+    assert payload["write"]["summary"]["errors"] == 0
+    assert {
+        "action": "review-template-drift",
+        "path": "INDEX.md",
+        "detail": "manual review required; existing files are not overwritten",
+    } in payload["write"]["skipped"]
+    assert index.read_text(encoding="utf-8") == custom_index
 
 
 def test_profile_cli_migrate_plan_reports_profile_contract_drift(tmp_path: Path) -> None:

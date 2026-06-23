@@ -1,0 +1,166 @@
+# Vaultwright Profile Schema
+
+Vaultwright profiles are versioned contracts that describe a workspace's domain vocabulary, allowed
+metadata, starter folders, views, skills, and benchmark hooks. Core runtime code should read this
+contract instead of hard-coding business-specific folders, note types, statuses, or required
+properties.
+
+The current schema is `schema_version: 1`. The only packaged profile today is
+`business-operations` at `profile_version: 0.1.0`.
+
+## Contract File
+
+Each vault stores its active profile at:
+
+```text
+_meta/profile.yml
+```
+
+The packaged target profile is copied from:
+
+```text
+template/_meta/profile.yml
+```
+
+Use these commands to inspect and validate the contract:
+
+```bash
+vaultwright profile list
+vaultwright profile show business-operations
+vaultwright --root <vault> profile validate
+vaultwright --root <vault> profile diff 0.1.0
+vaultwright --root <vault> profile migrate --plan
+vaultwright --root <vault> profile migrate --write
+```
+
+## Required Fields
+
+`schema_version`
+: Integer schema identifier. Must currently be `1`.
+
+`id`
+: Lowercase kebab-case profile identifier, for example `business-operations`.
+
+`name`
+: Human-readable profile name.
+
+`profile_version`
+: Version string for the profile contract. The current built-in profile uses `0.1.0`.
+
+`description`
+: Optional human-readable summary.
+
+`domains`
+: Mapping of domain IDs to domain definitions. Each domain must define `folder`.
+
+`note_types`
+: Mapping of allowed note type IDs to definitions.
+
+`statuses`
+: Mapping of allowed workflow status IDs to definitions.
+
+`required_properties`
+: List of frontmatter keys required on curated notes and managed notes where applicable.
+
+`optional_properties`
+: List of frontmatter keys accepted by the profile but not required.
+
+`folder_plan`
+: List of starter folder records. Each current record uses `path` and `domain`.
+
+`templates`
+: List of template file paths expected in the vault.
+
+`views`
+: List of view files expected in the vault, such as `Documents.base`.
+
+`skills`
+: List of profile-specific agent skill paths. Empty for the current profile.
+
+`benchmark_tasks`
+: List of packaged benchmark task-pack paths. Empty for the current profile.
+
+`policy_defaults`
+: Mapping reserved for profile-level defaults such as retention or governance presets. Empty is
+valid.
+
+## Validation Rules
+
+`vaultwright profile validate` currently enforces:
+
+- no unknown top-level fields;
+- all required top-level fields are present;
+- `schema_version` matches the installed schema version;
+- `id` is lowercase kebab-case;
+- scalar identity fields are non-empty strings;
+- mapping fields are YAML mappings;
+- list fields are YAML lists;
+- path/list entries for required properties, optional properties, templates, views, skills, and
+  benchmark tasks are strings;
+- every domain definition includes a non-empty `folder`.
+
+`vaultwright lint` and `vaultwright catalog` read `_meta/profile.yml` for domain folders, allowed
+note types, statuses, and required properties. `_meta/domain-map.yml` remains a legacy alias and
+operator guidance layer; it must not contradict the profile's canonical domain folders.
+
+## Migration Semantics
+
+`vaultwright profile migrate --plan` is read-only. It reports:
+
+- missing profile contract files;
+- missing profile directories;
+- missing packaged template/view files;
+- profile version or vocabulary drift;
+- existing template/view files that differ from the packaged target;
+- blockers such as target profile ID mismatch.
+
+`vaultwright profile migrate --write` is intentionally conservative. It may:
+
+- create missing profile directories;
+- copy missing packaged template/view files;
+- copy `_meta/profile.yml` into older vaults that do not yet have a profile contract.
+
+It will not:
+
+- overwrite existing files;
+- move, delete, or rewrite source documents;
+- edit generated mirrors;
+- migrate mirror annotations;
+- normalize frontmatter domains;
+- resolve template drift automatically.
+
+Use `vaultwright migration --normalize-frontmatter-domains --worksheet` for frontmatter cleanup
+review, and `vaultwright migrate annotations --write` for mirror annotation sidecars. Profile
+migration and annotation migration are separate safety boundaries.
+
+## Current `business-operations` Shape
+
+The current packaged profile defines these canonical domains:
+
+```text
+intake -> 00_inbox
+governance -> 10_governance
+market -> 20_market
+customers -> 30_customers
+delivery -> 40_delivery
+operations -> 50_operations
+finance -> 60_finance
+people -> 70_people
+sources -> 80_sources
+```
+
+Allowed note types are:
+
+```text
+moc, entity, note, guide, policy, record, source-mirror, source-ref, repo-mirror
+```
+
+Allowed statuses are:
+
+```text
+draft, active, in-review, sent, signed, submitted, awarded, superseded, archived
+```
+
+These values belong to the `business-operations` profile, not the long-term core. Future
+`research-learning`, `software-project`, and `blank` profiles must define their own domains, note
+types, statuses, views, and benchmark hooks before Stage 2 starts.

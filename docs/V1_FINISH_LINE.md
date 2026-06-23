@@ -1,7 +1,7 @@
 # Vaultwright V1 Finish-Line Matrix
 
-This matrix is the execution control document for the 2026-06-23 whitepaper revision and
-`docs/adr/0001-profile-driven-v1-architecture.md`.
+This matrix is the execution control document for the 2026-06-23 whitepaper revision,
+`docs/adr/0001-profile-driven-v1-architecture.md`, and `docs/PROFILE_SCHEMA.md`.
 
 Current progress and next execution order are summarized in
 `docs/V1_PROGRESS_AUDIT_2026-06-23.md`.
@@ -27,9 +27,9 @@ required migration. New ideas that do not map here move to the post-v1 backlog.
 | ID | Requirement | Current Evidence | Gap To Close | Stage |
 | --- | --- | --- | --- | --- |
 | V1-C1 | One installable cross-platform core package owns runtime behavior | `pyproject.toml` exposes a `vaultwright` console entry point; CI installs package; installed `vaultwright plan`, `vaultwright sync`, and `vaultwright status` orchestrate package-owned Office/repo sync modules directly; `vaultwright doctor` runs package-owned preflight checks; `vaultwright catalog` runs package-owned catalog code; `vaultwright lint` runs package-owned lint code; `vaultwright conversion` runs package-owned conversion spot-check/result-pack code; `vaultwright m365` runs package-owned Microsoft 365 handoff-report code; `vaultwright migration` runs package-owned legacy folder/frontmatter migration-report code; `vaultwright overlap` runs package-owned overlap-calibration code; `vaultwright benchmark` runs package-owned agent-readiness task/result/worksheet code; `vaultwright pilot` runs package-owned aggregate pilot-evidence code; `vaultwright sandbox` runs package-owned copied-vault preflight code; `vaultwright recovery` runs package-owned recovery-report code; `vaultwright review` runs package-owned review-ledger code; Office mirror planning/sync/status runs from `vaultwright.mirrors.office`; GitHub repo mirror planning/sync/status runs from `vaultwright.mirrors.github_repos`; vault-local sync, lint, conversion, m365, migration, overlap, benchmark, pilot, sandbox, recovery, review-ledger, and operator-wrapper tools remain compatibility surfaces | Need keep copied `template/tools/` scripts as thin compatibility shims and prevent implementation drift while profile/core schemas converge | 1 |
-| V1-C2 | One versioned profile contract | `src/vaultwright/profiles.py` validates schema version 1; `_meta/profile.yml` declares the current `business-operations` template; package CLI exposes `init --profile business-operations`, `profile list`, `profile show`, `profile validate`, `profile diff`, and read-only `profile migrate --plan`; linter/catalog read profile domains, note types, statuses, required properties, and canonical folders | Need full profile schema docs, write-mode profile migration support, and remaining core behavior reading profile data | 1 |
+| V1-C2 | One versioned profile contract | `src/vaultwright/profiles.py` validates schema version 1; `_meta/profile.yml` declares the current `business-operations` template; `docs/PROFILE_SCHEMA.md` documents schema fields, validation rules, and migration semantics; package CLI exposes `init --profile business-operations`, `profile list`, `profile show`, `profile validate`, `profile diff`, `profile migrate --plan`, and conservative `profile migrate --write`; linter/catalog read profile domains, note types, statuses, required properties, and canonical folders | Need remaining core behavior reading profile data consistently before adding more profiles | 1 |
 | V1-C3 | Three official content profiles plus a blank starter | Existing template approximates `business-operations`; government-services example exercises that profile shape | Need `business-operations`, `research-learning`, `software-project`, and `blank` as package-owned profiles | 2 |
-| V1-C4 | Safe migration path from current business template | Migration reports, frontmatter domain normalization, and package-owned `profile migrate --plan` exist | Need write-mode workspace/profile migration that moves from current template to profile contract without source mutation or annotation loss | 1 |
+| V1-C4 | Safe migration path from current business template | Migration reports, frontmatter domain normalization, package-owned `profile migrate --plan`, and conservative `profile migrate --write` exist; write mode creates missing profile directories and copies missing packaged profile/template files without overwriting sources, mirrors, or drifted existing files | Need broader workspace/profile migration coverage as profile-driven behavior expands | 1 |
 | V1-C5 | Machine-owned mirrors with preserved human annotations | Package-owned `migrate annotations --plan` and `--write` preserve legacy mirror notes/frontmatter into `_meta/mirror-annotations/` sidecars keyed by source/repo ID; fresh mirrors use machine-owned headers without a curated `## Notes` region; Office/repo sync blocks unmigrated above-sentinel annotations as force-blocking review work and rewrites migrated mirrors as machine-owned when a matching sidecar exists; lint blocks unmigrated mirror annotations | Closed for Stage 1; keep compatibility tests and recovery guidance current while broader migration UX evolves | 1 |
 | V1-C6 | Obsidian adapter and first-party governance skill pack | Template ships Obsidian-compatible Markdown, Bases, and CLAUDE guidance | Need `vaultwright obsidian doctor`, tested skill install guidance, and Vaultwright-specific governance skills | 3 |
 | V1-C7 | Profile-aware catalogs, Bases, and Canvas outputs | `vaultwright catalog` emits Markdown/HTML inventory from manifests | Need catalog/view generation to read profile contracts and emit profile-specific Bases/Canvas recipes | 3 |
@@ -73,6 +73,7 @@ vaultwright profile show
 vaultwright profile validate
 vaultwright profile diff <target-profile-version>
 vaultwright profile migrate --plan
+vaultwright profile migrate --write
 vaultwright migrate annotations --plan
 vaultwright migrate annotations --write
 vaultwright index build
@@ -86,14 +87,14 @@ a finish-line requirement above.
 
 Current Stage 1 command status: `init --profile business-operations`, `profile list`,
 `profile show`, `profile validate`, `profile diff`, read-only `profile migrate --plan`,
-`migrate annotations --plan`, `migrate annotations --write`, `plan`, `sync`, `status`, `doctor`,
+conservative `profile migrate --write`, `migrate annotations --plan`, `migrate annotations --write`, `plan`, `sync`, `status`, `doctor`,
 `lint`, `catalog`, `conversion`, `m365`, `migration`, `overlap`, `benchmark`, `pilot`, `sandbox`, `recovery`, and `review` are implemented against package-owned runtime. Office mirror
 planning/sync/status and repo mirror planning/sync/status are package-owned while their vault-local
 tools remain compatibility surfaces; vault-local conversion, m365, migration, overlap, benchmark, pilot, sandbox, recovery, and review-ledger tooling remains as a
 compatibility surface.
 Sidecar-aware Office/repo sync rewrites migrated mirrors as machine-owned on regeneration; fresh
 mirrors are machine-owned; sync and lint block unmigrated mirror annotations.
-Write-mode `profile migrate`, `index`, and `explore` remain gated future work.
+`index` and `explore` remain gated future work.
 
 ## Post-V1 Backlog
 

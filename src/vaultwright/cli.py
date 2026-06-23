@@ -32,7 +32,7 @@ from vaultwright.annotation_migration import (
 )
 from vaultwright.mirrors import github_repos as repo_sync_module
 from vaultwright.mirrors import office as office_sync_module
-from vaultwright.profile_migration import profile_migration_plan
+from vaultwright.profile_migration import profile_migration_plan, write_profile_migration
 from vaultwright.profiles import ProfileContract, ProfileValidationError, load_profile
 
 
@@ -103,6 +103,13 @@ def load_current_profile(root: Path) -> tuple[ProfileContract, Path]:
     return load_profile(path), path
 
 
+def load_optional_current_profile(root: Path) -> tuple[ProfileContract | None, Path]:
+    path = root / "_meta" / "profile.yml"
+    if not path.exists():
+        return None, path
+    return load_profile(path), path
+
+
 def command_profile_show(args: argparse.Namespace) -> int:
     try:
         if args.profile_id:
@@ -143,13 +150,13 @@ def command_profile_validate(args: argparse.Namespace) -> int:
     return 0
 
 
-def load_target_profile(profile_id: str) -> tuple[ProfileContract, Path, Path]:
+def load_target_profile(profile_id: str | None = None) -> tuple[ProfileContract, Path, Path]:
     template = template_source()
     if not template:
         raise ProfileValidationError("no built-in profiles found")
     path = template / "_meta" / "profile.yml"
     profile = load_profile(path)
-    if profile.id != profile_id:
+    if profile_id and profile.id != profile_id:
         raise ProfileValidationError(f"unknown built-in profile: {profile_id}")
     return profile, path, template
 
@@ -183,33 +190,54 @@ def command_profile_diff(args: argparse.Namespace) -> int:
 
 
 def command_profile_migrate(args: argparse.Namespace) -> int:
-    if not args.plan:
-        print("profile migrate: only --plan is supported in this release", file=sys.stderr)
-        return 1
     root = args.root.expanduser().resolve()
     try:
-        current, _current_path = load_current_profile(root)
-        target, target_path, template = load_target_profile(current.id)
+        current, _current_path = load_optional_current_profile(root)
+        target_profile_id = args.profile or (current.id if current else None)
+        target, target_path, template = load_target_profile(target_profile_id)
     except ProfileValidationError as exc:
         print(f"profile migrate: {exc}", file=sys.stderr)
         return 1
     plan = profile_migration_plan(root, template, current, target, target_path)
+    write_result = None
+    if args.write:
+        write_result = write_profile_migration(root, template, plan)
     if args.json:
-        print(json.dumps(plan, indent=2, sort_keys=True))
+        payload = {"plan": plan, "write": write_result} if write_result is not None else plan
+        print(json.dumps(payload, indent=2, sort_keys=True))
     else:
-        print(f"profile migrate --plan: {current.id} {current.profile_version} -> {target.profile_version}")
+        current_version = current.profile_version if current else "none"
+        mode = "--write" if args.write else "--plan"
+        print(f"profile migrate {mode}: {target.id} {current_version} -> {target.profile_version}")
         print(f"Summary: {plan['summary']['actions']} action(s), {plan['summary']['blockers']} blocker(s)")
         if plan["blockers"]:
             print("Blockers:")
             for blocker in plan["blockers"]:
                 print(f"- {blocker['code']}: {blocker['detail']}")
+        elif args.write and write_result is not None:
+            print(
+                "Write summary: "
+                f"{write_result['summary']['written']} written, "
+                f"{write_result['summary']['skipped']} skipped, "
+                f"{write_result['summary']['errors']} error(s)"
+            )
+            for item in write_result["written"]:
+                print(f"- wrote {item['path']}: {item['detail']}")
+            for item in write_result["skipped"]:
+                print(f"- skipped {item['path']}: {item['detail']}")
+            for item in write_result["errors"]:
+                print(f"- error {item['path']}: {item['detail']}")
         elif not plan["actions"]:
             print("No profile migration actions needed.")
         else:
             print("Planned actions:")
             for action in plan["actions"]:
                 print(f"- {action['action']}: {action['path']}")
-    return 1 if plan["blockers"] else 0
+    if plan["blockers"]:
+        return 1
+    if write_result and write_result["errors"]:
+        return 1
+    return 0
 
 
 def command_init(args: argparse.Namespace) -> int:
@@ -517,8 +545,18 @@ def build_parser() -> argparse.ArgumentParser:
     profile_diff.add_argument("target_profile_version", help="Target built-in profile version, for example 0.1.0.")
     profile_diff.add_argument("--json", action="store_true", help="Print machine-readable diff and migration plan.")
     profile_diff.set_defaults(func=command_profile_diff)
-    profile_migrate = profile_sub.add_parser("migrate", help="Plan profile migration work without mutating the vault.")
-    profile_migrate.add_argument("--plan", action="store_true", help="Print a read-only migration plan.")
+    profile_migrate = profile_sub.add_parser("migrate", help="Plan or apply safe profile migration work.")
+    profile_migrate_mode = profile_migrate.add_mutually_exclusive_group(required=True)
+    profile_migrate_mode.add_argument("--plan", action="store_true", help="Print a read-only migration plan.")
+    profile_migrate_mode.add_argument(
+        "--write",
+        action="store_true",
+        help="Create missing profile directories and copy missing packaged profile files without overwriting.",
+    )
+    profile_migrate.add_argument(
+        "--profile",
+        help="Built-in target profile ID. Defaults to the current vault profile or the packaged default.",
+    )
     profile_migrate.add_argument("--json", action="store_true", help="Print machine-readable migration plan.")
     profile_migrate.set_defaults(func=command_profile_migrate)
     migrate = sub.add_parser("migrate", help="Run package-owned Vaultwright migrations.")
