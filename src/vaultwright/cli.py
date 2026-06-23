@@ -3,7 +3,7 @@
 
 The packaged command owns profile commands and package-migrated runtime behavior directly. Legacy
 operator commands still delegate to the target vault's local `tools/vaultwright.py` wrapper until
-their behavior moves into the package.
+their behavior moves into the package; migrated commands run directly from package modules.
 """
 from __future__ import annotations
 
@@ -16,6 +16,7 @@ import sys
 from pathlib import Path
 
 from vaultwright import catalog as catalog_module
+from vaultwright import lint as lint_module
 from vaultwright.annotation_migration import (
     annotation_migration_plan,
     public_plan,
@@ -272,6 +273,11 @@ def command_catalog(args: argparse.Namespace) -> int:
     return catalog_module.main(catalog_args(args), root=root)
 
 
+def command_lint(args: argparse.Namespace) -> int:
+    root = args.root.expanduser().resolve()
+    return lint_module.main(root=root)
+
+
 def command_migrate_annotations(args: argparse.Namespace) -> int:
     root = args.root.expanduser().resolve()
     plan = annotation_migration_plan(root)
@@ -372,10 +378,10 @@ def build_parser() -> argparse.ArgumentParser:
         ("plan", "Inventory sources and proposed mirror actions without writing."),
         ("sync", "Run Office and repo mirror syncs."),
         ("status", "Report manifest-backed lifecycle status."),
-        ("lint", "Run vault health checks."),
         ("doctor", "Check required files, Python version, and dependencies."),
     ):
         sub.add_parser(name, help=help_text).set_defaults(func=command_delegate, delegate_args=[])
+    sub.add_parser("lint", help="Run vault health checks.").set_defaults(func=command_lint)
     overlap = sub.add_parser("overlap", help="Print a read-only overlap threshold calibration report.")
     overlap_output = overlap.add_mutually_exclusive_group()
     overlap_output.add_argument("--json", action="store_true", help="Print machine-readable overlap calibration JSON.")

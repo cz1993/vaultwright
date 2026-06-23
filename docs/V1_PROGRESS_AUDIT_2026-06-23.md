@@ -26,7 +26,7 @@ Stage 1 remains the active lane. Current status:
 
 | Requirement | Status |
 | --- | --- |
-| V1-C1 package-owned runtime | In progress. Package CLI exists; `catalog` is package-owned; Office mirror planning/sync/status lives in `vaultwright.mirrors.office`; GitHub repo mirror planning/sync/status lives in `vaultwright.mirrors.github_repos`; both sync scripts remain compatibility shims. |
+| V1-C1 package-owned runtime | In progress. Package CLI exists; `catalog` and `lint` are package-owned; Office mirror planning/sync/status lives in `vaultwright.mirrors.office`; GitHub repo mirror planning/sync/status lives in `vaultwright.mirrors.github_repos`; sync and lint scripts remain compatibility shims. |
 | V1-C2 versioned profile contract | In progress. Schema validation and read-only profile commands exist; full schema docs, write migration, and remaining profile-driven behavior are not done. |
 | V1-C4 safe migration path | In progress. Reports and read-only plans exist; write-mode workspace/profile migration is still needed. |
 | V1-C5 machine-owned mirrors | Stage 1 closed by this batch. Fresh mirrors are machine-owned, sync blocks unmigrated mirror annotations, sidecar-aware sync rewrites migrated mirrors as machine-owned, and lint blocks unmigrated annotations. |
@@ -56,7 +56,8 @@ Stages 2 through 6 have not started and should remain gated until Stage 1 exits.
 
 ## Next Recommended Slice
 
-Move the next copied runtime surface into `src/vaultwright/`, with lint behavior now the likely
-highest-value candidate because both sync engines and catalog are package-owned. Keep vault-local
-tools as compatibility shims, preserve the example regeneration gates, and require no-data,
-lifecycle, recovery, catalog, and package-install coverage before treating the slice as closed.
+Move the next copied runtime surface into `src/vaultwright/`, with doctor or remaining report
+behavior as the likely candidates now that sync engines, lint, and catalog are package-owned. Keep
+vault-local tools as compatibility shims, preserve the example regeneration gates, and require
+no-data, lifecycle, recovery, catalog, and package-install coverage before treating the slice as
+closed.

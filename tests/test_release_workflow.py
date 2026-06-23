@@ -64,6 +64,7 @@ def test_release_workflow_verifies_built_wheel_before_release() -> None:
     assert "profile diff 0.1.0" in text
     assert "profile migrate --plan" in text
     assert "migrate annotations --plan" in text
+    assert "--root \"$tmp_vault\" lint" in text
     assert "test -f \"$tmp_vault/tools/sandbox_report.py\"" in text
     assert "sandbox --source-root" in text
     assert "conversion --guide --json" in text
@@ -104,6 +105,7 @@ def test_ci_workflow_smokes_sandbox_command() -> None:
     assert "profile diff 0.1.0" in text
     assert "profile migrate --plan" in text
     assert "migrate annotations --plan" in text
+    assert "--root \"$tmp_vault\" lint" in text
     assert "template/tools/sandbox_report.py" in text
     assert "test -f \"$tmp_vault/tools/sandbox_report.py\"" in text
     assert "sandbox --source-root" in text

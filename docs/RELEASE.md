@@ -37,7 +37,7 @@ notes, artifact names, CI status, and release claims.
 ```bash
 python3.11 scripts/no_data_scan.py
 PYTHONDONTWRITEBYTECODE=1 python3.11 -m pytest -q -p no:cacheprovider
-python3.11 template/tools/lint_vault.py
+PYTHONPATH=src python3.11 template/tools/lint_vault.py
 bash -n scripts/init.sh template/tools/sync_all.sh .githooks/pre-commit
 git diff --check
 ```

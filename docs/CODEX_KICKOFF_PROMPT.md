@@ -29,8 +29,8 @@ Work in continuous iterations, not one-and-done. Each loop:
 1. Pick the highest-value item from **Backlog** below (or discover a better one and justify it).
 2. Write a 3–6 line plan.
 3. Implement on a feature branch (`feat/…`, `fix/…`, `chore/…`).
-4. Add/extend tests; run the test suite, `template/tools/lint_vault.py`, and example-vault
-   regeneration/lint in a temporary copy.
+4. Add/extend tests; run the test suite, `PYTHONPATH=src python3.11 template/tools/lint_vault.py`
+   or installed `vaultwright lint`, and example-vault regeneration/lint in a temporary copy.
 5. Commit with Conventional Commits, **authored by cz1993** (see Ownership).
 6. Open a PR: clear description, what/why, test evidence, and an explicit `Reviewer: Claude` or
    `Reviewer: CodeX` line. Self-review against the Definition of Done.
@@ -104,7 +104,7 @@ section as historical context; do not let it override the 2026-06-23 v1 finish-l
 5. Update README/template docs and `CHANGELOG.md` so release claims match shipped behavior.
 6. Run: no-data scan, `python3.11 scripts/sync_template_copies.py --check`,
    `python3.11 -m py_compile`, shell syntax checks, `python3.11 -m pytest`, and
-   `python3.11 template/tools/lint_vault.py`.
+   `PYTHONPATH=src python3.11 template/tools/lint_vault.py` or installed `vaultwright lint`.
 7. Commit with Conventional Commits as `cz1993`, open a PR with `Reviewer: CodeX`, and continue to
    the next P0 item.
 

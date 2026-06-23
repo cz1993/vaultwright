@@ -28,6 +28,9 @@ and prefer the note with more inbound links when that signal is available. Use `
 overlap` in copied pilot vaults to see candidate counts across threshold bands before changing
 defaults. Keep the template defaults until real corpora show too many false positives or false
 negatives, then record any threshold changes in the private pilot worksheet.
+`tools/lint_vault.py` is a compatibility shim for the package-owned `vaultwright.lint` runtime.
+Run it from an environment where Vaultwright is installed, or from a source checkout with
+`PYTHONPATH=src`.
 
 ## Install
 
