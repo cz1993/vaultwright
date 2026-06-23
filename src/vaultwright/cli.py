@@ -15,6 +15,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+from vaultwright import benchmark as benchmark_module
 from vaultwright import catalog as catalog_module
 from vaultwright import conversion as conversion_module
 from vaultwright import doctor as doctor_module
@@ -371,6 +372,29 @@ def command_overlap(args: argparse.Namespace) -> int:
     return overlap_module.main(overlap_args(args), root=root)
 
 
+def benchmark_args(args: argparse.Namespace) -> list[str]:
+    return (
+        (["--tasks", str(args.tasks)] if args.tasks else [])
+        + (["--results", str(args.results)] if args.results else [])
+        + (["--init-tasks"] if args.init_tasks else [])
+        + (["--init-results"] if args.init_results else [])
+        + (["--force"] if args.force else [])
+        + (["--scaffold-sources", str(args.scaffold_sources)] if args.scaffold_sources != 5 else [])
+        + (["--scaffold-curated", str(args.scaffold_curated)] if args.scaffold_curated != 5 else [])
+        + (["--worksheet"] if args.worksheet else [])
+        + (["--require-generated"] if args.require_generated else [])
+        + (["--require-results"] if args.require_results else [])
+        + (["--require-citations"] if args.require_citations else [])
+        + (["--require-prompt-safety"] if args.require_prompt_safety else [])
+        + (["--json"] if args.json else [])
+    )
+
+
+def command_benchmark(args: argparse.Namespace) -> int:
+    root = args.root.expanduser().resolve()
+    return benchmark_module.main(benchmark_args(args), root=root)
+
+
 def command_doctor(args: argparse.Namespace) -> int:
     root = args.root.expanduser().resolve()
     return doctor_module.main(root=root)
@@ -538,24 +562,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Fail benchmark results with missing prompt-safety review or recorded prompt-safety violations.",
     )
     benchmark.add_argument("--json", action="store_true", help="Print machine-readable benchmark JSON.")
-    benchmark.set_defaults(
-        func=command_delegate,
-        delegate_args=lambda args: (
-            (["--tasks", str(args.tasks)] if args.tasks else [])
-            + (["--results", str(args.results)] if args.results else [])
-            + (["--init-tasks"] if args.init_tasks else [])
-            + (["--init-results"] if args.init_results else [])
-            + (["--force"] if args.force else [])
-            + (["--scaffold-sources", str(args.scaffold_sources)] if args.scaffold_sources != 5 else [])
-            + (["--scaffold-curated", str(args.scaffold_curated)] if args.scaffold_curated != 5 else [])
-            + (["--worksheet"] if args.worksheet else [])
-            + (["--require-generated"] if args.require_generated else [])
-            + (["--require-results"] if args.require_results else [])
-            + (["--require-citations"] if args.require_citations else [])
-            + (["--require-prompt-safety"] if args.require_prompt_safety else [])
-            + (["--json"] if args.json else [])
-        ),
-    )
+    benchmark.set_defaults(func=command_benchmark)
     conversion = sub.add_parser("conversion", help="Print a read-only conversion spot-check report.")
     conversion.add_argument("--json", action="store_true", help="Print machine-readable conversion JSON.")
     conversion.add_argument("--guide", action="store_true", help="Append an operator conversion-review checklist.")

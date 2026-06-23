@@ -26,7 +26,7 @@ Stage 1 remains the active lane. Current status:
 
 | Requirement | Status |
 | --- | --- |
-| V1-C1 package-owned runtime | In progress. Package CLI exists; `plan`, `sync`, `status`, `doctor`, `catalog`, `lint`, `conversion`, `m365`, `migration`, `overlap`, `recovery`, and `review` are package-owned; Office mirror planning/sync/status lives in `vaultwright.mirrors.office`; GitHub repo mirror planning/sync/status lives in `vaultwright.mirrors.github_repos`; sync, lint, conversion, m365, migration, overlap, recovery, review-ledger, and operator-wrapper scripts remain compatibility shims. |
+| V1-C1 package-owned runtime | In progress. Package CLI exists; `plan`, `sync`, `status`, `doctor`, `catalog`, `lint`, `conversion`, `m365`, `migration`, `overlap`, `benchmark`, `recovery`, and `review` are package-owned; Office mirror planning/sync/status lives in `vaultwright.mirrors.office`; GitHub repo mirror planning/sync/status lives in `vaultwright.mirrors.github_repos`; sync, lint, conversion, m365, migration, overlap, benchmark, recovery, review-ledger, and operator-wrapper scripts remain compatibility shims. |
 | V1-C2 versioned profile contract | In progress. Schema validation and read-only profile commands exist; full schema docs, write migration, and remaining profile-driven behavior are not done. |
 | V1-C4 safe migration path | In progress. Reports and read-only plans exist; write-mode workspace/profile migration is still needed. |
 | V1-C5 machine-owned mirrors | Stage 1 closed by this batch. Fresh mirrors are machine-owned, sync blocks unmigrated mirror annotations, sidecar-aware sync rewrites migrated mirrors as machine-owned, and lint blocks unmigrated annotations. |

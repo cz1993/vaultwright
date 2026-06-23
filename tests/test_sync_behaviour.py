@@ -1351,6 +1351,11 @@ def write_agent_benchmark_manifest_fixture(vault: Path) -> None:
     )
 
 
+def remove_local_benchmark_runtime(vault: Path) -> None:
+    (vault / "tools" / "vaultwright.py").unlink()
+    (vault / "tools" / "benchmark_tasks.py").unlink()
+
+
 def test_vaultwright_benchmark_reports_result_scores_without_answer_content(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     shutil.copytree(ROOT / "template", vault)
@@ -1946,10 +1951,11 @@ def test_vaultwright_benchmark_worksheet_prints_private_run_sheet_without_paths(
     assert "Synthetic mirror" not in result.stdout
 
 
-def test_packaged_vaultwright_cli_delegates_benchmark_result_args(tmp_path: Path) -> None:
+def test_packaged_vaultwright_cli_runs_benchmark_result_args_without_local_runtime(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     shutil.copytree(ROOT / "template", vault)
     write_agent_benchmark_fixture(vault)
+    remove_local_benchmark_runtime(vault)
     env = {**os.environ, "PYTHONPATH": str(ROOT / "src")}
 
     result = subprocess.run(
@@ -1980,9 +1986,11 @@ def test_packaged_vaultwright_cli_delegates_benchmark_result_args(tmp_path: Path
     assert payload["result_summary"]["modes"]["vaultwright_markdown"]["generated_mirror_citations"] == 1
     assert payload["result_summary"]["modes"]["vaultwright_markdown"]["prompt_safety_reviewed"] == 1
     assert payload["result_summary"]["modes"]["document_chat_transcript"]["prompt_safety_violations"] == 1
+    assert "missing tools/vaultwright.py" not in result.stderr
+    assert "benchmark_tasks.py" not in result.stderr
 
 
-def test_packaged_vaultwright_cli_delegates_benchmark_prompt_safety_gate(tmp_path: Path) -> None:
+def test_packaged_vaultwright_cli_runs_benchmark_prompt_safety_gate_without_local_runtime(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     shutil.copytree(ROOT / "template", vault)
     write_agent_benchmark_fixture(vault)
@@ -2008,6 +2016,7 @@ def test_packaged_vaultwright_cli_delegates_benchmark_prompt_safety_gate(tmp_pat
         ),
         encoding="utf-8",
     )
+    remove_local_benchmark_runtime(vault)
     env = {**os.environ, "PYTHONPATH": str(ROOT / "src")}
 
     result = subprocess.run(
@@ -2033,12 +2042,15 @@ def test_packaged_vaultwright_cli_delegates_benchmark_prompt_safety_gate(tmp_pat
     payload = json.loads(result.stdout)
     assert payload["result_summary"]["modes"]["vaultwright_markdown"]["prompt_safety_reviewed"] == 1
     assert payload["result_summary"]["modes"]["vaultwright_markdown"]["prompt_safety_violations"] == 0
+    assert "missing tools/vaultwright.py" not in result.stderr
+    assert "benchmark_tasks.py" not in result.stderr
 
 
-def test_packaged_vaultwright_cli_delegates_benchmark_init_results(tmp_path: Path) -> None:
+def test_packaged_vaultwright_cli_runs_benchmark_init_results_without_local_runtime(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     shutil.copytree(ROOT / "template", vault)
     write_agent_benchmark_fixture(vault)
+    remove_local_benchmark_runtime(vault)
     env = {**os.environ, "PYTHONPATH": str(ROOT / "src")}
 
     result = subprocess.run(
@@ -2069,12 +2081,15 @@ def test_packaged_vaultwright_cli_delegates_benchmark_init_results(tmp_path: Pat
         "path": "_meta/agent-readiness-results.yml",
         "results": 15,
     }
+    assert "missing tools/vaultwright.py" not in result.stderr
+    assert "benchmark_tasks.py" not in result.stderr
 
 
-def test_packaged_vaultwright_cli_delegates_benchmark_init_tasks(tmp_path: Path) -> None:
+def test_packaged_vaultwright_cli_runs_benchmark_init_tasks_without_local_runtime(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     shutil.copytree(ROOT / "template", vault)
     write_agent_benchmark_manifest_fixture(vault)
+    remove_local_benchmark_runtime(vault)
     env = {**os.environ, "PYTHONPATH": str(ROOT / "src")}
 
     result = subprocess.run(
@@ -2109,12 +2124,15 @@ def test_packaged_vaultwright_cli_delegates_benchmark_init_tasks(tmp_path: Path)
         "source_paths": 1,
         "tasks": 5,
     }
+    assert "missing tools/vaultwright.py" not in result.stderr
+    assert "benchmark_tasks.py" not in result.stderr
 
 
-def test_packaged_vaultwright_cli_delegates_benchmark_worksheet(tmp_path: Path) -> None:
+def test_packaged_vaultwright_cli_runs_benchmark_worksheet_without_local_runtime(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     shutil.copytree(ROOT / "template", vault)
     write_agent_benchmark_fixture(vault)
+    remove_local_benchmark_runtime(vault)
     env = {**os.environ, "PYTHONPATH": str(ROOT / "src")}
 
     result = subprocess.run(
@@ -2136,6 +2154,8 @@ def test_packaged_vaultwright_cli_delegates_benchmark_worksheet(tmp_path: Path) 
     assert result.returncode == 0, result.stderr or result.stdout
     assert "# Agent-Readiness Benchmark Worksheet" in result.stdout
     assert "40_delivery/client-plan.docx" not in result.stdout
+    assert "missing tools/vaultwright.py" not in result.stderr
+    assert "benchmark_tasks.py" not in result.stderr
 
 
 def test_packaged_vaultwright_cli_init_from_source_checkout(tmp_path: Path) -> None:

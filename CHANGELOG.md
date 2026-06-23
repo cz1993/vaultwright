@@ -59,6 +59,10 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 - The installable `vaultwright overlap` command now runs package-owned `vaultwright.overlap` code;
   vault-local `tools/overlap_report.py` remains available as a compatibility surface, and CI smoke
   tests cover package-level overlap JSON output.
+- The installable `vaultwright benchmark` command now runs package-owned `vaultwright.benchmark`
+  code; vault-local `tools/benchmark_tasks.py` remains available as a compatibility surface, and
+  package tests cover task/result validation, private scaffolds, and worksheets without the
+  vault-local wrapper.
 - The installable `vaultwright recovery` command now runs package-owned `vaultwright.recovery`
   code; vault-local `tools/recovery_report.py` remains available as a compatibility surface, and
   CI smoke tests cover package-level JSON and worksheet output.
