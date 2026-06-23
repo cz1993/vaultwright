@@ -12,10 +12,12 @@ knowledge workspaces without modifying original records. You are not starting fr
 working v0 exists (template vault, schema, sync/lint tools, docs, licensing scaffold). Your job is
 to narrow, harden, and validate the first promise before broadening the roadmap.
 
-**Read first (in order):** `AGENTS.md`, `README.md`, `docs/PRODUCT.md`, `docs/SYNC_SPEC.md`,
-`docs/SECURITY_MODEL.md`, `docs/VAULTWRIGHT_WHITEPAPER.md`, `docs/methodology.md`,
-`docs/positioning.md`, `CHANGELOG.md`, `LICENSING.md`, then the scripts in `template/tools/` and
-`template/CLAUDE.md`.
+**Read first (in order):** `AGENTS.md`, `README.md`, `docs/PRODUCT.md`,
+`docs/VAULTWRIGHT_WHITEPAPER_2026-06-23.md`,
+`docs/adr/0001-profile-driven-v1-architecture.md`, `docs/V1_FINISH_LINE.md`,
+`docs/SYNC_SPEC.md`, `docs/SECURITY_MODEL.md`, `docs/VAULTWRIGHT_WHITEPAPER.md`,
+`docs/methodology.md`, `docs/positioning.md`, `CHANGELOG.md`, `LICENSING.md`, then the scripts in
+`template/tools/` and `template/CLAUDE.md`.
 Internalize the differentiators in `positioning.md` — lead with them, never drift into "another
 generic LLM-wiki," and do not add a vector database as a substitute for provenance, mirrors, and
 managed lifecycle state.
@@ -39,10 +41,38 @@ Work in continuous iterations, not one-and-done. Each loop:
 license, making the repo public, rewriting shared git history, deleting data, or any action
 touching real accounts/credentials. Otherwise, proceed autonomously.
 
-## Current review checkpoint — 2026-06-17
+## Current v1 architecture checkpoint - 2026-06-23
+
+The active product direction is now the profile-driven v1 architecture in
+`docs/VAULTWRIGHT_WHITEPAPER_2026-06-23.md`. Treat
+`docs/adr/0001-profile-driven-v1-architecture.md` and `docs/V1_FINISH_LINE.md` as the convergence
+gate before choosing work.
+
+The execution rule is simple: do not add standalone feature tracks. Every change must advance a
+listed finish-line requirement, replace a weaker implementation, or preserve existing behavior
+while preparing a required migration. New ideas that do not map to the matrix go to the post-v1
+backlog.
+
+**Stage 0 requirements**
+- Product statement, six-layer architecture, v1 profiles, v1 non-goals, and command-surface stop
+  rule are tracked in docs.
+- Every open v1 work item maps to a finish-line requirement.
+- New standalone report commands are frozen unless they replace existing behavior or close a
+  matrix item.
+
+**Next execution order**
+1. Keep safety gates green: no-data scan, template-copy sync, pytest, example lint, CI.
+2. Start Stage 1 by moving runtime behavior from copied vault-local scripts into package-owned
+   modules under `src/vaultwright/`, leaving compatibility shims only where needed.
+3. Define the versioned profile contract before adding research/software profiles.
+4. Convert hard-coded business taxonomy assumptions into `business-operations` profile data.
+5. Preserve current lifecycle, catalog, review, recovery, safety, and benchmark behavior while
+   refactoring.
+
+## Historical review checkpoint - 2026-06-17
 
 Professional review found a strong product thesis, but the repo is still pre-release. Treat this
-section as the active execution trigger until it is resolved.
+section as historical context; do not let it override the 2026-06-23 v1 finish-line matrix.
 
 **Strengths to preserve**
 - The core positioning is clear: mirror layer, governance, anti-proliferation, and linking-first
@@ -215,7 +245,9 @@ not broad industry expansion. Prove the narrow promise first:
 
 1. Read the files listed above; run the **no-data scan** and confirm the tree is clean.
 2. Confirm **tests + CI + the no-data guard** remain green.
-3. Work the P0 lifecycle/CLI sequence before adding broad examples or industry profiles.
-4. Check the remaining licensing decisions in `LICENSING.md`; do not accept outside contributions
+3. Map the next change to `docs/V1_FINISH_LINE.md` before editing code or docs.
+4. Work Stage 1 package/profile convergence before adding broad examples, index work, Explorer UI,
+   or more report commands.
+5. Check the remaining licensing decisions in `LICENSING.md`; do not accept outside contributions
    until the owner decides CLA vs DCO with counsel.
-5. Open PRs, request review (Claude/CodeX), iterate. Keep going.
+6. Open PRs, request review (Claude/CodeX), iterate. Keep going.

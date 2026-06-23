@@ -1,0 +1,134 @@
+schema_version: 1
+id: business-operations
+name: Business Operations
+profile_version: 0.1.0
+description: Transitional profile for the current Vaultwright business-operations template.
+
+domains:
+  intake:
+    folder: 00_inbox
+    purpose: Triage lane for unprocessed source files and agent drafts.
+  governance:
+    folder: 10_governance
+    purpose: Company identity, ownership, policy, risk, legal, compliance, and board records.
+  market:
+    folder: 20_market
+    purpose: Market understanding, brand, campaigns, communications, and partner-facing material.
+  customers:
+    folder: 30_customers
+    purpose: Accounts, clients, sales opportunities, customer research, support, and relationship history.
+  delivery:
+    folder: 40_delivery
+    purpose: Products, services, projects, implementations, engagements, and delivery playbooks.
+  operations:
+    folder: 50_operations
+    purpose: Internal operating system, vendors, procurement, IT, security, facilities, and process records.
+  finance:
+    folder: 60_finance
+    purpose: Accounting, tax, payroll, budgets, funding, banking, and financial reporting.
+  people:
+    folder: 70_people
+    purpose: Hiring, employees, contractors, roles, onboarding, learning, and people operations.
+  sources:
+    folder: 80_sources
+    purpose: Source mirrors, public-data fixtures, repository mirrors, and cross-domain raw-source indexes.
+
+note_types:
+  moc:
+    purpose: Hub note that links a knowledge cluster.
+  entity:
+    purpose: Stable page for an account, person, vendor, program, product, or other recurring noun.
+  note:
+    purpose: General curated knowledge note.
+  guide:
+    purpose: How-to or runbook.
+  policy:
+    purpose: Governing policy or procedure.
+  record:
+    purpose: Dated report, meeting note, decision, or evidence record.
+  source-mirror:
+    purpose: Machine-generated mirror of a binary/source file.
+    machine_owned: true
+  source-ref:
+    purpose: Human-readable companion for a non-mirrored source.
+  repo-mirror:
+    purpose: Machine-generated mirror of a configured repository.
+    machine_owned: true
+
+statuses:
+  draft:
+    purpose: Agent- or human-drafted material not yet promoted.
+  active:
+    purpose: Current reviewed working knowledge.
+  in-review:
+    purpose: Awaiting human review.
+  sent:
+    purpose: Sent externally.
+  signed:
+    purpose: Signed or formally accepted.
+  submitted:
+    purpose: Submitted for approval or processing.
+  awarded:
+    purpose: Awarded or approved.
+  superseded:
+    purpose: Replaced by newer material.
+  archived:
+    purpose: Retained but no longer active.
+
+required_properties:
+  - title
+  - type
+  - status
+  - domain
+  - created
+  - updated
+
+optional_properties:
+  - owner
+  - tags
+  - related
+  - account
+  - client
+  - program
+  - vendor
+
+folder_plan:
+  - path: 00_inbox
+    domain: intake
+  - path: 10_governance
+    domain: governance
+  - path: 20_market
+    domain: market
+  - path: 30_customers
+    domain: customers
+  - path: 40_delivery
+    domain: delivery
+  - path: 50_operations
+    domain: operations
+  - path: 60_finance
+    domain: finance
+  - path: 70_people
+    domain: people
+  - path: 80_sources
+    domain: sources
+
+templates:
+  - _templates/account-hub.md
+  - _templates/base-note.md
+  - _templates/daily-log.md
+  - _templates/decision-record.md
+  - _templates/entity.md
+  - _templates/guide.md
+  - _templates/source-ref.md
+
+views:
+  - Documents.base
+
+skills: []
+benchmark_tasks: []
+
+policy_defaults:
+  mirror_mode: dedicated
+  mirror_root: _mirrors
+  original_sources_authoritative: true
+  real_data_in_repo: false

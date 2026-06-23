@@ -1,12 +1,14 @@
 # Vaultwright
 
-**Turn an existing business document collection into governed, inspectable, agent-ready markdown
-without modifying the original records.**
+**Compile source collections into governed, profile-driven knowledge workspaces without modifying
+the original records.**
 
-Vaultwright is a pre-release methodology + small toolkit for consultants and operators who need to
-preserve source documents while making their contents usable by people and AI agents. You bring
-source files, a local vault, an AI coding agent (Claude Code, OpenAI Codex, etc.), and optionally
-[Obsidian](https://obsidian.md) as the reference human UI.
+Vaultwright is a pre-release methodology + small toolkit for source-backed knowledge workspaces.
+The first commercial wedge remains consulting and implementation teams with document-heavy client
+work, but the core is now converging toward profile-driven workspaces for business operations,
+research/learning, software-project documentation, and minimal blank starts. You bring source files,
+a local vault, an AI coding agent (Claude Code, OpenAI Codex, etc.), and optionally
+[Obsidian](https://obsidian.md) as a reference human UI.
 
 > Inspired by Andrej Karpathy's ["LLM wiki" pattern](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f).
 > Honest about the landscape — see [`docs/positioning.md`](docs/positioning.md).
@@ -51,14 +53,16 @@ engagement document collections and need to turn them into governed, source-link
 knowledge. Owner-operators may benefit later, but the first release is scoped around teams that
 already understand provenance, engagement boundaries, and source preservation.
 
-## How it works (four layers)
+## How it works (six layers)
 
 | Layer | What | Who owns it |
 | --- | --- | --- |
-| **Raw sources** | the real artifacts — contracts, decks, statements, repos, the original Office files | you / external; never altered |
-| **Generated mirrors** | markdown mirrors under `_mirrors/` and repo mirrors under `80_sources/repos/` | the agent writes; you curate above the sentinel |
-| **Wiki** | markdown notes that summarize, link, and add metadata — MOCs, entity pages, decisions, guides | the agent writes; you curate |
-| **Schema** | `CLAUDE.md` — conventions + the ingest/query/lint workflows that make the agent disciplined | you + agent co-evolve |
+| **Sources** | original files, repositories, exports, and external records | authoritative; never altered by Vaultwright |
+| **Mirrors** | machine-generated Markdown and extraction metadata | derived, reproducible artifacts |
+| **Curated knowledge** | human-reviewed notes, syntheses, entities, and decisions | human-governed |
+| **Profile** | domain vocabulary, schemas, templates, views, skills, and benchmarks | versioned contract |
+| **Evidence index** | future full-text/graph cache for retrieval and context assembly | disposable derived cache |
+| **Presentation** | Obsidian, catalogs, Canvas, Explorer, MCP, and context packs | derived interfaces |
 
 Product contract: [`docs/PRODUCT.md`](docs/PRODUCT.md). Sync contract:
 [`docs/SYNC_SPEC.md`](docs/SYNC_SPEC.md). Security model:
@@ -73,6 +77,9 @@ Agent-readiness benchmark:
 [`docs/AGENT_READINESS_BENCHMARK.md`](docs/AGENT_READINESS_BENCHMARK.md).
 Full write-up: [`docs/methodology.md`](docs/methodology.md).
 Professional review brief: [`docs/VAULTWRIGHT_WHITEPAPER.md`](docs/VAULTWRIGHT_WHITEPAPER.md).
+Current v1 architecture decision:
+[`docs/adr/0001-profile-driven-v1-architecture.md`](docs/adr/0001-profile-driven-v1-architecture.md).
+Finish-line matrix: [`docs/V1_FINISH_LINE.md`](docs/V1_FINISH_LINE.md).
 
 ## Quick start
 
@@ -133,10 +140,10 @@ Step-by-step: [`docs/quickstart.md`](docs/quickstart.md).
 
 ## Status
 
-**v0 — technical alpha.** The template vault, schema, thin tool CLI, source-installable console
+**v0 - technical alpha.** The template vault, schema, thin tool CLI, source-installable console
 entry point, sync/lint tools, examples, safety guards, Office/repo manifests, and audit logs work
-today. Product validation, full lifecycle semantics, and distribution-quality packaging remain open
-pre-release work.
+today. The v1 finish line is now fixed around package-owned runtime behavior, versioned profiles,
+profile-aware views, and external validation before optional Explorer work becomes release-critical.
 
 ## License
 

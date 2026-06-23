@@ -18,7 +18,7 @@ from pathlib import Path
 IGNORED_PARTS = {"__pycache__"}
 IGNORED_SUFFIXES = {".pyc"}
 EXAMPLE_ALLOWED_EXTRA_TOOL_FILES = {"repos.yml"}
-EXAMPLE_SHARED_META_FILES = {"lifecycle-states.yml"}
+EXAMPLE_SHARED_META_FILES = {"lifecycle-states.yml", "profile.yml"}
 
 
 @dataclass(frozen=True)

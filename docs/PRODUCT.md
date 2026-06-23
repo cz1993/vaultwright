@@ -1,5 +1,16 @@
 # Product Contract
 
+## Product Direction
+
+Vaultwright turns heterogeneous source collections into governed, profile-driven knowledge
+workspaces that humans and AI agents can inspect, navigate, cite, and refresh without replacing the
+original records.
+
+The first paid workflow remains consulting and implementation work, but the v1 architecture is no
+longer a single business-operations folder template. The accepted v1 direction is documented in
+[`docs/adr/0001-profile-driven-v1-architecture.md`](adr/0001-profile-driven-v1-architecture.md)
+and the release gates are tracked in [`docs/V1_FINISH_LINE.md`](V1_FINISH_LINE.md).
+
 ## First Buyer
 
 Vaultwright's first buyer is a small consulting, advisory, or implementation team that handles
@@ -68,6 +79,9 @@ A successful first workflow produces:
 - Not a generic personal PKM or Zettelkasten app.
 - Not a hosted SaaS in this open-core repository.
 - Not a vector-RAG chatbot over documents.
+- Not a public profile marketplace for v1.
+- Not an Obsidian plugin for v1.
+- Not a desktop application shell for v1.
 - Not a guarantee that conversion output fully represents every table, image, formula, scan, or
   comment.
 - Not an autonomous agent that silently rewrites human-maintained business knowledge.
