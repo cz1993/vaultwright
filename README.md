@@ -138,6 +138,7 @@ vaultwright init --profile business-operations ~/my-business-vault
 vaultwright --root ~/my-business-vault profile validate
 vaultwright --root ~/my-business-vault profile diff 0.1.0
 vaultwright --root ~/my-business-vault profile migrate --plan
+vaultwright --root ~/my-business-vault migrate annotations --plan
 vaultwright --root ~/my-business-vault plan
 ```
 

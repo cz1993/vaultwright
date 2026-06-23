@@ -16,6 +16,11 @@ import sys
 from pathlib import Path
 
 from vaultwright import catalog as catalog_module
+from vaultwright.annotation_migration import (
+    annotation_migration_plan,
+    public_plan,
+    write_annotation_sidecars,
+)
 from vaultwright.profile_migration import profile_migration_plan
 from vaultwright.profiles import ProfileContract, ProfileValidationError, load_profile
 
@@ -267,6 +272,53 @@ def command_catalog(args: argparse.Namespace) -> int:
     return catalog_module.main(catalog_args(args), root=root)
 
 
+def command_migrate_annotations(args: argparse.Namespace) -> int:
+    root = args.root.expanduser().resolve()
+    plan = annotation_migration_plan(root)
+    if args.write:
+        result = write_annotation_sidecars(root, plan)
+        if args.json:
+            print(json.dumps(result, indent=2, sort_keys=True))
+        else:
+            summary = result["summary"]
+            print(
+                "migrate annotations --write: "
+                f"{summary['written']} written, {summary['blockers']} blocker(s)"
+            )
+            if result["blockers"]:
+                print("Blockers:")
+                for blocker in result["blockers"]:
+                    print(f"- {blocker['code']}: {blocker['detail']}")
+            elif not result["written"]:
+                print("No mirror annotations need migration.")
+            else:
+                for item in result["written"]:
+                    print(f"- {item['mirror_path']} -> {item['sidecar_path']}")
+        return 1 if result["blockers"] else 0
+
+    payload = public_plan(plan)
+    if args.json:
+        print(json.dumps(payload, indent=2, sort_keys=True))
+    else:
+        summary = payload["summary"]
+        print(
+            "migrate annotations --plan: "
+            f"{summary['actions']} action(s), {summary['blockers']} blocker(s), "
+            f"{summary['already_migrated']} already migrated"
+        )
+        if payload["blockers"]:
+            print("Blockers:")
+            for blocker in payload["blockers"]:
+                print(f"- {blocker['code']}: {blocker['detail']}")
+        elif not payload["actions"]:
+            print("No mirror annotations need migration.")
+        else:
+            print("Planned actions:")
+            for action in payload["actions"]:
+                print(f"- {action['mirror_path']} -> {action['sidecar_path']}")
+    return 1 if payload["blockers"] else 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Vaultwright command-line interface.")
     parser.add_argument("--root", type=Path, default=Path.cwd(), help="Vault root for plan/sync/status/lint/doctor.")
@@ -305,6 +357,17 @@ def build_parser() -> argparse.ArgumentParser:
     profile_migrate.add_argument("--plan", action="store_true", help="Print a read-only migration plan.")
     profile_migrate.add_argument("--json", action="store_true", help="Print machine-readable migration plan.")
     profile_migrate.set_defaults(func=command_profile_migrate)
+    migrate = sub.add_parser("migrate", help="Run package-owned Vaultwright migrations.")
+    migrate_sub = migrate.add_subparsers(dest="migrate_command", required=True)
+    annotations = migrate_sub.add_parser(
+        "annotations",
+        help="Move human mirror annotations into source-ID-keyed sidecars.",
+    )
+    annotations_mode = annotations.add_mutually_exclusive_group(required=True)
+    annotations_mode.add_argument("--plan", action="store_true", help="Print a read-only annotation migration plan.")
+    annotations_mode.add_argument("--write", action="store_true", help="Write annotation sidecars without editing mirrors.")
+    annotations.add_argument("--json", action="store_true", help="Print machine-readable migration output.")
+    annotations.set_defaults(func=command_migrate_annotations)
     for name, help_text in (
         ("plan", "Inventory sources and proposed mirror actions without writing."),
         ("sync", "Run Office and repo mirror syncs."),

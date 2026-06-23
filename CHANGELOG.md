@@ -23,6 +23,9 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 - Added package-owned `profile diff` and read-only `profile migrate --plan` commands so profile
   version drift, missing profile files, and template drift can be reviewed before any future
   write-mode migration.
+- Added package-owned `migrate annotations --plan` and `migrate annotations --write` commands that
+  move above-sentinel mirror notes and preserved frontmatter into `_meta/mirror-annotations/`
+  sidecars keyed by `source_id` or `repo_id`, without editing original sources or generated mirrors.
 - Added `tools/catalog_report.py` and `vaultwright catalog`, which writes a generated
   source-path-only `CATALOG.md` inventory gateway with domain, format, lifecycle, mirror, repo,
   unmanaged-source, and legacy-folder summaries.

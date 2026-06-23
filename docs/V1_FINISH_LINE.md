@@ -27,7 +27,7 @@ required migration. New ideas that do not map here move to the post-v1 backlog.
 | V1-C2 | One versioned profile contract | `src/vaultwright/profiles.py` validates schema version 1; `_meta/profile.yml` declares the current `business-operations` template; package CLI exposes `init --profile business-operations`, `profile list`, `profile show`, `profile validate`, `profile diff`, and read-only `profile migrate --plan`; linter/catalog read profile domains, note types, statuses, required properties, and canonical folders | Need full profile schema docs, write-mode profile migration support, and remaining core behavior reading profile data | 1 |
 | V1-C3 | Three official content profiles plus a blank starter | Existing template approximates `business-operations`; government-services example exercises that profile shape | Need `business-operations`, `research-learning`, `software-project`, and `blank` as package-owned profiles | 2 |
 | V1-C4 | Safe migration path from current business template | Migration reports, frontmatter domain normalization, and package-owned `profile migrate --plan` exist | Need write-mode workspace/profile migration that moves from current template to profile contract without source mutation or annotation loss | 1 |
-| V1-C5 | Machine-owned mirrors with preserved human annotations | Mirrors currently preserve above-sentinel notes; manifests and recovery reports protect generated output | Need annotation migration to curated notes or source-ID-keyed sidecars before mirrors become fully disposable | 1 |
+| V1-C5 | Machine-owned mirrors with preserved human annotations | Mirrors currently preserve above-sentinel notes; manifests and recovery reports protect generated output; package-owned `migrate annotations --plan` and `--write` preserve mirror notes/frontmatter into `_meta/mirror-annotations/` sidecars keyed by source/repo ID without editing sources or mirrors | Need sync ownership changes that stop treating generated mirrors as annotation containers after sidecar migration is complete | 1 |
 | V1-C6 | Obsidian adapter and first-party governance skill pack | Template ships Obsidian-compatible Markdown, Bases, and CLAUDE guidance | Need `vaultwright obsidian doctor`, tested skill install guidance, and Vaultwright-specific governance skills | 3 |
 | V1-C7 | Profile-aware catalogs, Bases, and Canvas outputs | `vaultwright catalog` emits Markdown/HTML inventory from manifests | Need catalog/view generation to read profile contracts and emit profile-specific Bases/Canvas recipes | 3 |
 | V1-C8 | Three external profile pilots | Dogfood copy and government-services example provide internal evidence | Need one structured external pilot each for business-operations, research-learning, and software-project | 6 |
@@ -70,6 +70,8 @@ vaultwright profile show
 vaultwright profile validate
 vaultwright profile diff <target-profile-version>
 vaultwright profile migrate --plan
+vaultwright migrate annotations --plan
+vaultwright migrate annotations --write
 vaultwright index build
 vaultwright index status
 vaultwright explore "question"
@@ -80,8 +82,9 @@ standalone report commands are not allowed unless they replace existing behavior
 a finish-line requirement above.
 
 Current Stage 1 command status: `init --profile business-operations`, `profile list`,
-`profile show`, `profile validate`, `profile diff`, and read-only `profile migrate --plan` are
-implemented against the package-owned profile contract. Write-mode `profile migrate`, `index`, and
+`profile show`, `profile validate`, `profile diff`, read-only `profile migrate --plan`,
+`migrate annotations --plan`, and `migrate annotations --write` are implemented against
+package-owned runtime. Write-mode `profile migrate`, machine-owned mirror rewrites, `index`, and
 `explore` remain gated future work.
 
 ## Post-V1 Backlog

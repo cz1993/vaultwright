@@ -58,6 +58,11 @@ Current implementation status:
   plus repo sync/status detection and repair for managed repo frontmatter identity drift, plus
   `repo_unconfigured` lifecycle reporting and lint blocking when a previously synced repo mirror is
   retained after its `tools/repos.yml` entry is removed;
+- implemented for mirror-annotation migration: `vaultwright migrate annotations --plan` reports
+  above-sentinel source/repo mirror annotations without printing their text, and `--write` stores
+  them under `_meta/mirror-annotations/source/<source_id>.md` or
+  `_meta/mirror-annotations/repo/<repo_id>.md` while leaving original sources and generated mirrors
+  untouched;
 - implemented for lifecycle operator semantics: the template now includes
   `_meta/lifecycle-states.yml`, a machine-readable Office/repo state contract with entry
   conditions, user-visible explanations, permitted next actions, exit conditions, and
@@ -68,7 +73,8 @@ Current implementation status:
 - partially implemented: full move/rename UX beyond unique hash matching and ambiguous-move
   conflict detection;
 - not complete: full rename/move UX, rollback automation, automated conversion-quality scoring
-  beyond private operator-entered result packs, and exhaustive conflict-resolution flows.
+  beyond private operator-entered result packs, fully machine-owned mirror rewrites after
+  annotation migration, and exhaustive conflict-resolution flows.
 
 Human review decisions are recorded outside generated artifacts in `_meta/review-ledger.jsonl`.
 The ledger stores artifact paths, hashes, reviewer/status fields, and short metadata notes. It does
