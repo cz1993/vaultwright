@@ -63,6 +63,9 @@ All notable changes to Vaultwright are documented here. Format loosely follows
   code; vault-local `tools/benchmark_tasks.py` remains available as a compatibility surface, and
   package tests cover task/result validation, private scaffolds, and worksheets without the
   vault-local wrapper.
+- The installable `vaultwright pilot` command now runs package-owned `vaultwright.pilot` code and
+  imports package-owned report modules for its aggregate evidence summaries; vault-local
+  `tools/pilot_report.py` remains available as a compatibility surface.
 - The installable `vaultwright recovery` command now runs package-owned `vaultwright.recovery`
   code; vault-local `tools/recovery_report.py` remains available as a compatibility surface, and
   CI smoke tests cover package-level JSON and worksheet output.

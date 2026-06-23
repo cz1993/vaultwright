@@ -23,6 +23,7 @@ from vaultwright import lint as lint_module
 from vaultwright import m365 as m365_module
 from vaultwright import migration as migration_module
 from vaultwright import overlap as overlap_module
+from vaultwright import pilot as pilot_module
 from vaultwright import recovery as recovery_module
 from vaultwright import review_ledger as review_ledger_module
 from vaultwright.annotation_migration import (
@@ -395,6 +396,18 @@ def command_benchmark(args: argparse.Namespace) -> int:
     return benchmark_module.main(benchmark_args(args), root=root)
 
 
+def pilot_args(args: argparse.Namespace) -> list[str]:
+    return (
+        (["--json"] if args.json else [])
+        + (["--worksheet"] if args.worksheet else [])
+    )
+
+
+def command_pilot(args: argparse.Namespace) -> int:
+    root = args.root.expanduser().resolve()
+    return pilot_module.main(pilot_args(args), root=root)
+
+
 def command_doctor(args: argparse.Namespace) -> int:
     root = args.root.expanduser().resolve()
     return doctor_module.main(root=root)
@@ -605,13 +618,7 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Print a redacted Markdown pilot worksheet summary.",
     )
-    pilot.set_defaults(
-        func=command_delegate,
-        delegate_args=lambda args: (
-            (["--json"] if args.json else [])
-            + (["--worksheet"] if args.worksheet else [])
-        ),
-    )
+    pilot.set_defaults(func=command_pilot)
     recovery = sub.add_parser("recovery", help="Print a read-only manifest recovery checklist.")
     recovery_output = recovery.add_mutually_exclusive_group()
     recovery_output.add_argument("--json", action="store_true", help="Print machine-readable recovery JSON.")

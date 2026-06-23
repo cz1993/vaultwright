@@ -2684,6 +2684,149 @@ def test_vaultwright_pilot_report_summarizes_evidence_without_content(tmp_path: 
     assert repo_note.read_text(encoding="utf-8") == before_repo_note
 
 
+def test_packaged_pilot_does_not_require_vault_wrapper_or_local_reports(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    source = vault / "40_delivery" / "client-plan.docx"
+    mirror = vault / "_mirrors" / "40_delivery" / "client-plan.md"
+    source.parent.mkdir(parents=True, exist_ok=True)
+    mirror.parent.mkdir(parents=True, exist_ok=True)
+    source.write_bytes(b"confidential pilot source bytes")
+    mirror.write_text("Generated pilot mirror text that should not appear\n", encoding="utf-8")
+    write_overlap_notes(vault)
+    write_agent_benchmark_fixture(vault)
+    (vault / "_meta" / "source-manifest.json").write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "records": [
+                    {
+                        "source_id": "src-plan",
+                        "current_source_path": "40_delivery/client-plan.docx",
+                        "mirror_path": "_mirrors/40_delivery/client-plan.md",
+                        "source_format": "docx",
+                        "source_size": source.stat().st_size,
+                        "lifecycle_state": "clean",
+                        "warnings": ["Conversion-quality risk: sample warning"],
+                        "errors": [],
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    env = {**os.environ, "PYTHONPATH": str(ROOT / "src")}
+
+    review = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "vaultwright.cli",
+            "--root",
+            str(vault),
+            "review",
+            "--artifact",
+            "_mirrors/40_delivery/client-plan.md",
+            "--status",
+            "needs-work",
+            "--reviewer",
+            "CodeX",
+            "--note",
+            "private reviewer note",
+        ],
+        cwd=ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+    assert review.returncode == 0, review.stderr or review.stdout
+
+    for script in (
+        "vaultwright.py",
+        "pilot_report.py",
+        "conversion_report.py",
+        "recovery_report.py",
+        "overlap_report.py",
+        "benchmark_tasks.py",
+        "review_ledger.py",
+    ):
+        (vault / "tools" / script).unlink()
+
+    result = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "pilot"],
+        cwd=ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+    json_result = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "pilot", "--json"],
+        cwd=ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+    worksheet = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "pilot", "--worksheet"],
+        cwd=ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+    assert "pilot: read-only evidence report; no source content was printed" in result.stdout
+    assert "pilot: conversion available=True high=0 medium=1 low=0" in result.stdout
+    assert "pilot: overlap available=True curated_notes=2 pairs=1 candidates=1" in result.stdout
+    assert "pilot: benchmark available=True tasks=5" in result.stdout
+    assert "pilot: review ledger available=True reviewed=1 stale_or_missing=0 non_approved=1" in result.stdout
+    for forbidden in (
+        "missing tools/vaultwright.py",
+        "pilot_report.py",
+        "conversion_report.py",
+        "recovery_report.py",
+        "overlap_report.py",
+        "benchmark_tasks.py",
+        "review_ledger.py",
+        "confidential pilot source bytes",
+        "Generated pilot mirror text",
+        "Confidential calibration body",
+        "payroll evidence",
+        "private reviewer note",
+        "40_delivery/client-plan.docx",
+        "_mirrors/40_delivery/client-plan.md",
+        str(vault),
+    ):
+        assert forbidden not in result.stdout
+        assert forbidden not in result.stderr
+
+    assert json_result.returncode == 0, json_result.stderr or json_result.stdout
+    payload = json.loads(json_result.stdout)
+    assert payload["report"]["source_manifest"]["records"] == 1
+    assert payload["report"]["conversion"]["summary"]["medium"] == 1
+    assert payload["report"]["overlap"]["summary"]["current_candidates"] == 1
+    assert payload["report"]["benchmark"]["summary"]["tasks"] == 5
+    assert payload["report"]["review"]["summary"]["non_approved"] == 1
+    for forbidden in (
+        "confidential pilot source bytes",
+        "Generated pilot mirror text",
+        "Confidential calibration body",
+        "payroll evidence",
+        "private reviewer note",
+        "40_delivery/client-plan.docx",
+        "_mirrors/40_delivery/client-plan.md",
+        str(vault),
+    ):
+        assert forbidden not in json_result.stdout
+
+    assert worksheet.returncode == 0, worksheet.stderr or worksheet.stdout
+    assert "# Vaultwright Pilot Evidence Summary" in worksheet.stdout
+    assert "Benchmark tasks: available=True tasks=5" in worksheet.stdout
+    assert "Review ledger: available=True reviewed=1 stale_or_missing=0 non_approved=1" in worksheet.stdout
+    assert "40_delivery/client-plan.docx" not in worksheet.stdout
+    assert "_mirrors/40_delivery/client-plan.md" not in worksheet.stdout
+
+
 def test_vaultwright_m365_report_summarizes_handoff_without_content(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     shutil.copytree(ROOT / "template", vault)
