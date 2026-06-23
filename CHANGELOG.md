@@ -11,6 +11,9 @@ All notable changes to Vaultwright are documented here. Format loosely follows
   finish-line matrix.
 - Added an initial package-owned profile contract validator plus `_meta/profile.yml` for the
   current `business-operations` template, establishing the first Stage 1 profile-schema seam.
+- The installable `vaultwright` CLI now supports `init --profile business-operations`,
+  `profile list`, `profile show`, and `profile validate` against the package-owned profile
+  contract.
 - Added `tools/catalog_report.py` and `vaultwright catalog`, which writes a generated
   source-path-only `CATALOG.md` inventory gateway with domain, format, lifecycle, mirror, repo,
   unmanaged-source, and legacy-folder summaries.

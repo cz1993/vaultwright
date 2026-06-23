@@ -17,7 +17,21 @@ bash scripts/init.sh ~/my-business-vault
 ```
 
 `init.sh` copies `template/` into `~/my-business-vault` (the schema, templates, tools, Bases view,
-and the function-based starter folders). It refuses to overwrite a non-empty target.
+and the business-operations starter folders). It refuses to overwrite a non-empty target.
+
+Alternatively, from a source checkout, the package CLI can scaffold and validate the same profile
+contract:
+
+```bash
+python3.11 -m pip install -e .
+vaultwright profile list
+vaultwright init --profile business-operations ~/my-business-vault
+vaultwright --root ~/my-business-vault profile validate
+```
+
+`business-operations` is currently the only packaged profile. The v1 finish line tracks
+research-learning, software-project, and blank profiles, but the CLI intentionally rejects them
+until their profile contracts and fixtures exist.
 
 ## 2. Open it in Obsidian
 

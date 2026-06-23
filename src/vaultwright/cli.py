@@ -8,11 +8,14 @@ command from editable or wheel installs.
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import shutil
 import subprocess
 import sys
 from pathlib import Path
+
+from vaultwright.profiles import ProfileContract, ProfileValidationError, load_profile
 
 
 def template_source() -> Path | None:
@@ -45,12 +48,111 @@ def vault_wrapper(root: Path) -> Path:
     return wrapper
 
 
+def built_in_profile() -> tuple[ProfileContract, Path] | None:
+    template = template_source()
+    if not template:
+        return None
+    path = template / "_meta" / "profile.yml"
+    if not path.exists():
+        return None
+    return load_profile(path), path
+
+
+def print_profile_summary(profile: ProfileContract) -> None:
+    summary = profile.summary()
+    print(f"id: {summary['id']}")
+    print(f"name: {summary['name']}")
+    print(f"profile_version: {summary['profile_version']}")
+    print(f"schema_version: {summary['schema_version']}")
+    print(f"domains: {summary['domains']}")
+    print(f"note_types: {summary['note_types']}")
+    print(f"statuses: {summary['statuses']}")
+    print(f"templates: {summary['templates']}")
+    print(f"views: {summary['views']}")
+
+
+def command_profile_list(args: argparse.Namespace) -> int:
+    try:
+        loaded = built_in_profile()
+    except ProfileValidationError as exc:
+        print(f"profile list: invalid built-in profile: {exc}", file=sys.stderr)
+        return 1
+    if not loaded:
+        print("profile list: no built-in profiles found", file=sys.stderr)
+        return 1
+    profile, _path = loaded
+    if args.json:
+        print(json.dumps([profile.summary()], indent=2, sort_keys=True))
+    else:
+        print("id\tversion\tname")
+        print(f"{profile.id}\t{profile.profile_version}\t{profile.name}")
+    return 0
+
+
+def load_current_profile(root: Path) -> tuple[ProfileContract, Path]:
+    path = root / "_meta" / "profile.yml"
+    if not path.exists():
+        raise ProfileValidationError(f"missing profile: {path}")
+    return load_profile(path), path
+
+
+def command_profile_show(args: argparse.Namespace) -> int:
+    try:
+        if args.profile_id:
+            loaded = built_in_profile()
+            if not loaded:
+                print("profile show: no built-in profiles found", file=sys.stderr)
+                return 1
+            profile, path = loaded
+            if args.profile_id != profile.id:
+                print(f"profile show: unknown built-in profile: {args.profile_id}", file=sys.stderr)
+                return 1
+        else:
+            profile, path = load_current_profile(args.root.expanduser().resolve())
+    except ProfileValidationError as exc:
+        print(f"profile show: {exc}", file=sys.stderr)
+        return 1
+    if args.json:
+        print(json.dumps(profile.as_dict(), indent=2, sort_keys=True))
+    else:
+        print_profile_summary(profile)
+        print(f"path: {path}")
+    return 0
+
+
+def command_profile_validate(args: argparse.Namespace) -> int:
+    root = args.root.expanduser().resolve()
+    path = args.path.expanduser().resolve() if args.path else root / "_meta" / "profile.yml"
+    try:
+        profile = load_profile(path)
+    except ProfileValidationError as exc:
+        print(f"profile validate: {exc}", file=sys.stderr)
+        return 1
+    if args.json:
+        payload = {"ok": True, "path": str(path), "profile": profile.summary()}
+        print(json.dumps(payload, indent=2, sort_keys=True))
+    else:
+        print(f"profile validate: OK {profile.id} {profile.profile_version} (schema {profile.schema_version})")
+    return 0
+
+
 def command_init(args: argparse.Namespace) -> int:
     template = template_source()
     if not template:
         print(
             "vaultwright init cannot find a packaged template. Reinstall Vaultwright or set "
             "VAULTWRIGHT_REPO to a source checkout.",
+            file=sys.stderr,
+        )
+        return 1
+    try:
+        profile = load_profile(template / "_meta" / "profile.yml")
+    except ProfileValidationError as exc:
+        print(f"vaultwright init: invalid packaged profile: {exc}", file=sys.stderr)
+        return 1
+    if args.profile != profile.id:
+        print(
+            f"vaultwright init: profile '{args.profile}' is not available yet; available: {profile.id}",
             file=sys.stderr,
         )
         return 1
@@ -63,6 +165,7 @@ def command_init(args: argparse.Namespace) -> int:
     target.mkdir(parents=True, exist_ok=True)
     shutil.copytree(template, target, dirs_exist_ok=True)
     print(f"Vaultwright vault created at: {target}")
+    print(f"Profile: {profile.id} {profile.profile_version}")
     print("Next: python3.11 tools/vaultwright.py doctor && python3.11 tools/vaultwright.py plan")
     return 0
 
@@ -83,8 +186,30 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command", required=True)
 
     init = sub.add_parser("init", help="Scaffold a new Vaultwright vault from the template.")
+    init.add_argument(
+        "--profile",
+        default="business-operations",
+        help="Profile to initialize. Currently: business-operations.",
+    )
     init.add_argument("target", type=Path)
     init.set_defaults(func=command_init)
+    profile = sub.add_parser("profile", help="Inspect and validate Vaultwright profile contracts.")
+    profile_sub = profile.add_subparsers(dest="profile_command", required=True)
+    profile_list = profile_sub.add_parser("list", help="List built-in profiles.")
+    profile_list.add_argument("--json", action="store_true", help="Print machine-readable profile summaries.")
+    profile_list.set_defaults(func=command_profile_list)
+    profile_show = profile_sub.add_parser("show", help="Show a built-in or current-vault profile.")
+    profile_show.add_argument(
+        "profile_id",
+        nargs="?",
+        help="Built-in profile ID. Omit to show --root/_meta/profile.yml.",
+    )
+    profile_show.add_argument("--json", action="store_true", help="Print machine-readable profile details.")
+    profile_show.set_defaults(func=command_profile_show)
+    profile_validate = profile_sub.add_parser("validate", help="Validate a profile contract.")
+    profile_validate.add_argument("--path", type=Path, help="Profile YAML path. Defaults to --root/_meta/profile.yml.")
+    profile_validate.add_argument("--json", action="store_true", help="Print machine-readable validation result.")
+    profile_validate.set_defaults(func=command_profile_validate)
     for name, help_text in (
         ("plan", "Inventory sources and proposed mirror actions without writing."),
         ("sync", "Run Office and repo mirror syncs."),

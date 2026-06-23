@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
@@ -86,6 +86,22 @@ class ProfileContract:
             policy_defaults=dict(data["policy_defaults"]),
             description=str(data.get("description", "")),
         )
+
+    def as_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+    def summary(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "name": self.name,
+            "profile_version": self.profile_version,
+            "schema_version": self.schema_version,
+            "domains": len(self.domains),
+            "note_types": len(self.note_types),
+            "statuses": len(self.statuses),
+            "templates": len(self.templates),
+            "views": len(self.views),
+        }
 
 
 def validate_string(value: Any, field: str) -> None:

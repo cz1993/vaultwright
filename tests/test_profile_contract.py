@@ -1,4 +1,8 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
+import json
+import os
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -7,6 +11,23 @@ from vaultwright.profiles import ProfileValidationError, load_profile, validate_
 
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def run_cli(*args: str, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
+    env = os.environ.copy()
+    src_path = str(ROOT / "src")
+    env["PYTHONPATH"] = (
+        src_path if not env.get("PYTHONPATH") else f"{src_path}{os.pathsep}{env['PYTHONPATH']}"
+    )
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
+    return subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", *args],
+        cwd=cwd or ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
 
 
 def test_template_business_operations_profile_validates() -> None:
@@ -56,6 +77,47 @@ def test_profile_contract_requires_domain_folders() -> None:
 
     with pytest.raises(ProfileValidationError, match="domains.research.folder"):
         validate_profile_mapping(data)
+
+
+def test_profile_cli_lists_built_in_profile() -> None:
+    result = run_cli("profile", "list")
+
+    assert result.returncode == 0, result.stderr
+    assert "business-operations" in result.stdout
+    assert "version" in result.stdout
+
+
+def test_profile_cli_shows_built_in_profile_json() -> None:
+    result = run_cli("profile", "show", "business-operations", "--json")
+
+    assert result.returncode == 0, result.stderr
+    data = json.loads(result.stdout)
+    assert data["id"] == "business-operations"
+    assert data["schema_version"] == 1
+    assert "customers" in data["domains"]
+
+
+def test_profile_cli_initializes_and_validates_current_profile(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+
+    init = run_cli("init", "--profile", "business-operations", str(vault))
+    assert init.returncode == 0, init.stderr
+    assert "Profile: business-operations 0.1.0" in init.stdout
+
+    validation = run_cli("--root", str(vault), "profile", "validate")
+    assert validation.returncode == 0, validation.stderr
+    assert "profile validate: OK business-operations 0.1.0" in validation.stdout
+
+    current = run_cli("--root", str(vault), "profile", "show", "--json")
+    assert current.returncode == 0, current.stderr
+    assert json.loads(current.stdout)["id"] == "business-operations"
+
+
+def test_profile_cli_rejects_unavailable_init_profile(tmp_path: Path) -> None:
+    result = run_cli("init", "--profile", "research-learning", str(tmp_path / "vault"))
+
+    assert result.returncode == 1
+    assert "not available yet" in result.stderr
 
 
 def minimal_profile() -> dict:

@@ -24,7 +24,7 @@ required migration. New ideas that do not map here move to the post-v1 backlog.
 | ID | Requirement | Current Evidence | Gap To Close | Stage |
 | --- | --- | --- | --- | --- |
 | V1-C1 | One installable cross-platform core package owns runtime behavior | `pyproject.toml` exposes a `vaultwright` console entry point; CI installs package | Runtime still lives primarily in copied `template/tools/` scripts | 1 |
-| V1-C2 | One versioned profile contract | `src/vaultwright/profiles.py` validates schema version 1; `_meta/profile.yml` declares the current `business-operations` template | Need full profile schema docs, profile migration support, and core/linter/catalog behavior reading profile data | 1 |
+| V1-C2 | One versioned profile contract | `src/vaultwright/profiles.py` validates schema version 1; `_meta/profile.yml` declares the current `business-operations` template; package CLI exposes `init --profile business-operations`, `profile list`, `profile show`, and `profile validate` | Need full profile schema docs, profile migration support, and core/linter/catalog behavior reading profile data | 1 |
 | V1-C3 | Three official content profiles plus a blank starter | Existing template approximates `business-operations`; government-services example exercises that profile shape | Need `business-operations`, `research-learning`, `software-project`, and `blank` as package-owned profiles | 2 |
 | V1-C4 | Safe migration path from current business template | Migration reports and frontmatter domain normalization exist | Need workspace/profile migration command that moves from current template to profile contract without source mutation | 1 |
 | V1-C5 | Machine-owned mirrors with preserved human annotations | Mirrors currently preserve above-sentinel notes; manifests and recovery reports protect generated output | Need annotation migration to curated notes or source-ID-keyed sidecars before mirrors become fully disposable | 1 |
@@ -78,6 +78,10 @@ vaultwright explore "question"
 Existing report commands may remain while they are release-critical compatibility surfaces. New
 standalone report commands are not allowed unless they replace existing behavior or map directly to
 a finish-line requirement above.
+
+Current Stage 1 command status: `init --profile business-operations`, `profile list`,
+`profile show`, and `profile validate` are implemented against the package-owned profile contract.
+`profile diff`, `profile migrate`, `index`, and `explore` remain gated future work.
 
 ## Post-V1 Backlog
 

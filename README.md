@@ -85,7 +85,7 @@ Finish-line matrix: [`docs/V1_FINISH_LINE.md`](docs/V1_FINISH_LINE.md).
 
 ```bash
 git clone <this-repo> vaultwright && cd vaultwright
-bash scripts/init.sh ~/my-business-vault     # scaffold a vault from template/
+bash scripts/init.sh ~/my-business-vault     # scaffold the business-operations template
 ```
 
 Then open the vault in Obsidian, point your agent at it (it reads `CLAUDE.md` first), and:
@@ -133,8 +133,15 @@ From a source checkout, the pre-release console entry point is also available:
 
 ```bash
 python3.11 -m pip install -e .
+vaultwright profile list
+vaultwright init --profile business-operations ~/my-business-vault
+vaultwright --root ~/my-business-vault profile validate
 vaultwright --root ~/my-business-vault plan
 ```
+
+`business-operations` is the only packaged profile today. Research/learning, software-project, and
+blank profiles are v1 finish-line work, so the CLI rejects them until their contracts and fixtures
+exist.
 
 Step-by-step: [`docs/quickstart.md`](docs/quickstart.md).
 
