@@ -28,9 +28,11 @@ parts nobody else ships:
    [markitdown](https://github.com/microsoft/markitdown)) and your **GitHub repos** get
    auto-generated markdown **mirrors** that refresh when the original changes (content-hashed,
    idempotent). Office mirrors live under `_mirrors/` so raw source folders stay clean; text-based
-   PDF mirrors are available with `sync_office_md.py --include-pdf`. The original stays the source
-   of truth; the mirror is searchable, linkable, diffable, and easier for agents to inspect than
-   opaque binaries. Your hand-written notes in each mirror are preserved across syncs.
+   PDF mirrors are available with `sync_office_md.py --include-pdf` or by setting
+   `office_mirrors.include_pdf: true` in `_meta/mirror-config.yml` for unattended syncs. The
+   original stays the source of truth; the mirror is searchable, linkable, diffable, and easier for
+   agents to inspect than opaque binaries. Your hand-written notes in each mirror are preserved
+   across syncs.
 2. **Linking-first retrieval.** Maps of Content, entity pages, backlinks, and a frontmatter-driven
    index (Obsidian **Bases**) are the initial retrieval engine. `vaultwright catalog` also
    generates a path-and-metadata-only `CATALOG.md` gateway for reviewers and agents that do not use

@@ -72,6 +72,9 @@ python3.11 tools/vaultwright.py lint            # health check
 `tools/sync_all.sh` runs both syncs + the linter. Schedule it daily on the machine that holds the
 vault:
 
+If the vault should keep text-based PDF mirrors fresh too, set `office_mirrors.include_pdf: true`
+in `_meta/mirror-config.yml`; `sync_all.sh` will honor that setting.
+
 ```cron
 0 7 * * * cd "$HOME/my-business-vault" && bash tools/sync_all.sh >> _tmp/sync.log 2>&1
 ```

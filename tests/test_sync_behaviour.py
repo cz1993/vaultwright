@@ -4561,6 +4561,70 @@ def test_office_sync_supports_legacy_sibling_mode(tmp_path: Path) -> None:
     assert collision is False
 
 
+def test_office_sync_mirror_config_can_include_pdf_sources(tmp_path: Path) -> None:
+    sync = load_office_sync_module()
+    vault = tmp_path / "vault"
+    (vault / "_meta").mkdir(parents=True)
+    (vault / "_meta" / "mirror-config.yml").write_text(
+        "office_mirrors:\n"
+        "  mode: dedicated\n"
+        "  root: _mirrors\n"
+        "  include_pdf: true\n",
+        encoding="utf-8",
+    )
+    docx = vault / "30_customers" / "brief.docx"
+    pdf = vault / "60_finance" / "statement.pdf"
+    docx.parent.mkdir(parents=True)
+    pdf.parent.mkdir(parents=True)
+    docx.write_bytes(b"docx fixture")
+    pdf.write_bytes(b"pdf fixture")
+
+    config = sync.load_mirror_config(vault)
+    discovered = sync.discover(vault, sync.source_extensions(config), config)
+
+    assert config["include_pdf"] is True
+    assert docx in discovered
+    assert pdf in discovered
+
+
+def test_office_sync_defaults_to_excluding_pdf_sources(tmp_path: Path) -> None:
+    sync = load_office_sync_module()
+    vault = tmp_path / "vault"
+    docx = vault / "30_customers" / "brief.docx"
+    pdf = vault / "60_finance" / "statement.pdf"
+    docx.parent.mkdir(parents=True)
+    pdf.parent.mkdir(parents=True)
+    docx.write_bytes(b"docx fixture")
+    pdf.write_bytes(b"pdf fixture")
+
+    config = sync.load_mirror_config(vault)
+    discovered = sync.discover(vault, sync.source_extensions(config), config)
+    override_discovered = sync.discover(vault, sync.source_extensions(config, True), config)
+
+    assert config["include_pdf"] is False
+    assert docx in discovered
+    assert pdf not in discovered
+    assert pdf in override_discovered
+
+
+def test_office_sync_rejects_invalid_include_pdf_config(tmp_path: Path) -> None:
+    sync = load_office_sync_module()
+    vault = tmp_path / "vault"
+    (vault / "_meta").mkdir(parents=True)
+    (vault / "_meta" / "mirror-config.yml").write_text(
+        "office_mirrors:\n"
+        "  include_pdf: sometimes\n",
+        encoding="utf-8",
+    )
+
+    try:
+        sync.load_mirror_config(vault)
+    except ValueError as exc:
+        assert "office_mirrors.include_pdf must be true or false" in str(exc)
+    else:
+        raise AssertionError("invalid include_pdf config was accepted")
+
+
 def test_office_sync_frontmatter_uses_source_relative_path(tmp_path: Path) -> None:
     sync = load_office_sync_module()
     vault = tmp_path / "vault"

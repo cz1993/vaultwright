@@ -138,7 +138,8 @@ when the original changes.
   blocks configured repo entries whose expected generated mirror note is missing, unmanaged, or
   duplicated by another configured repo target.
 - **PDFs** embed natively in Obsidian (`![[file.pdf#page=2]]`); use a light `source-ref` companion
-  when useful, or run `sync_office_md.py --include-pdf` to create a text mirror under `_mirrors/`.
+  when useful, run `sync_office_md.py --include-pdf` for a one-off text mirror, or set
+  `office_mirrors.include_pdf: true` in `_meta/mirror-config.yml` for unattended PDF mirror refresh.
 - **Rules:** edit the original, never a mirror's auto region. Curate only above the sentinel.
   Mirror generation is idempotent (hash/HEAD-based). The Office and repo manifests record stable
   IDs, hashes, mirror paths, lifecycle state, and warnings. Sync events append to

@@ -196,6 +196,10 @@ Edit the **original** Office file, never a mirror's body below the
 By default mirrors are written to `_mirrors/<canonical-source-path>.md`, so source folders stay
 clean even when old folder aliases are still present. Configure `_meta/mirror-config.yml` or pass
 `--mirror-mode sibling` only for legacy vaults.
+PDF text mirrors remain optional because scanned/image-heavy PDFs can extract poorly. For one-off
+runs, pass `--include-pdf`; for cron/launchd and `tools/sync_all.sh`, set
+`office_mirrors.include_pdf: true` in `_meta/mirror-config.yml` so PDF source records keep the same
+manifest lifecycle coverage as Office records.
 
 Successful syncs also maintain `_meta/source-manifest.json`. The manifest records a stable source
 ID, source hash/size, mirror path, converter/config version, lifecycle state, warnings, and last
@@ -348,6 +352,9 @@ an anonymized aggregate has been reviewed separately.
 ```bash
 bash tools/sync_all.sh
 ```
+
+`sync_all.sh` honors `_meta/mirror-config.yml`; set `office_mirrors.include_pdf: true` there when
+the vault should refresh text-based PDF mirrors during unattended runs.
 
 ```cron
 0 7 * * * cd "$HOME/your-vault" && bash tools/sync_all.sh >> _tmp/sync.log 2>&1

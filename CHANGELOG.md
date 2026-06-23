@@ -13,6 +13,8 @@ All notable changes to Vaultwright are documented here. Format loosely follows
   `CATALOG.html` gateway with aggregate charts for reviewers who prefer a browser surface.
 - `vaultwright catalog` now surfaces lifecycle contract provenance from source/repo manifests,
   showing which contract path and schema version govern manifest lifecycle states.
+- `_meta/mirror-config.yml` now supports `office_mirrors.include_pdf: true` so unattended syncs can
+  refresh text-based PDF mirrors and keep PDF source records under lifecycle provenance coverage.
 - CI and release smoke checks now compile and exercise `catalog`, including packaged-template
   installation coverage and Markdown/HTML `catalog --check` freshness validation.
 - Added `docs/MICROSOFT_365_HANDOFF.md` and `vaultwright m365`, a read-only handoff readiness

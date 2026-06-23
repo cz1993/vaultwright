@@ -360,15 +360,28 @@ def safe_rel_path(value: str, label: str) -> Path:
     return path
 
 
-def normalized_mirror_config(mode: str, mirror_root: str) -> dict[str, Path | str]:
+def parse_config_bool(value: object, label: str) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"1", "true", "yes", "on"}:
+            return True
+        if normalized in {"0", "false", "no", "off"}:
+            return False
+    raise ValueError(f"{label} must be true or false")
+
+
+def normalized_mirror_config(mode: str, mirror_root: str, include_pdf: bool = False) -> dict[str, Path | str | bool]:
     if mode not in MIRROR_MODES:
         raise ValueError(f"office_mirrors.mode must be one of: {', '.join(sorted(MIRROR_MODES))}")
-    return {"mode": mode, "root": safe_rel_path(mirror_root, "office_mirrors.root")}
+    return {"mode": mode, "root": safe_rel_path(mirror_root, "office_mirrors.root"), "include_pdf": include_pdf}
 
 
-def load_mirror_config(root: Path, mode_override: str | None = None, root_override: str | None = None) -> dict[str, Path | str]:
+def load_mirror_config(root: Path, mode_override: str | None = None, root_override: str | None = None) -> dict[str, Path | str | bool]:
     mode = DEFAULT_MIRROR_MODE
     mirror_root = DEFAULT_MIRROR_ROOT
+    include_pdf = False
     cfg = root / "_meta" / "mirror-config.yml"
     if cfg.exists():
         data = yaml.safe_load(cfg.read_text(encoding="utf-8")) or {}
@@ -379,11 +392,20 @@ def load_mirror_config(root: Path, mode_override: str | None = None, root_overri
             raise ValueError("office_mirrors must be a mapping")
         mode = str(office.get("mode", mode))
         mirror_root = str(office.get("root", mirror_root))
+        if "include_pdf" in office:
+            include_pdf = parse_config_bool(office.get("include_pdf"), "office_mirrors.include_pdf")
     if mode_override:
         mode = mode_override
     if root_override:
         mirror_root = root_override
-    return normalized_mirror_config(mode, mirror_root)
+    return normalized_mirror_config(mode, mirror_root, include_pdf)
+
+
+def source_extensions(mirror_config: dict[str, Path | str | bool], include_pdf_override: bool | None = None) -> list[str]:
+    include_pdf = bool(mirror_config.get("include_pdf"))
+    if include_pdf_override:
+        include_pdf = True
+    return DEFAULT_EXTS + (PDF_EXTS if include_pdf else [])
 
 
 def assert_output_safe(root: Path, output_path: Path) -> None:
@@ -1501,7 +1523,12 @@ def print_plan_or_status(
 def main():
     ap = argparse.ArgumentParser(description="Sync markdown mirrors of Office files.")
     ap.add_argument("--root", type=Path, default=None, help="Vault root (default: parent of this script).")
-    ap.add_argument("--include-pdf", action="store_true", help="Also mirror text-based PDFs.")
+    ap.add_argument(
+        "--include-pdf",
+        action="store_true",
+        default=None,
+        help="Also mirror text-based PDFs; use _meta/mirror-config.yml for unattended syncs.",
+    )
     ap.add_argument("--force", action="store_true", help="Rebuild even if the source is unchanged.")
     ap.add_argument("--dry-run", action="store_true", help="Report only; write nothing.")
     ap.add_argument("--plan", action="store_true", help="Inventory sources and proposed mirror actions without writing.")
@@ -1516,7 +1543,6 @@ def main():
         sys.exit("--plan and --status are mutually exclusive")
 
     root = (args.root or Path(__file__).resolve().parent.parent).resolve()
-    exts = DEFAULT_EXTS + (PDF_EXTS if args.include_pdf else [])
     try:
         mirror_config = load_mirror_config(root, args.mirror_mode, args.mirror_root)
         manifest = load_source_manifest(root)
@@ -1526,7 +1552,7 @@ def main():
     converter_name = "markitdown"
     converter_version = markitdown_version()
 
-    files = discover(root, exts, mirror_config)
+    files = discover(root, source_extensions(mirror_config, args.include_pdf), mirror_config)
     if args.plan:
         return print_plan_or_status(
             root,

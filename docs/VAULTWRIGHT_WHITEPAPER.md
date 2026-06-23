@@ -140,7 +140,8 @@ while making their contents usable by people and AI agents.**
 The differentiators are:
 
 - **Mirror layer:** Office and repo sources are converted into markdown mirrors that live apart from
-  original files; text-based PDF mirroring is optional with explicit sync flags.
+  original files; text-based PDF mirroring is optional through explicit sync flags or
+  `_meta/mirror-config.yml` for unattended vaults.
 - **Governance:** no-data scanning, provenance ledgers, retention guidance, and explicit agent
   permissions are part of the product, not afterthoughts.
 - **Anti-proliferation:** agents are instructed to consolidate and update before creating more
