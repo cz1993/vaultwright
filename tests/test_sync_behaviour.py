@@ -371,6 +371,26 @@ def test_packaged_plan_sync_status_do_not_require_vault_wrapper(tmp_path: Path) 
     assert "vaultwright status: no tools/repos.yml found; repo status skipped" in results["status"].stdout
 
 
+def test_packaged_doctor_does_not_require_vault_wrapper(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    (vault / "tools" / "vaultwright.py").unlink()
+    env = {**os.environ, "PYTHONPATH": str(ROOT / "src")}
+
+    result = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "doctor"],
+        cwd=ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+    assert "vaultwright doctor: OK" in result.stdout
+    assert "info: lifecycle contract: office=13 states, repo=11 states" in result.stdout
+    assert "missing tools/vaultwright.py" not in result.stderr
+
+
 def test_packaged_vaultwright_cli_runs_target_vault_commands(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     shutil.copytree(ROOT / "template", vault)

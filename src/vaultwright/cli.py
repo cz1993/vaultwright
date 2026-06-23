@@ -16,6 +16,7 @@ import sys
 from pathlib import Path
 
 from vaultwright import catalog as catalog_module
+from vaultwright import doctor as doctor_module
 from vaultwright import lint as lint_module
 from vaultwright.annotation_migration import (
     annotation_migration_plan,
@@ -280,6 +281,11 @@ def command_lint(args: argparse.Namespace) -> int:
     return lint_module.main(root=root)
 
 
+def command_doctor(args: argparse.Namespace) -> int:
+    root = args.root.expanduser().resolve()
+    return doctor_module.main(root=root)
+
+
 def repo_config(root: Path) -> Path:
     return root / "tools" / "repos.yml"
 
@@ -412,10 +418,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("plan", help="Inventory sources and proposed mirror actions without writing.").set_defaults(func=command_plan)
     sub.add_parser("sync", help="Run Office and repo mirror syncs.").set_defaults(func=command_sync)
     sub.add_parser("status", help="Report manifest-backed lifecycle status.").set_defaults(func=command_status)
-    sub.add_parser("doctor", help="Check required files, Python version, and dependencies.").set_defaults(
-        func=command_delegate,
-        delegate_args=[],
-    )
+    sub.add_parser("doctor", help="Check required files, Python version, and dependencies.").set_defaults(func=command_doctor)
     sub.add_parser("lint", help="Run vault health checks.").set_defaults(func=command_lint)
     overlap = sub.add_parser("overlap", help="Print a read-only overlap threshold calibration report.")
     overlap_output = overlap.add_mutually_exclusive_group()

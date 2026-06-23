@@ -186,8 +186,9 @@ not broad industry expansion. Prove the narrow promise first:
 - **Thin operator CLI:** `tools/vaultwright.py plan`, `sync`, `status`, `catalog`, `conversion`,
   `m365`, `review`, `overlap`, `migration`, `pilot`, `recovery`, `sandbox`, `lint`,
   `benchmark`, and `doctor` exist; keep them thin. The source-installable
-  `vaultwright` console entry point now owns `catalog` through the package while remaining legacy
-  operator commands delegate to the same vault-local wrapper during migration. `plan` must remain
+  `vaultwright` console entry point now owns `plan`, `sync`, `status`, `doctor`, `catalog`, and
+  `lint` through the package while remaining legacy operator commands delegate to the same
+  vault-local wrapper during migration. `plan` must remain
   non-destructive; keep improving its sensitive-file risks, duplicate warnings, and
   conversion-quality estimates before writing. `conversion`, `m365`, `migration`, `pilot`, and `recovery` must
   remain read-only operator reports. `review` may append metadata-only decisions to
@@ -217,8 +218,9 @@ not broad industry expansion. Prove the narrow promise first:
 - **Repo mirror:** large-repo handling, rate-limit/backoff, and groundwork for **typed links**.
 
 **P2 — DX & adoption**
-- Distribution-quality **`vaultwright` CLI** packaging around the existing wrapper; richer `doctor`
-  checks for Obsidian config, `gh` auth, network, backup posture, and recovery readiness.
+- Continue shrinking the **`vaultwright` CLI** by moving remaining report runtimes from the existing
+  wrapper into the package; keep doctor checks for Obsidian config, `gh` auth, backup posture, and
+  recovery readiness package-owned.
 - **Industry starter profiles** only after design-partner evidence shows reusable patterns.
 - **Docs site** (MkDocs or Quartz); quickstart polish; screenshots/GIFs.
 - **Typed links** (`supports` / `contradicts` / `supersedes` / `depends-on`) across schema, linter,

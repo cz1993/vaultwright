@@ -93,6 +93,7 @@ def test_ci_workflow_smokes_sandbox_command() -> None:
     text = CI_WORKFLOW.read_text(encoding="utf-8")
 
     assert "src/vaultwright/catalog.py" in text
+    assert "src/vaultwright/doctor.py" in text
     assert "src/vaultwright/annotation_migration.py" in text
     assert "src/vaultwright/profile_migration.py" in text
     assert "template/tools/catalog_report.py" in text
@@ -108,6 +109,7 @@ def test_ci_workflow_smokes_sandbox_command() -> None:
     assert "profile diff 0.1.0" in text
     assert "profile migrate --plan" in text
     assert "migrate annotations --plan" in text
+    assert "--root \"$tmp_vault\" doctor" in text
     assert "--root \"$tmp_vault\" lint" in text
     assert "--root \"$tmp_vault\" plan" in text
     assert "--root \"$tmp_vault\" sync" in text

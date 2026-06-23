@@ -20,7 +20,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e . pytest
       - name: Compile Python tools
-        run: python -m py_compile template/tools/lint_vault.py template/tools/sync_office_md.py template/tools/sync_github_repos.py template/tools/benchmark_tasks.py template/tools/catalog_report.py template/tools/conversion_report.py template/tools/m365_report.py template/tools/migration_report.py template/tools/overlap_report.py template/tools/pilot_report.py template/tools/recovery_report.py template/tools/review_ledger.py template/tools/sandbox_report.py template/tools/vaultwright.py src/vaultwright/annotation_migration.py src/vaultwright/catalog.py src/vaultwright/cli.py src/vaultwright/lint.py src/vaultwright/mirrors/__init__.py src/vaultwright/mirrors/github_repos.py src/vaultwright/mirrors/office.py src/vaultwright/profile_migration.py src/vaultwright/__init__.py scripts/no_data_scan.py scripts/sync_template_copies.py
+        run: python -m py_compile template/tools/lint_vault.py template/tools/sync_office_md.py template/tools/sync_github_repos.py template/tools/benchmark_tasks.py template/tools/catalog_report.py template/tools/conversion_report.py template/tools/m365_report.py template/tools/migration_report.py template/tools/overlap_report.py template/tools/pilot_report.py template/tools/recovery_report.py template/tools/review_ledger.py template/tools/sandbox_report.py template/tools/vaultwright.py src/vaultwright/annotation_migration.py src/vaultwright/catalog.py src/vaultwright/cli.py src/vaultwright/doctor.py src/vaultwright/lint.py src/vaultwright/mirrors/__init__.py src/vaultwright/mirrors/github_repos.py src/vaultwright/mirrors/office.py src/vaultwright/profile_migration.py src/vaultwright/__init__.py scripts/no_data_scan.py scripts/sync_template_copies.py
       - name: Shell syntax
         run: bash -n scripts/init.sh template/tools/sync_all.sh .githooks/pre-commit
       - name: Template copy drift check
@@ -35,6 +35,7 @@ jobs:
           vaultwright --root "$tmp_vault" profile diff 0.1.0
           vaultwright --root "$tmp_vault" profile migrate --plan
           vaultwright --root "$tmp_vault" migrate annotations --plan
+          vaultwright --root "$tmp_vault" doctor
           vaultwright --root "$tmp_vault" lint
           vaultwright --root "$tmp_vault" plan
           vaultwright --root "$tmp_vault" sync

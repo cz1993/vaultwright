@@ -42,6 +42,9 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 - The installable `vaultwright plan`, `vaultwright sync`, and `vaultwright status` commands now
   orchestrate the package-owned Office and repo sync modules directly, while the vault-local
   `tools/vaultwright.py` wrapper remains available for compatibility.
+- The installable `vaultwright doctor` command now runs package-owned preflight checks from
+  `vaultwright.doctor`, including dependency, manifest, lifecycle-contract, recovery, review-ledger,
+  Obsidian, backup, git, and GitHub auth posture checks.
 - Vault health checks now live in package-owned `vaultwright.lint`; vault-local
   `tools/lint_vault.py` is a compatibility shim copied through the package template and examples.
 - Added `tools/catalog_report.py` and `vaultwright catalog`, which writes a generated
