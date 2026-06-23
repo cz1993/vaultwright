@@ -193,8 +193,9 @@ python3.11 tools/sync_office_md.py --include-pdf # also mirror text-based PDFs
 python3.11 tools/sync_office_md.py --mirror-mode sibling # legacy sibling layout
 ```
 
-Edit the **original** Office file, never a mirror's body below the
-`%% AUTO-GENERATED BELOW — DO NOT EDIT %%` sentinel. Curate notes only in the `## Notes` region.
+Edit the **original** Office file, never a generated mirror body. If a legacy mirror already has
+above-sentinel annotations, run `vaultwright migrate annotations --write` before refreshing it.
+Keep durable human notes in regular curated notes or `_meta/mirror-annotations/` sidecars.
 By default mirrors are written to `_mirrors/<canonical-source-path>.md`, so source folders stay
 clean even when old folder aliases are still present. Configure `_meta/mirror-config.yml` or pass
 `--mirror-mode sibling` only for legacy vaults.

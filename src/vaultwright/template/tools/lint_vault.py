@@ -678,6 +678,7 @@ def default_preserved_line(line: str) -> bool:
         or stripped == "> Curate notes below; everything under the line refreshes on each sync."
         or stripped == "> Curate notes below; everything under the line refreshes on sync."
         or stripped == "> This mirror is machine-owned; do not edit it directly."
+        or stripped == "> This mirror is machine-owned; keep durable human notes in curated notes or annotation sidecars."
     )
 
 def preserved_body_has_annotation(body: str) -> bool:

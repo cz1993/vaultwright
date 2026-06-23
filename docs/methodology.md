@@ -27,8 +27,9 @@ the original stays the editable source of truth.
 - **PDFs** → embed natively in Obsidian; a light `source-ref` companion when useful, or an optional
   `_mirrors/` text mirror with `sync_office_md.py --include-pdf` for one-off runs or
   `office_mirrors.include_pdf: true` in `_meta/mirror-config.yml` for unattended syncs.
-- Each mirror has a **curated region** (preserved across syncs) and an **auto region** below a
-  sentinel line (regenerated). Edit the original, never the auto region.
+- Each mirror has a machine-owned prelude and an **auto region** below a sentinel line
+  (regenerated). Edit the original, never the generated mirror body. Keep durable human notes in
+  curated notes or migrate legacy mirror annotations into `_meta/mirror-annotations/` sidecars.
 
 This is Vaultwright's core technical idea and its main differentiator — see `positioning.md`.
 The human-visible knowledge base is important, but the generated markdown layer is also an

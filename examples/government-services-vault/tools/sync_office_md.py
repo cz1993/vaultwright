@@ -9,8 +9,11 @@ truth; the mirror makes its content searchable, linkable, and visible in Obsidia
 refreshes when the original changes (detected by content hash, so runs are idempotent and cheap).
 
 Each mirror has two regions:
-  • a human-curated region (frontmatter + a `## Notes` section) — PRESERVED across syncs
+  • a machine-owned prelude and frontmatter
   • an auto-generated region below the sentinel line — REGENERATED from the original
+
+Legacy above-sentinel mirror annotations must be migrated with
+`vaultwright migrate annotations --write` before sync refreshes the mirror.
 
 Usage:
   python3.11 tools/sync_office_md.py                 # sync the whole vault (dir of this script's parent)
@@ -75,6 +78,11 @@ ANNOTATION_ROOT = Path("_meta/mirror-annotations")
 MANIFEST_SCHEMA_VERSION = 1
 CONFIG_VERSION = "office-mirrors:v1"
 XLSX_CONFIG_VERSION = "office-mirrors:v2"
+ANNOTATION_MIGRATION_REQUIRED_WARNING = (
+    "Unmigrated mirror annotations found above the generated sentinel; "
+    "run `vaultwright migrate annotations --write` before syncing."
+)
+DEFAULT_ANNOTATION_FRONTMATTER_KEYS = {"title", "domain", "owner", "created", "updated"}
 MIRROR_MODES = {"dedicated", "sibling"}
 FORBIDDEN_MIRROR_PARTS = {
     ".git", ".githooks", ".github", ".obsidian", "_archive", "_fixtures",
@@ -507,8 +515,7 @@ def fresh_preserved_region(src: Path, root: Path) -> str:
     return (
         f"> [!info] Source-mirrored document — auto-generated\n"
         f"> Original: [[{source_rel}|{src.name}]] · edit the **original**, never this mirror.\n"
-        f"> Curate notes below; everything under the line refreshes on each sync.\n\n"
-        f"## Notes\n\n\n"
+        f"> This mirror is machine-owned; keep durable human notes in curated notes or annotation sidecars.\n\n"
     )
 
 
@@ -747,6 +754,66 @@ def machine_owned_preserved_region(src: Path, root: Path, sidecar_rel: Path) -> 
         f"> Human annotations were migrated to [[{sidecar_rel.as_posix()}|{sidecar_rel.name}]].\n"
         f"> This mirror is machine-owned; do not edit it directly.\n\n"
     )
+
+
+def default_preserved_line(line: str) -> bool:
+    stripped = line.strip()
+    return (
+        not stripped
+        or stripped == "## Notes"
+        or stripped.startswith("# ")
+        or stripped == "> [!info] Source-mirrored document — auto-generated"
+        or stripped.startswith("> Original: ")
+        or stripped.startswith("> Human annotations were migrated to ")
+        or stripped == "> Curate notes below; everything under the line refreshes on each sync."
+        or stripped == "> This mirror is machine-owned; do not edit it directly."
+        or stripped == "> This mirror is machine-owned; keep durable human notes in curated notes or annotation sidecars."
+    )
+
+
+def preserved_body_has_annotation(body: str) -> bool:
+    return any(not default_preserved_line(line) for line in body.splitlines())
+
+
+def frontmatter_has_annotation(existing_fm: dict | None) -> bool:
+    preserved = preserved_annotation_frontmatter(existing_fm)
+    for key, value in preserved.items():
+        if key in DEFAULT_ANNOTATION_FRONTMATTER_KEYS:
+            continue
+        if key == "status" and str(value or "").strip() in {"", "active", "draft"}:
+            continue
+        if key in {"tags", "related"} and value in (None, "", []):
+            continue
+        if value in (None, "", []):
+            continue
+        return True
+    return False
+
+
+def annotation_migration_required(
+    root: Path,
+    *,
+    source_id: str,
+    mirror_path: str,
+    existing_fm: dict | None,
+    existing_body: str,
+    source: str,
+) -> bool:
+    if not existing_body:
+        return False
+    preserved, sentinel_found = split_body_at_sentinel(existing_body)
+    if not sentinel_found:
+        return False
+    if not (preserved_body_has_annotation(preserved) or frontmatter_has_annotation(existing_fm)):
+        return False
+    return annotation_sidecar_matches(
+        root,
+        source_id=source_id,
+        mirror_path=mirror_path,
+        existing_fm=existing_fm,
+        preserved_body=preserved,
+        source=source,
+    ) is None
 
 
 def source_manifest_path(root: Path) -> Path:
@@ -1125,10 +1192,11 @@ def plan_one(
     )
     moved_source_has_previous_mirror = bool(previous_mirror_rel and (moved_from or previous_mirror_is_source_move))
     existing_fm = None
+    existing_body = ""
     existing_generated_hash = None
     if mirror.exists():
         mirror_text = mirror.read_text(encoding="utf-8", errors="ignore")
-        existing_fm, _body = split_frontmatter(mirror_text)
+        existing_fm, existing_body = split_frontmatter(mirror_text)
         existing_generated_hash = generated_region_hash(mirror_text)
     stored_generated_hash = (existing_record or {}).get("generated_region_sha256")
     missing_generated_baseline = bool(mirror.exists() and not stored_generated_hash)
@@ -1209,6 +1277,17 @@ def plan_one(
             action = "review"
             lifecycle_state = "manual_modification"
             warnings.append("Existing mirror has no manifest-generated baseline; review or force-regenerate before trusting it.")
+        elif annotation_migration_required(
+            root,
+            source_id=source_id,
+            mirror_path=mirror_rel,
+            existing_fm=existing_fm if isinstance(existing_fm, dict) else None,
+            existing_body=existing_body,
+            source=source_rel,
+        ):
+            action = "review"
+            lifecycle_state = "manual_modification"
+            warnings.append(ANNOTATION_MIGRATION_REQUIRED_WARNING)
         elif existing_record and existing_record.get("converter_version") != converter_version:
             action = "update"
             lifecycle_state = "converter_changed"
@@ -1367,6 +1446,7 @@ def review_blocks_force(record: dict) -> bool:
     force_blockers = (
         "Generated region sentinel is missing",
         "no manifest-generated baseline",
+        "Unmigrated mirror annotations found",
     )
     return any(any(blocker in str(warning) for blocker in force_blockers) for warning in warnings)
 
@@ -1471,7 +1551,7 @@ def sync_one(
         if matched_annotation_sidecar:
             preserved = machine_owned_preserved_region(src, root, matched_annotation_sidecar)
         else:
-            preserved = preserved_prefix.rstrip() + "\n\n"
+            preserved = fresh_preserved_region(src, root)
     elif existing_body:
         preserved = existing_body.rstrip() + "\n\n"
     else:

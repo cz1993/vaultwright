@@ -82,9 +82,10 @@ operator contract used by sync.
 Important limitation: without the old manifest, Vaultwright cannot prove whether an existing
 generated region is pristine. Existing Office and repo mirrors without a manifest-generated baseline
 are treated as review-required, and `--force` will not accept them as clean. If the sentinel boundary
-is valid, preserve curated notes above it and regenerate from the original source. If the sentinel is
-missing or altered, restore the mirror from backup or remove the untrusted mirror after preserving
-any known-curated notes elsewhere, then regenerate from the source.
+is valid, run `vaultwright migrate annotations --write` to preserve any legacy above-sentinel
+annotations before regenerating from the original source. If the sentinel is missing or altered,
+restore the mirror from backup or remove the untrusted mirror after preserving any known-curated
+notes elsewhere, then regenerate from the source.
 
 ## Recovery Report
 
@@ -152,8 +153,8 @@ previous generated mirror after review. Vaultwright will not write the new mirro
 old generated mirror still exists, because that would leave two generated notes claiming the same
 source.
 
-For Office `source_moved` records with `previous_mirror_path`, preserve any curated notes in the
-old mirror, then move, archive, or remove that previous generated mirror. Vaultwright will not
+For Office `source_moved` records with `previous_mirror_path`, migrate any legacy annotations from
+the old mirror, then move, archive, or remove that previous generated mirror. Vaultwright will not
 write the new mirror path while the old generated mirror still exists.
 
 For Office `conflict` records with `ambiguous_move_candidates`, do not force sync. Multiple missing

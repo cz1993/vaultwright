@@ -8,8 +8,9 @@ repo's README, docs, and metadata — refreshed when the repo's HEAD changes. Th
 GitHub stays the source of truth; the mirror makes its knowledge searchable, linkable, and
 visible in Obsidian. Idempotent: a quick `git ls-remote` checks HEAD before cloning.
 
-Curated `## Notes` (above the sentinel) and your frontmatter (tags/related/status/…) are
-preserved across syncs. Only the auto region below the sentinel is regenerated.
+Mirrors are machine-owned. Legacy above-sentinel mirror annotations must be migrated with
+`vaultwright migrate annotations --write` before sync refreshes the mirror. Only the auto region
+below the sentinel is regenerated.
 
 AUTH (read-only is enough): either
   • `gh auth login` once (git credential helper + `gh auth token`), or
@@ -41,6 +42,12 @@ AUDIT_REL = Path("_meta/sync-audit.jsonl")
 ANNOTATION_ROOT = Path("_meta/mirror-annotations")
 MANIFEST_SCHEMA_VERSION = 1
 CONFIG_VERSION = "repo-mirrors:v1"
+ANNOTATION_MIGRATION_REQUIRED_WARNING = (
+    "Unmigrated repo mirror annotations found above the generated sentinel; "
+    "run `vaultwright migrate annotations --write` before syncing."
+)
+DEFAULT_ANNOTATION_FRONTMATTER_KEYS = {"title", "domain", "owner", "created", "updated"}
+PROFILE_CONTEXT_KEYS = {"account", "client", "program", "vendor"}
 LIFECYCLE_CONTRACT_REL = Path("_meta/lifecycle-states.yml")
 MANAGED = {"type", "repo_id", "repo_manifest", "repo", "repo_url", "default_branch", "last_commit",
            "last_commit_date", "open_issues", "synced", "updated"}
@@ -496,6 +503,103 @@ def machine_owned_preserved(repo: str, url: str, sidecar_rel: Path) -> str:
     )
 
 
+def default_preserved_line(line: str) -> bool:
+    stripped = line.strip()
+    return (
+        not stripped
+        or stripped == "## Notes"
+        or stripped.startswith("# ")
+        or stripped == "> [!info] GitHub repo mirror — auto-generated"
+        or stripped.startswith("> Source: ")
+        or stripped.startswith("> Human annotations were migrated to ")
+        or stripped == "> Curate notes below; everything under the line refreshes on sync."
+        or stripped == "> This mirror is machine-owned; do not edit it directly."
+        or stripped == "> This mirror is machine-owned; keep durable human notes in curated notes or annotation sidecars."
+    )
+
+
+def preserved_body_has_annotation(body: str) -> bool:
+    return any(not default_preserved_line(line) for line in body.splitlines())
+
+
+def repo_seed_frontmatter(entry: dict) -> dict[str, object]:
+    seed: dict[str, object] = {
+        "tags": entry.get("tags", ["repo"]),
+        "related": entry.get("related", []),
+    }
+    account = entry.get("account") or entry.get("client")
+    if account:
+        seed["account"] = str(account)
+        seed["client"] = str(account)
+    for key in ("program", "vendor"):
+        if entry.get(key):
+            seed[key] = str(entry[key])
+    return seed
+
+
+def frontmatter_has_annotation(existing_fm: dict | None, entry: dict) -> bool:
+    preserved = preserved_annotation_frontmatter(existing_fm)
+    seed = repo_seed_frontmatter(entry)
+    for key, value in preserved.items():
+        if key in DEFAULT_ANNOTATION_FRONTMATTER_KEYS:
+            continue
+        if key == "status" and str(value or "").strip() in {"", "active", "draft"}:
+            continue
+        if key == "tags":
+            tags = value if isinstance(value, list) else []
+            clean_tags = {str(item).strip() for item in tags if str(item).strip()}
+            raw_expected = seed.get("tags", ["repo"])
+            expected_items = raw_expected if isinstance(raw_expected, list) else []
+            expected_tags = {str(item).strip() for item in expected_items if str(item).strip()}
+            if not clean_tags or clean_tags <= expected_tags:
+                continue
+            return True
+        if key == "related":
+            related = value if isinstance(value, list) else []
+            clean_related = {str(item).strip() for item in related if str(item).strip()}
+            raw_expected = seed.get("related", [])
+            expected_items = raw_expected if isinstance(raw_expected, list) else []
+            expected_related = {str(item).strip() for item in expected_items if str(item).strip()}
+            if not clean_related or clean_related <= expected_related:
+                continue
+            return True
+        if key in PROFILE_CONTEXT_KEYS and value in (None, "", []):
+            continue
+        if key in PROFILE_CONTEXT_KEYS and seed.get(key) == str(value or "").strip():
+            continue
+        if value in (None, "", []):
+            continue
+        return True
+    return False
+
+
+def annotation_migration_required(
+    root: Path,
+    *,
+    repo_id: str,
+    mirror_path: str,
+    existing_fm: dict | None,
+    existing_body: str,
+    repo: str,
+    entry: dict,
+) -> bool:
+    if not existing_body:
+        return False
+    preserved, sentinel_found = split_body_at_sentinel(existing_body)
+    if not sentinel_found:
+        return False
+    if not (preserved_body_has_annotation(preserved) or frontmatter_has_annotation(existing_fm, entry)):
+        return False
+    return annotation_sidecar_matches(
+        root,
+        repo_id=repo_id,
+        mirror_path=mirror_path,
+        existing_fm=existing_fm,
+        preserved_body=preserved,
+        repo=repo,
+    ) is None
+
+
 def repo_note_conflict(existing_fm: dict, body: str, expected_repo_id: str) -> str | None:
     if not existing_fm and not body:
         return None
@@ -538,6 +642,7 @@ def review_blocks_force(record: dict) -> bool:
     force_blockers = (
         "generated sentinel",
         "no manifest-generated baseline",
+        "unmigrated repo mirror annotations",
     )
     return any(any(blocker in str(warning).lower() for blocker in force_blockers) for warning in warnings)
 
@@ -681,8 +786,7 @@ def fresh_preserved(slug, entry):
     url = entry.get("repo_url") or (f"local:{entry['local_path']}" if entry.get("local_path") else f"https://github.com/{slug}")
     return (f"> [!info] GitHub repo mirror — auto-generated\n"
             f"> Source: {slug} ({url}). Edit the source repo, never this note.\n"
-            f"> Curate notes below; everything under the line refreshes on sync.\n\n"
-            f"## Notes\n\n\n")
+            f"> This mirror is machine-owned; keep durable human notes in curated notes or annotation sidecars.\n\n")
 
 
 def domain_from_notes_dir(notes_dir: str) -> str:
@@ -914,6 +1018,18 @@ def plan_one(entry, settings, token, manifest):
         action = "review"
         lifecycle_state = "manual_modification"
         warnings.append("Generated region changed since the last successful repo sync.")
+    elif annotation_migration_required(
+        ROOT,
+        repo_id=repo_id,
+        mirror_path=note_rel,
+        existing_fm=existing_fm,
+        existing_body=existing_body,
+        repo=str(existing_fm.get("repo") or resolved_repo or repo),
+        entry=entry,
+    ):
+        action = "review"
+        lifecycle_state = "manual_modification"
+        warnings.append(ANNOTATION_MIGRATION_REQUIRED_WARNING)
     elif not last_commit:
         action = "create" if not note_path.exists() else "skip"
         lifecycle_state = "unreachable"
@@ -1119,7 +1235,7 @@ def sync_one(entry, settings, token, force, dry, trusted_existing_baseline=False
         preserved = machine_owned_preserved(repo_for_annotation, repo_url, matched_annotation_sidecar)
         frontmatter_source = {}
     else:
-        preserved = preserved_prefix if sentinel_found else fresh_preserved(entry["repo"], entry)
+        preserved = fresh_preserved(entry["repo"], entry)
         frontmatter_source = existing_fm
 
     try:

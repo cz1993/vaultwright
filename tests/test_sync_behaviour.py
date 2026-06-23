@@ -14,6 +14,7 @@ from vaultwright.annotation_migration import annotation_migration_plan, write_an
 
 
 ROOT = Path(__file__).resolve().parents[1]
+SENTINEL = "%% AUTO-GENERATED BELOW — DO NOT EDIT %%"
 
 
 class FakeConversion:
@@ -3414,9 +3415,9 @@ def test_vaultwright_recovery_reports_manifest_actions(tmp_path: Path) -> None:
     assert "state explanation: Vaultwright retains the mirror and manifest record for review instead of deleting evidence." in result.stdout
     assert "exit condition: The source is restored, a move is resolved, or the manifest/mirror is deliberately retired." in result.stdout
     assert "[office:manual_modification" in result.stdout
-    assert "Preserve human edits below the sentinel" in result.stdout
+    assert "Migrate legacy annotations or preserve human edits in curated notes" in result.stdout
     assert "[office:source_moved" in result.stdout
-    assert "preserve/archive any old mirror" in result.stdout
+    assert "migrate/archive any old mirror annotations" in result.stdout
     assert "previous target: _mirrors/40_delivery/registration.md (exists reason=source_moved)" in result.stdout
     assert "previous target: _mirrors/40_delivery/registration.md (exists reason=mirror_location_changed)" in result.stdout
     assert (
@@ -3968,7 +3969,7 @@ def test_github_sync_writes_manifest_audit_and_status_for_local_repo(tmp_path: P
     assert "clean=1" in status_result.stdout
 
 
-def test_github_sync_populates_stub_and_preserves_curation(tmp_path: Path, monkeypatch) -> None:
+def test_github_sync_populates_stub_without_carrying_in_mirror_notes(tmp_path: Path, monkeypatch) -> None:
     sync = load_sync_module()
     vault = tmp_path / "vault"
     monkeypatch.setattr(sync, "ROOT", vault)
@@ -4002,8 +4003,6 @@ def test_github_sync_populates_stub_and_preserves_curation(tmp_path: Path, monke
     assert stub_fm["account"] == "[[Acme Manufacturing]]"
     assert stub_fm["client"] == "[[Acme Manufacturing]]"
 
-    curated_stub = stub_text.replace("## Notes\n\n", "## Notes\n\nCurated triage note.\n\n", 1)
-    note.write_text(curated_stub, encoding="utf-8")
     fixture = vault / "_fixtures" / "private-service"
     fixture.mkdir(parents=True)
     (fixture / "README.md").write_text("# Private Service\n\nOperational runbook.\n", encoding="utf-8")
@@ -4034,7 +4033,7 @@ def test_github_sync_populates_stub_and_preserves_curation(tmp_path: Path, monke
     assert populated_fm["tags"] == ["private"]
     assert populated_fm["related"] == ["[[Source Access]]"]
     assert populated_fm["account"] == "[[Acme Manufacturing]]"
-    assert "Curated triage note." in populated_text
+    assert "Curated triage note." not in populated_text
     assert "Not yet synced" not in populated_text
     assert "## `README.md`" in populated_text
     assert "Operational runbook." in populated_text
@@ -4157,6 +4156,65 @@ def test_github_sync_reports_manual_generated_region_modification(tmp_path: Path
     assert "Manual edit below sentinel" in note.read_text(encoding="utf-8")
 
 
+def test_github_sync_blocks_unmigrated_mirror_annotations(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    tools = vault / "tools"
+    fixture = vault / "_fixtures" / "repo"
+    tools.mkdir(parents=True)
+    fixture.mkdir(parents=True)
+    (fixture / "README.md").write_text("# Fixture\n", encoding="utf-8")
+    shutil.copy(ROOT / "template/tools/sync_github_repos.py", tools / "sync_github_repos.py")
+    (tools / "repos.yml").write_text(
+        "settings:\n"
+        "  notes_dir: 80_sources/repos\n"
+        "repos:\n"
+        "  - repo: local/fixture\n"
+        "    local_path: _fixtures/repo\n"
+        "    note: fixture.md\n",
+        encoding="utf-8",
+    )
+    first = subprocess.run(
+        [sys.executable, str(tools / "sync_github_repos.py")],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+    assert first.returncode == 0, first.stderr or first.stdout
+
+    note = vault / "80_sources" / "repos" / "fixture.md"
+    annotated_text = note.read_text(encoding="utf-8").replace(
+        f"{SENTINEL}\n",
+        f"Human repo note.\n\n{SENTINEL}\n",
+        1,
+    )
+    note.write_text(annotated_text, encoding="utf-8")
+    (fixture / "README.md").write_text("# Fixture v2\n", encoding="utf-8")
+
+    second = subprocess.run(
+        [sys.executable, str(tools / "sync_github_repos.py"), "--force"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+    status = subprocess.run(
+        [sys.executable, str(tools / "sync_github_repos.py"), "--status"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert second.returncode == 0, second.stderr or second.stdout
+    assert "skipped:manual_modification" in second.stdout
+    assert note.read_text(encoding="utf-8") == annotated_text
+    assert status.returncode == 0, status.stderr or status.stdout
+    assert "review:manual_modification" in status.stdout
+    manifest = json.loads((vault / "_meta" / "repo-manifest.json").read_text(encoding="utf-8"))
+    assert any(
+        "Unmigrated repo mirror annotations found above the generated sentinel" in warning
+        for warning in manifest["records"][0]["warnings"]
+    )
+
+
 def test_github_sync_with_annotation_sidecar_makes_mirror_machine_owned(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     tools = vault / "tools"
@@ -4183,7 +4241,11 @@ def test_github_sync_with_annotation_sidecar_makes_mirror_machine_owned(tmp_path
     assert first.returncode == 0, first.stderr or first.stdout
     note = vault / "80_sources" / "repos" / "fixture.md"
     note.write_text(
-        note.read_text(encoding="utf-8").replace("## Notes\n", "## Notes\n\nHuman repo note.\n", 1),
+        note.read_text(encoding="utf-8").replace(
+            f"{SENTINEL}\n",
+            f"Human repo note.\n\n{SENTINEL}\n",
+            1,
+        ),
         encoding="utf-8",
     )
 
@@ -4867,7 +4929,7 @@ def test_office_sync_writes_manifest_and_preserves_source_bytes(tmp_path: Path) 
     assert saved["records"][0]["source_id"].startswith("src_")
 
 
-def test_office_sync_update_preserves_frontmatter_and_curated_notes(tmp_path: Path) -> None:
+def test_office_sync_blocks_unmigrated_mirror_annotations(tmp_path: Path) -> None:
     sync = load_office_sync_module()
     vault = tmp_path / "vault"
     source = vault / "40_delivery" / "registration.docx"
@@ -4889,34 +4951,33 @@ def test_office_sync_update_preserves_frontmatter_and_curated_notes(tmp_path: Pa
     first_fm["tags"] = ["delivery", "mirror"]
     first_fm["related"] = ["[[CRA Business Registration Hub]]"]
     first_fm["reviewed_by"] = "cz1993"
-    curated_body = first_body.replace("## Notes\n\n\n", "## Notes\n\nCurated delivery note.\n\n", 1)
-    mirror.write_text(sync.dump_frontmatter(first_fm) + "\n" + curated_body, encoding="utf-8")
+    curated_body = first_body.replace(f"{SENTINEL}\n", f"Curated delivery note.\n\n{SENTINEL}\n", 1)
+    annotated_text = sync.dump_frontmatter(first_fm) + "\n" + curated_body
+    mirror.write_text(annotated_text, encoding="utf-8")
 
     source.write_bytes(b"office bytes v2")
     loaded = sync.load_source_manifest(vault)
     plan = sync.plan_one(source, vault, config, {}, loaded, "markitdown", "test")
-    second_status = sync.sync_one(source, vault, FakeConverter(), False, False, config, {}, loaded, "markitdown", "test")
+    second_status = sync.sync_one(source, vault, FakeConverter(), True, False, config, {}, loaded, "markitdown", "test")
     sync.write_source_manifest(vault, loaded)
     updated_text = mirror.read_text(encoding="utf-8")
-    updated_fm, _updated_body = sync.split_frontmatter(updated_text)
     updated_record = sync.load_source_manifest(vault)["records"][0]
 
     assert first_status == "created"
-    assert plan["action"] == "update"
-    assert second_status == "updated"
-    assert "Curated delivery note." in updated_text
-    assert updated_fm["status"] == "reviewed"
-    assert updated_fm["owner"] == "operations"
-    assert updated_fm["tags"] == ["delivery", "mirror"]
-    assert updated_fm["related"] == ["[[CRA Business Registration Hub]]"]
-    assert updated_fm["reviewed_by"] == "cz1993"
-    assert updated_fm["type"] == "source-mirror"
-    assert updated_fm["source_id"] == source_id
-    assert updated_fm["source"] == "40_delivery/registration.docx"
-    assert updated_fm["source_sha256"] == sync.sha256_of(source)
-    assert updated_fm["source_sha256"] != first_source_sha
+    assert plan["action"] == "review"
+    assert plan["record"]["lifecycle_state"] == "manual_modification"
+    assert any(
+        "Unmigrated mirror annotations found above the generated sentinel" in warning
+        for warning in plan["record"]["warnings"]
+    )
+    assert second_status == "skipped:manual_modification"
+    assert updated_text == annotated_text
     assert updated_record["source_id"] == first_record["source_id"]
-    assert updated_record["lifecycle_state"] == "clean"
+    assert updated_record["source_sha256"] == sync.sha256_of(source)
+    assert updated_record["source_sha256"] != first_source_sha
+    assert updated_record["lifecycle_state"] == "manual_modification"
+    assert "Curated delivery note." in updated_text
+    assert "reviewed_by: cz1993" in updated_text
 
 
 def test_office_sync_with_annotation_sidecar_makes_mirror_machine_owned(tmp_path: Path) -> None:
@@ -4935,7 +4996,7 @@ def test_office_sync_with_annotation_sidecar_makes_mirror_machine_owned(tmp_path
     first_fm["tags"] = ["delivery", "mirror"]
     first_fm["related"] = ["[[CRA Business Registration Hub]]"]
     first_fm["reviewed_by"] = "cz1993"
-    curated_body = first_body.replace("## Notes\n\n\n", "## Notes\n\nCurated delivery note.\n\n", 1)
+    curated_body = first_body.replace(f"{SENTINEL}\n", f"Curated delivery note.\n\n{SENTINEL}\n", 1)
     mirror.write_text(sync.dump_frontmatter(first_fm) + "\n" + curated_body, encoding="utf-8")
 
     migration_plan = annotation_migration_plan(vault)

@@ -31,12 +31,12 @@ ATOMIC_TEMP_RE = re.compile(r"^\..+\.\d+\.tmp$")
 OFFICE_ACTIONS = {
     "planned": "Run plan review, then sync to create the generated mirror.",
     "source_changed": "Run sync to refresh the generated region, then review linked curated notes.",
-    "source_moved": "Confirm the move is intentional, preserve/archive any old mirror, then run sync to update the mirror path.",
+    "source_moved": "Confirm the move is intentional, migrate/archive any old mirror annotations, then run sync to update the mirror path.",
     "stale": "Run sync before relying on the mirror; the source or configuration is newer.",
     "converter_changed": "Review conversion quality, then sync if the new converter output is acceptable.",
     "unsupported": "Keep the original as source of truth; convert manually or use a supported format.",
     "source_missing": "Locate, restore, or intentionally archive the source before changing the retained mirror.",
-    "manual_modification": "Preserve human edits below the sentinel before forcing regeneration.",
+    "manual_modification": "Migrate legacy annotations or preserve human edits in curated notes before forcing regeneration.",
     "conflict": "Resolve the mirror/source identity conflict before syncing.",
     "error": "Fix the reported error, then rerun plan/status before syncing.",
 }
@@ -47,7 +47,7 @@ REPO_ACTIONS = {
     "stale": "Run sync before relying on the mirror; the repo or configuration is newer.",
     "unreachable": "Check repo spelling, network access, and GitHub auth; existing mirror content is retained.",
     "repo_unconfigured": "Confirm whether the repo mirror is retired, restore its repos.yml entry, or archive/remove the mirror deliberately.",
-    "manual_modification": "Preserve human edits below the sentinel before forcing regeneration.",
+    "manual_modification": "Migrate legacy annotations or preserve human edits in curated notes before forcing regeneration.",
     "conflict": "Resolve the target note/repo identity conflict before syncing.",
     "error": "Fix the reported error, then rerun plan/status before syncing.",
 }
@@ -552,7 +552,7 @@ def print_worksheet(root: Path, items: list[dict], warnings: list[str], errors: 
     print("- Confirm the copied vault is backed up before changing files.")
     print("- Resolve one item at a time, then rerun `vaultwright status` and `vaultwright recovery`.")
     print("- Preserve or archive retained generated mirrors before regenerating moved or conflicted paths.")
-    print("- For manual modifications, preserve human edits below the sentinel before forcing regeneration.")
+    print("- For manual modifications, migrate legacy annotations or preserve human edits in curated notes before forcing regeneration.")
     print("- For unreachable repos, verify repo identity, network access, and GitHub auth before editing mirrors.")
     print("- For unconfigured repos, confirm retirement before archiving mirrors or removing manifest records.")
     print("- Run `vaultwright catalog` and `vaultwright lint` after recovery work is complete.")
@@ -752,7 +752,7 @@ def print_runbook(root: Path, items: list[dict], warnings: list[str], errors: li
     print("- Work in a copied vault or verified backup before changing mirrors, manifests, or config.")
     print("- Resolve one recovery class at a time; do not combine source moves, repo retirements, and manual edits in one batch.")
     print("- Treat original Office files and source repos as authoritative; generated markdown is replaceable evidence.")
-    print("- Preserve curated notes above generated sentinels before deleting, moving, or regenerating mirrors.")
+    print("- Migrate legacy mirror annotations before deleting, moving, or regenerating mirrors.")
     print("- After every batch, rerun `vaultwright status`, `vaultwright recovery`, `vaultwright catalog`, and `vaultwright lint`.")
     print()
 
@@ -763,7 +763,7 @@ def print_runbook(root: Path, items: list[dict], warnings: list[str], errors: li
         protocol=[
             "Locate the original source in the source collection, cloud version history, Git history, or backup.",
             "If the source still belongs in the vault, restore it to the manifest path and rerun sync/status.",
-            "If the source was intentionally retired, preserve any curated mirror notes before archiving the mirror and retiring manifest state.",
+            "If the source was intentionally retired, migrate any legacy mirror annotations before archiving the mirror and retiring manifest state.",
         ],
         empty="No source_missing Office records in the current recovery queue.",
     )
@@ -773,7 +773,7 @@ def print_runbook(root: Path, items: list[dict], warnings: list[str], errors: li
         mode="source_moved",
         protocol=[
             "Confirm the current source path is the intended successor for the prior manifest source path.",
-            "Open the previous generated mirror and preserve curated notes before archive, move, or removal.",
+            "Open the previous generated mirror and migrate any legacy annotations before archive, move, or removal.",
             "Rerun status after the previous mirror is resolved; sync only after the move is no longer blocked.",
         ],
         empty="No source_moved Office records in the current recovery queue.",
@@ -785,7 +785,7 @@ def print_runbook(root: Path, items: list[dict], warnings: list[str], errors: li
         protocol=[
             "Decide whether each retained repo mirror remains governed or is intentionally retired.",
             "If governed, restore the matching `tools/repos.yml` entry and rerun repo sync/status.",
-            "If retired, preserve curated notes before archiving/removing the mirror and retiring manifest state.",
+            "If retired, migrate legacy annotations before archiving/removing the mirror and retiring manifest state.",
         ],
         empty="No repo_unconfigured records in the current recovery queue.",
     )
@@ -795,7 +795,7 @@ def print_runbook(root: Path, items: list[dict], warnings: list[str], errors: li
         mode="manual_modification",
         protocol=[
             "Inspect content below the generated sentinel without assuming it is safe to keep.",
-            "Move real human notes above the sentinel or into a curated note before regeneration.",
+            "Move real human notes into a curated note or run `vaultwright migrate annotations --write` before regeneration.",
             "Only force regeneration after the generated region is backed up or confirmed disposable.",
         ],
         empty="No manual_modification records in the current recovery queue.",

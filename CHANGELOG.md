@@ -30,6 +30,9 @@ All notable changes to Vaultwright are documented here. Format loosely follows
   mirrors to machine-owned headers instead of carrying migrated human annotations forward.
 - `vaultwright lint` now blocks generated source/repo mirrors that still contain above-sentinel
   human annotations unless a matching `_meta/mirror-annotations/` sidecar exists.
+- Office and repo sync now stop preserving legacy above-sentinel annotations automatically: unmigrated
+  annotations become force-blocking review work, and fresh mirrors use machine-owned headers without
+  a curated `## Notes` region.
 - Added `tools/catalog_report.py` and `vaultwright catalog`, which writes a generated
   source-path-only `CATALOG.md` inventory gateway with domain, format, lifecycle, mirror, repo,
   unmanaged-source, and legacy-folder summaries.

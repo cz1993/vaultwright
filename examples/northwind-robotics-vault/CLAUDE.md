@@ -16,7 +16,7 @@ session that touches these documents. It is for both humans and the agent. (Agen
 | Layer | What it is | Who owns it | Mutability |
 | --- | --- | --- | --- |
 | **Raw sources** | the real artifacts: contracts, signed PDFs, decks, statements, repos, the originating `.docx/.pptx/.xlsx` | human / external | the agent **reads but never alters** them — source of truth |
-| **Generated mirrors** | markdown mirrors of Office sources and optional PDF text mirrors under `_mirrors/`, plus repo mirrors under `80_sources/repos/` | agent writes; human curates above the sentinel | regenerated from source |
+| **Generated mirrors** | markdown mirrors of Office sources and optional PDF text mirrors under `_mirrors/`, plus repo mirrors under `80_sources/repos/` | agent writes; human annotations live in curated notes or `_meta/mirror-annotations/` sidecars | regenerated from source |
 | **Wiki** | markdown notes that summarize, connect, and add metadata: MOCs, entity pages, decisions, guides, and indexes | agent writes; human curates | freely edited and cross-linked |
 | **Schema** | this file — conventions + workflows | human + agent co-evolve | edit deliberately |
 
@@ -126,11 +126,11 @@ when the original changes.
 
 - **Office** (`.docx/.pptx/.xlsx`): `tools/sync_office_md.py` (Microsoft markitdown) writes
   dedicated mirrors under `_mirrors/<canonical-source-path>.md` (`type: source-mirror`) with
-  managed frontmatter (hash, timestamps), a curated **`## Notes`** region (preserved), and an
-  auto extraction below the sentinel `%% AUTO-GENERATED BELOW — DO NOT EDIT %%`. This keeps raw
-  source folders clean while making converted content searchable. Run `sync_office_md.py --plan`
-  before writing when reviewing a new corpus, and `sync_office_md.py --status` to inspect the
-  `_meta/source-manifest.json` lifecycle state.
+  managed frontmatter (hash, timestamps), a machine-owned prelude, and an auto extraction below the
+  sentinel `%% AUTO-GENERATED BELOW — DO NOT EDIT %%`. This keeps raw source folders clean while
+  making converted content searchable. Run `sync_office_md.py --plan` before writing when reviewing
+  a new corpus, and `sync_office_md.py --status` to inspect the `_meta/source-manifest.json`
+  lifecycle state.
 - **GitHub repos**: `tools/sync_github_repos.py` (config `tools/repos.yml`) writes repo mirrors
   under `80_sources/repos/` by default
   (`type: repo-mirror`) with the README, `/docs`, top-level markdown, and metadata — refreshed when
@@ -140,10 +140,12 @@ when the original changes.
 - **PDFs** embed natively in Obsidian (`![[file.pdf#page=2]]`); use a light `source-ref` companion
   when useful, run `sync_office_md.py --include-pdf` for a one-off text mirror, or set
   `office_mirrors.include_pdf: true` in `_meta/mirror-config.yml` for unattended PDF mirror refresh.
-- **Rules:** edit the original, never a mirror's auto region. Curate only above the sentinel.
-  Mirror generation is idempotent (hash/HEAD-based). The Office and repo manifests record stable
-  IDs, hashes, mirror paths, lifecycle state, and warnings. Sync events append to
-  `_meta/sync-audit.jsonl`. Sync auth is **read-only and never stored in the vault** (§9).
+- **Rules:** edit the original, never a generated mirror body. Keep durable human notes in regular
+  curated notes. If a legacy mirror already contains above-sentinel annotations, run
+  `vaultwright migrate annotations --write` before sync refreshes it. Mirror generation is
+  idempotent (hash/HEAD-based). The Office and repo manifests record stable IDs, hashes, mirror
+  paths, lifecycle state, and warnings. Sync events append to `_meta/sync-audit.jsonl`. Sync auth
+  is **read-only and never stored in the vault** (§9).
 
 ---
 
@@ -177,7 +179,8 @@ safe, flag judgment calls.
 
 - **No deletes or renames without explicit human approval.** Agents may create, draft, file, link,
   and add metadata freely — but prefer consolidation (§5).
-- **Never hand-edit a `source-mirror`/`repo-mirror` body** below the sentinel.
+- **Never hand-edit a `source-mirror`/`repo-mirror` body.** Use curated notes or annotation
+  sidecars for durable human context.
 - **Secrets never live in the vault** (OS keychain / env only).
 - **PII** stays in designated private areas; never in market/public-facing trees.
 - Follow **`RETENTION.md`** for archival windows and the `_archive/` process.

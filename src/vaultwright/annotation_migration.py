@@ -150,8 +150,11 @@ def default_preserved_line(line: str) -> bool:
         or stripped == "> [!info] GitHub repo mirror \u2014 auto-generated"
         or stripped.startswith("> Original: ")
         or stripped.startswith("> Source: ")
+        or stripped.startswith("> Human annotations were migrated to ")
         or stripped == "> Curate notes below; everything under the line refreshes on each sync."
         or stripped == "> Curate notes below; everything under the line refreshes on sync."
+        or stripped == "> This mirror is machine-owned; do not edit it directly."
+        or stripped == "> This mirror is machine-owned; keep durable human notes in curated notes or annotation sidecars."
     )
 
 

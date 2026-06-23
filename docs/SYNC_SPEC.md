@@ -37,7 +37,7 @@ Current implementation status:
   output, and post-conversion source hash checks that abort mirror writes if the source changes
   while conversion is running, plus mirror-root-change conflict detection when the old generated
   mirror still exists, plus moved-source review blocking while the previous generated mirror still
-  exists, plus update-path frontmatter/curated-note preservation tests, plus converter-failure and
+  exists, plus update-path annotation-migration blocking tests, plus converter-failure and
   mirror-write-failure recovery tests that preserve the previous mirror and allow later clean
   regeneration, plus a read-only conversion spot-check report that turns manifest warnings,
   errors, lifecycle states, formats, and source/mirror existence into an operator review list, plus
@@ -49,8 +49,9 @@ Current implementation status:
 - implemented for repo mirrors: stable repo IDs, configured/resolved repo, note path, local-tree or
   remote HEAD hash, lifecycle state, warnings/errors, non-mutating plan/status reports, and
   generated-region manual-edit detection, plus contract-backed lifecycle next-action guidance in plan/status
-  output, plus repo stub-to-populated tests that preserve curated notes/frontmatter, plus repo-note
-  write-failure recovery tests that preserve the previous note and allow later clean regeneration,
+  output, plus repo stub-to-populated tests that preserve configured generated frontmatter without
+  carrying legacy in-mirror notes forward, plus repo-note write-failure recovery tests that preserve
+  the previous note and allow later clean regeneration,
   plus config validation and blocking lint checks for duplicate configured repo note targets, plus
   blocking lint checks for configured repo entries whose expected generated note is missing or
   unmanaged, and for generated repo mirrors whose manifest lifecycle state is no longer current,
@@ -62,10 +63,11 @@ Current implementation status:
   above-sentinel source/repo mirror annotations without printing their text, and `--write` stores
   them under `_meta/mirror-annotations/source/<source_id>.md` or
   `_meta/mirror-annotations/repo/<repo_id>.md` while leaving original sources and generated mirrors
-  untouched; after a matching sidecar exists, Office and repo sync reset regenerated mirrors to a
-  machine-owned header instead of preserving the migrated human annotation region in the mirror;
-  lint blocks generated source/repo mirrors with unmigrated above-sentinel annotations so release
-  gates force sidecar migration before legacy preservation is removed;
+  untouched; fresh Office and repo mirrors use machine-owned headers without a curated `## Notes`
+  region; sync blocks unmigrated above-sentinel annotations as force-blocking review work and, after
+  a matching sidecar exists, resets regenerated mirrors to a machine-owned header instead of
+  preserving the migrated human annotation region in the mirror; lint blocks generated source/repo
+  mirrors with unmigrated above-sentinel annotations so release gates force sidecar migration;
 - implemented for lifecycle operator semantics: the template now includes
   `_meta/lifecycle-states.yml`, a machine-readable Office/repo state contract with entry
   conditions, user-visible explanations, permitted next actions, exit conditions, and
@@ -76,9 +78,7 @@ Current implementation status:
 - partially implemented: full move/rename UX beyond unique hash matching and ambiguous-move
   conflict detection;
 - not complete: full rename/move UX, rollback automation, automated conversion-quality scoring
-  beyond private operator-entered result packs, unconditional removal of legacy above-sentinel
-  preservation after migration enforcement has been adopted, and exhaustive conflict-resolution
-  flows.
+  beyond private operator-entered result packs, and exhaustive conflict-resolution flows.
 
 Human review decisions are recorded outside generated artifacts in `_meta/review-ledger.jsonl`.
 The ledger stores artifact paths, hashes, reviewer/status fields, and short metadata notes. It does

@@ -83,9 +83,9 @@ office:
     explanation: Human or external edits may exist inside machine-owned content.
     permitted_next_actions:
       - Inspect content below the generated sentinel.
-      - Preserve human edits in curated notes before force regeneration.
+      - Preserve human edits in curated notes or run vaultwright migrate annotations --write before force regeneration.
       - Rerun sync only after the review is complete.
-    exit_condition: Human edits are preserved and sync regenerates the machine-owned region, or the mirror is intentionally retired.
+    exit_condition: Human edits are preserved outside the generated mirror and sync regenerates the machine-owned region, or the mirror is intentionally retired.
   conflict:
     manifest_state: true
     entry_condition: Source, mirror, manifest, or routing evidence is ambiguous or unsafe to choose automatically.
@@ -184,9 +184,9 @@ repo:
     explanation: Human or external edits may exist inside machine-owned repo mirror content.
     permitted_next_actions:
       - Inspect content below the generated sentinel.
-      - Preserve human edits in curated notes before force regeneration.
+      - Preserve human edits in curated notes or run vaultwright migrate annotations --write before force regeneration.
       - Rerun sync only after the review is complete.
-    exit_condition: Human edits are preserved and sync regenerates the machine-owned region, or the mirror is retired.
+    exit_condition: Human edits are preserved outside the generated mirror and sync regenerates the machine-owned region, or the mirror is retired.
   conflict:
     manifest_state: true
     entry_condition: Repo note ownership, repo identity, note target, or manifest evidence is ambiguous or unsafe to choose automatically.
