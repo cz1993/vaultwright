@@ -6,6 +6,8 @@ import shutil
 import subprocess
 import sys
 
+import yaml
+
 
 ROOT = Path(__file__).resolve().parents[1]
 SENTINEL = "%% AUTO-GENERATED BELOW — DO NOT EDIT %%"
@@ -75,6 +77,14 @@ def write_repo_manifest(vault: Path, *records: tuple[str, str]) -> None:
         ],
     }
     (vault / "_meta" / "repo-manifest.json").write_text(json.dumps(payload), encoding="utf-8")
+
+
+def load_profile(vault: Path) -> dict:
+    return yaml.safe_load((vault / "_meta" / "profile.yml").read_text(encoding="utf-8"))
+
+
+def write_profile(vault: Path, profile: dict) -> None:
+    (vault / "_meta" / "profile.yml").write_text(yaml.safe_dump(profile, sort_keys=False), encoding="utf-8")
 
 
 def test_template_linter_exits_nonzero_for_blocking_issue(tmp_path: Path) -> None:
@@ -214,6 +224,67 @@ def test_template_linter_blocks_unknown_domain(tmp_path: Path) -> None:
     assert result.returncode == 1
     assert "Invalid domain: 1" in result.stdout
     assert "bad-domain.md  [special-projects]" in result.stdout
+
+
+def test_template_linter_reads_profile_contract_for_allowed_values(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    profile = load_profile(vault)
+    profile["domains"]["research"] = {
+        "folder": "25_research",
+        "purpose": "Profile-defined research material.",
+    }
+    profile["note_types"]["brief"] = {"purpose": "Profile-defined brief."}
+    profile["statuses"]["queued"] = {"purpose": "Profile-defined queue state."}
+    profile["required_properties"].append("evidence_level")
+    write_profile(vault, profile)
+    folder = vault / "25_research"
+    folder.mkdir()
+    note = folder / "brief.md"
+    note.write_text(
+        "---\n"
+        "title: Research Brief\n"
+        "type: brief\n"
+        "status: queued\n"
+        "domain: research\n"
+        "evidence_level: public\n"
+        "created: 2026-01-01\n"
+        "updated: 2026-01-01\n"
+        "---\n"
+        "# Research Brief\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "lint_vault.py")],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stdout
+    assert "Profile errors: 0" in result.stdout
+    assert "Invalid type: 0" in result.stdout
+    assert "Invalid status: 0" in result.stdout
+    assert "Invalid domain: 0" in result.stdout
+    assert "Domain/folder mismatch: 0" in result.stdout
+
+
+def test_template_linter_blocks_missing_profile_contract(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    (vault / "_meta" / "profile.yml").unlink()
+
+    result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "lint_vault.py")],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 1
+    assert "Profile errors: 1" in result.stdout
+    assert "_meta/profile.yml  [missing]" in result.stdout
 
 
 def test_template_linter_blocks_missing_domain_map(tmp_path: Path) -> None:

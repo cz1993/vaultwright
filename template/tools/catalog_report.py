@@ -20,6 +20,7 @@ except ImportError:
 
 
 ROOT = Path(__file__).resolve().parent.parent
+PROFILE = Path("_meta/profile.yml")
 DOMAIN_MAP = Path("_meta/domain-map.yml")
 SOURCE_MANIFEST = Path("_meta/source-manifest.json")
 REPO_MANIFEST = Path("_meta/repo-manifest.json")
@@ -27,7 +28,7 @@ REPO_CONFIG = Path("tools/repos.yml")
 DEFAULT_OUTPUT = Path("CATALOG.md")
 DEFAULT_HTML_OUTPUT = Path("CATALOG.html")
 SOURCE_EXTS = {".docx", ".pptx", ".xlsx", ".doc", ".pdf"}
-CONTENT_ROOTS = {
+DEFAULT_CONTENT_ROOTS = {
     "00_inbox",
     "10_governance",
     "20_market",
@@ -122,6 +123,42 @@ def repo_id_for(repo: str, note: str) -> str:
     return f"repo_{digest}"
 
 
+def load_profile_domains(root: Path) -> tuple[list[dict[str, str]], dict[str, str], set[str], list[str], list[str]]:
+    path = root / PROFILE
+    if not path.exists():
+        return [], {}, set(DEFAULT_CONTENT_ROOTS), [], [f"{PROFILE.as_posix()}: missing"]
+    try:
+        data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    except yaml.YAMLError as exc:
+        return [], {}, set(DEFAULT_CONTENT_ROOTS), [], [f"{PROFILE.as_posix()}: invalid YAML ({exc.__class__.__name__})"]
+    if not isinstance(data, dict):
+        return [], {}, set(DEFAULT_CONTENT_ROOTS), [], [f"{PROFILE.as_posix()}: must be a mapping"]
+    domains = data.get("domains")
+    if not isinstance(domains, dict) or not domains:
+        return [], {}, set(DEFAULT_CONTENT_ROOTS), [], [f"{PROFILE.as_posix()}: missing domains map"]
+
+    items: list[dict[str, str]] = []
+    aliases: dict[str, str] = {}
+    content_roots: set[str] = set()
+    errors: list[str] = []
+    for domain, info in domains.items():
+        if not isinstance(info, dict) or not info.get("folder"):
+            errors.append(f"{PROFILE.as_posix()}:domains.{domain}: missing folder")
+            continue
+        domain_name = str(domain)
+        folder = str(info["folder"])
+        purpose = str(info.get("purpose", ""))
+        items.append({"domain": domain_name, "folder": folder, "purpose": purpose})
+        content_roots.add(folder)
+        for value in (domain_name, folder):
+            aliases[value] = domain_name
+    items.sort(key=lambda item: item["folder"])
+    if not items:
+        errors.append(f"{PROFILE.as_posix()}: no valid domains")
+        content_roots = set(DEFAULT_CONTENT_ROOTS)
+    return items, aliases, content_roots, [], errors
+
+
 def read_json_object(root: Path, rel: Path) -> tuple[dict[str, Any], list[str], list[str]]:
     path = root / rel
     if not path.exists():
@@ -135,20 +172,24 @@ def read_json_object(root: Path, rel: Path) -> tuple[dict[str, Any], list[str], 
     return data, [], []
 
 
-def load_domains(root: Path) -> tuple[list[dict[str, str]], dict[str, str], list[str], list[str]]:
+def load_domains(root: Path) -> tuple[list[dict[str, str]], dict[str, str], set[str], list[str], list[str]]:
+    profile_items, profile_aliases, content_roots, profile_warnings, profile_errors = load_profile_domains(root)
     path = root / DOMAIN_MAP
     if not path.exists():
-        return [], {}, [f"{DOMAIN_MAP.as_posix()}: missing"], []
+        warnings = [*profile_warnings, f"{DOMAIN_MAP.as_posix()}: missing; legacy aliases unavailable"]
+        return profile_items, profile_aliases, content_roots, warnings, profile_errors
     try:
         data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     except yaml.YAMLError as exc:
-        return [], {}, [], [f"{DOMAIN_MAP.as_posix()}: invalid YAML ({exc.__class__.__name__})"]
+        errors = [*profile_errors, f"{DOMAIN_MAP.as_posix()}: invalid YAML ({exc.__class__.__name__})"]
+        return profile_items, profile_aliases, content_roots, profile_warnings, errors
     domains = data.get("domains")
     if not isinstance(domains, dict) or not domains:
-        return [], {}, [], [f"{DOMAIN_MAP.as_posix()}: missing domains map"]
+        errors = [*profile_errors, f"{DOMAIN_MAP.as_posix()}: missing domains map"]
+        return profile_items, profile_aliases, content_roots, profile_warnings, errors
 
-    items: list[dict[str, str]] = []
-    aliases: dict[str, str] = {}
+    items = profile_items
+    aliases = dict(profile_aliases)
     errors: list[str] = []
     for domain, info in domains.items():
         if not isinstance(info, dict) or not info.get("folder"):
@@ -156,8 +197,17 @@ def load_domains(root: Path) -> tuple[list[dict[str, str]], dict[str, str], list
             continue
         domain_name = str(domain)
         folder = str(info["folder"])
-        purpose = str(info.get("purpose", ""))
-        items.append({"domain": domain_name, "folder": folder, "purpose": purpose})
+        profile_folder = next((item["folder"] for item in profile_items if item["domain"] == domain_name), "")
+        if profile_items and not profile_folder:
+            errors.append(f"{DOMAIN_MAP.as_posix()}:{domain_name}: domain not declared in {PROFILE.as_posix()}")
+            continue
+        if profile_folder and profile_folder != folder:
+            errors.append(f"{DOMAIN_MAP.as_posix()}:{domain_name}: folder differs from {PROFILE.as_posix()}")
+            folder = profile_folder
+        if not profile_items:
+            purpose = str(info.get("purpose", ""))
+            items.append({"domain": domain_name, "folder": folder, "purpose": purpose})
+            content_roots.add(folder)
         for value in (domain_name, folder):
             aliases[value] = domain_name
         raw_aliases = info.get("aliases", [])
@@ -166,7 +216,7 @@ def load_domains(root: Path) -> tuple[list[dict[str, str]], dict[str, str], list
                 if isinstance(alias, str) and alias.strip():
                     aliases[alias.strip()] = domain_name
     items.sort(key=lambda item: item["folder"])
-    return items, aliases, [], errors
+    return items, aliases, content_roots, profile_warnings, [*profile_errors, *errors]
 
 
 def domain_for_path(rel: str, aliases: dict[str, str]) -> str:
@@ -182,7 +232,7 @@ def excluded(path: Path) -> bool:
     return any(part in EXCLUDED_PARTS or part.startswith(".") for part in path.parts)
 
 
-def workspace_inventory(root: Path, aliases: dict[str, str]) -> dict[str, Any]:
+def workspace_inventory(root: Path, aliases: dict[str, str], content_roots: set[str]) -> dict[str, Any]:
     extensions: Counter[str] = Counter()
     source_candidates: list[str] = []
     markdown_files: list[str] = []
@@ -190,14 +240,14 @@ def workspace_inventory(root: Path, aliases: dict[str, str]) -> dict[str, Any]:
     curated_markdown = 0
     top_level_counts: Counter[str] = Counter()
     legacy_folders: list[dict[str, Any]] = []
-    canonical_folders = {folder for folder in CONTENT_ROOTS if (root / folder).exists()}
+    canonical_folders = {folder for folder in content_roots if (root / folder).exists()}
 
     for path in sorted(root.rglob("*")):
         if path.is_symlink():
             continue
         rel = path.relative_to(root)
         if path.is_dir():
-            if len(rel.parts) == 1 and rel.parts[0] not in RESERVED_TOP_LEVEL and rel.parts[0] not in CONTENT_ROOTS:
+            if len(rel.parts) == 1 and rel.parts[0] not in RESERVED_TOP_LEVEL and rel.parts[0] not in content_roots:
                 legacy_folders.append({"folder": rel.as_posix()})
             continue
         if not path.is_file():
@@ -364,8 +414,8 @@ def repo_catalog_items(records: list[dict[str, Any]], configured_ids: set[str] |
 
 
 def build_report(root: Path) -> tuple[dict[str, Any], list[str], list[str]]:
-    domains, aliases, domain_warnings, domain_errors = load_domains(root)
-    inventory = workspace_inventory(root, aliases)
+    domains, aliases, content_roots, domain_warnings, domain_errors = load_domains(root)
+    inventory = workspace_inventory(root, aliases, content_roots)
     source_records, source_warnings, source_errors = load_manifest_records(root, SOURCE_MANIFEST, "source_id")
     repo_records, repo_warnings, repo_errors = load_manifest_records(root, REPO_MANIFEST, "repo_id")
     configured_ids, config_warnings = configured_repo_ids(root)
@@ -425,6 +475,7 @@ def build_report(root: Path) -> tuple[dict[str, Any], list[str], list[str]]:
         "repo_items": repo_items,
         "unmanaged_sources": unmanaged_sources,
         "legacy_folders": inventory["legacy_folders"],
+        "canonical_folders": inventory["canonical_folders"],
         "extensions": inventory["extensions"],
         "top_level_counts": inventory["top_level_counts"],
         "prompt_safety": PROMPT_SAFETY_GUIDANCE,

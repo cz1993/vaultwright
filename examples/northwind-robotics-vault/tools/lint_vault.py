@@ -18,11 +18,11 @@ except ImportError:
     sys.exit("pip install pyyaml")
 
 ROOT = Path(__file__).resolve().parent.parent
-REQUIRED = ["title", "type", "status", "domain", "created", "updated"]
+DEFAULT_REQUIRED = ["title", "type", "status", "domain", "created", "updated"]
 META = {"CLAUDE.md", "AGENTS.md", "INDEX.md", "RETENTION.md", "CATALOG.md", "log.md"}  # structural, exempt
 LINK_SRC_SKIP = {"CLAUDE.md", "AGENTS.md", "_meta/conventions.md"}  # docs full of illustrative links
-TYPES = {"moc", "entity", "note", "guide", "policy", "record", "source-mirror", "source-ref", "repo-mirror"}
-STATUSES = {"draft", "active", "in-review", "sent", "signed", "submitted", "awarded", "superseded", "archived"}
+DEFAULT_TYPES = {"moc", "entity", "note", "guide", "policy", "record", "source-mirror", "source-ref", "repo-mirror"}
+DEFAULT_STATUSES = {"draft", "active", "in-review", "sent", "signed", "submitted", "awarded", "superseded", "archived"}
 EXCLUDE_PREFIX = ("_archive", "_backup", "_deprecated")
 EXCLUDE_EXACT = {"_fixtures", "_meta", "_templates", "_tmp", "tools", "node_modules"}
 SOURCE_EXTS = {".docx", ".pptx", ".xlsx", ".doc"}
@@ -33,12 +33,13 @@ DEFAULT_MIRROR_MODE = "dedicated"
 DEFAULT_MIRROR_ROOT = "_mirrors"
 SOURCE_MANIFEST_REL = "_meta/source-manifest.json"
 REPO_MANIFEST_REL = "_meta/repo-manifest.json"
+PROFILE_REL = "_meta/profile.yml"
 LINT_CONFIG_REL = "_meta/lint-config.yml"
 REPO_CONFIG_REL = "tools/repos.yml"
 DEFAULT_REPO_NOTES_DIR = "80_sources/repos"
 SENTINEL = "%% AUTO-GENERATED BELOW — DO NOT EDIT %%"
 MIRROR_MODES = {"dedicated", "sibling"}
-CONTENT_ROOTS = {
+DEFAULT_CONTENT_ROOTS = {
     "00_inbox", "10_governance", "20_market", "30_customers", "40_delivery",
     "50_operations", "60_finance", "70_people", "80_sources",
 }
@@ -58,25 +59,89 @@ STOPWORDS = {
     "under", "using", "where", "which", "while", "with", "within", "without", "would",
 }
 
-def domain_folders() -> tuple[dict[str, str], dict[str, str], list[tuple[str, str]]]:
+def non_empty_string_list(value: object) -> list[str] | None:
+    if not isinstance(value, list):
+        return None
+    out = [str(item).strip() for item in value if isinstance(item, str) and item.strip()]
+    return out if len(out) == len(value) else None
+
+def profile_contract() -> tuple[dict[str, object], list[tuple[str, str]]]:
+    settings: dict[str, object] = {
+        "required": list(DEFAULT_REQUIRED),
+        "types": set(DEFAULT_TYPES),
+        "statuses": set(DEFAULT_STATUSES),
+        "content_roots": set(DEFAULT_CONTENT_ROOTS),
+        "domain_folders": {},
+    }
+    path = ROOT / PROFILE_REL
+    if not path.exists():
+        return settings, [(PROFILE_REL, "missing")]
+    try:
+        data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    except yaml.YAMLError:
+        return settings, [(PROFILE_REL, "invalid YAML")]
+    if not isinstance(data, dict):
+        return settings, [(PROFILE_REL, "must be a mapping")]
+
+    errors: list[tuple[str, str]] = []
+    required = non_empty_string_list(data.get("required_properties"))
+    if required:
+        settings["required"] = required
+    else:
+        errors.append((f"{PROFILE_REL}:required_properties", "must be a non-empty string list"))
+
+    for field, setting in (("note_types", "types"), ("statuses", "statuses")):
+        values = data.get(field)
+        if isinstance(values, dict) and values:
+            settings[setting] = {str(key) for key in values}
+        else:
+            errors.append((f"{PROFILE_REL}:{field}", "must be a non-empty mapping"))
+
+    domains = data.get("domains")
+    domain_folders: dict[str, str] = {}
+    if isinstance(domains, dict) and domains:
+        for domain, definition in domains.items():
+            if isinstance(definition, dict) and definition.get("folder"):
+                domain_folders[str(domain)] = str(definition["folder"])
+            else:
+                errors.append((f"{PROFILE_REL}:domains.{domain}", "missing folder"))
+    else:
+        errors.append((f"{PROFILE_REL}:domains", "must be a non-empty mapping"))
+    if domain_folders:
+        settings["domain_folders"] = domain_folders
+        settings["content_roots"] = set(domain_folders.values())
+    return settings, errors
+
+def domain_folders(profile_domain_folders: dict[str, str]) -> tuple[dict[str, str], dict[str, str], list[tuple[str, str]]]:
     domain_map = ROOT / "_meta" / "domain-map.yml"
+    out = dict(profile_domain_folders)
+    aliases: dict[str, str] = {}
+    for domain_name, folder in out.items():
+        aliases[folder] = folder
+        aliases[domain_name] = folder
     if not domain_map.exists():
-        return {}, {}, [("_meta/domain-map.yml", "missing")]
+        return out, aliases, [("_meta/domain-map.yml", "missing")]
     try:
         data = yaml.safe_load(domain_map.read_text(encoding="utf-8")) or {}
     except yaml.YAMLError:
-        return {}, {}, [("_meta/domain-map.yml", "invalid YAML")]
+        return out, aliases, [("_meta/domain-map.yml", "invalid YAML")]
     domains = data.get("domains", {})
     if not isinstance(domains, dict):
-        return {}, {}, [("_meta/domain-map.yml", "missing domains map")]
-    out = {}
-    aliases: dict[str, str] = {}
+        return out, aliases, [("_meta/domain-map.yml", "missing domains map")]
     errors: list[tuple[str, str]] = []
     for domain, info in domains.items():
         if isinstance(info, dict) and info.get("folder"):
             folder = str(info["folder"])
             domain_name = str(domain)
-            out[domain_name] = folder
+            expected_folder = profile_domain_folders.get(domain_name)
+            if expected_folder and expected_folder != folder:
+                errors.append((f"_meta/domain-map.yml:{domain_name}", f"folder differs from {PROFILE_REL}"))
+                folder = expected_folder
+            elif not profile_domain_folders:
+                out[domain_name] = folder
+            elif domain_name not in profile_domain_folders:
+                errors.append((f"_meta/domain-map.yml:{domain_name}", f"domain not declared in {PROFILE_REL}"))
+                continue
             aliases[folder] = folder
             aliases[domain_name] = folder
             for alias in info.get("aliases", []) or []:
@@ -415,7 +480,16 @@ def resolve(target: str) -> bool:
         return True
     return bool(target_paths(target))
 
-DOMAIN_FOLDERS, DOMAIN_FOLDER_ALIASES, domain_map_errors = domain_folders()
+PROFILE_SETTINGS, profile_errors = profile_contract()
+REQUIRED = list(PROFILE_SETTINGS["required"])
+TYPES = set(PROFILE_SETTINGS["types"])
+STATUSES = set(PROFILE_SETTINGS["statuses"])
+CONTENT_ROOTS = set(PROFILE_SETTINGS["content_roots"])
+PROFILE_DOMAIN_FOLDERS = {
+    str(domain): str(folder)
+    for domain, folder in dict(PROFILE_SETTINGS["domain_folders"]).items()
+}
+DOMAIN_FOLDERS, DOMAIN_FOLDER_ALIASES, domain_map_errors = domain_folders(PROFILE_DOMAIN_FOLDERS)
 DOMAIN_BY_FOLDER = {folder: domain for domain, folder in DOMAIN_FOLDERS.items()}
 MIRROR_CONFIG, mirror_config_errors = mirror_config()
 LINT_CONFIG, lint_config_errors = lint_config()
@@ -786,6 +860,7 @@ section("Missing/invalid frontmatter", missing_fm)
 section("Invalid type", bad_type)
 section("Invalid status", bad_status)
 section("Invalid domain", bad_domain)
+section("Profile errors", profile_errors)
 section("Domain map errors", domain_map_errors)
 section("Mirror config errors", mirror_config_errors)
 section("Lint config errors", lint_config_errors)
@@ -804,7 +879,7 @@ section("Office files without a mirror", mirror_gap)
 section("Configured repos without a mirror", repo_mirror_gap)
 section("Unconfigured repo mirrors", repo_unconfigured)
 blocking = (
-    missing_fm or bad_type or bad_status or bad_domain or domain_map_errors or mirror_config_errors
+    missing_fm or bad_type or bad_status or bad_domain or profile_errors or domain_map_errors or mirror_config_errors
     or lint_config_errors
     or repo_config_errors or manifest_errors or bad_domain_folder or bad_account_client or bad_mirror_layout
     or stale_office_mirrors or stale_repo_mirrors

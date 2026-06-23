@@ -20,12 +20,14 @@ These keep your knowledge base current and healthy. See `../CLAUDE.md` §6 for t
 | `sandbox_report.py` | prints a read-only copied-vault readiness report before a pilot sync |
 | `sync_all.sh` | run both syncs + the linter (for a cron/launchd job) |
 
-`lint_vault.py` reads `_meta/lint-config.yml` for warning-level overlap thresholds. Overlap
-warnings include human-gated consolidation suggestions and prefer the note with more inbound links
-when that signal is available. Use `vaultwright overlap` in copied pilot vaults to see candidate
-counts across threshold bands before changing defaults. Keep the template defaults until real
-corpora show too many false positives or false negatives, then record any threshold changes in the
-private pilot worksheet.
+`lint_vault.py` reads `_meta/profile.yml` for allowed domains, note types, statuses, required
+frontmatter, and canonical content folders. `_meta/domain-map.yml` remains a compatibility layer
+for legacy folder/domain aliases. `lint_vault.py` also reads `_meta/lint-config.yml` for
+warning-level overlap thresholds. Overlap warnings include human-gated consolidation suggestions
+and prefer the note with more inbound links when that signal is available. Use `vaultwright
+overlap` in copied pilot vaults to see candidate counts across threshold bands before changing
+defaults. Keep the template defaults until real corpora show too many false positives or false
+negatives, then record any threshold changes in the private pilot worksheet.
 
 ## Install
 

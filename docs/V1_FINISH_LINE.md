@@ -24,7 +24,7 @@ required migration. New ideas that do not map here move to the post-v1 backlog.
 | ID | Requirement | Current Evidence | Gap To Close | Stage |
 | --- | --- | --- | --- | --- |
 | V1-C1 | One installable cross-platform core package owns runtime behavior | `pyproject.toml` exposes a `vaultwright` console entry point; CI installs package | Runtime still lives primarily in copied `template/tools/` scripts | 1 |
-| V1-C2 | One versioned profile contract | `src/vaultwright/profiles.py` validates schema version 1; `_meta/profile.yml` declares the current `business-operations` template; package CLI exposes `init --profile business-operations`, `profile list`, `profile show`, and `profile validate` | Need full profile schema docs, profile migration support, and core/linter/catalog behavior reading profile data | 1 |
+| V1-C2 | One versioned profile contract | `src/vaultwright/profiles.py` validates schema version 1; `_meta/profile.yml` declares the current `business-operations` template; package CLI exposes `init --profile business-operations`, `profile list`, `profile show`, and `profile validate`; linter/catalog read profile domains, note types, statuses, required properties, and canonical folders | Need full profile schema docs, profile migration support, and remaining core behavior reading profile data | 1 |
 | V1-C3 | Three official content profiles plus a blank starter | Existing template approximates `business-operations`; government-services example exercises that profile shape | Need `business-operations`, `research-learning`, `software-project`, and `blank` as package-owned profiles | 2 |
 | V1-C4 | Safe migration path from current business template | Migration reports and frontmatter domain normalization exist | Need workspace/profile migration command that moves from current template to profile contract without source mutation | 1 |
 | V1-C5 | Machine-owned mirrors with preserved human annotations | Mirrors currently preserve above-sentinel notes; manifests and recovery reports protect generated output | Need annotation migration to curated notes or source-ID-keyed sidecars before mirrors become fully disposable | 1 |
@@ -49,7 +49,7 @@ the index has benchmark evidence.
 | Open Work | Finish-Line Mapping | Execution Rule |
 | --- | --- | --- |
 | Copied vault-local scripts | V1-C1 | Refactor into package modules first; leave scripts only as shims during migration |
-| Hard-coded business folders, note types, statuses, and linter assumptions | V1-C2, V1-C3, V1-C7 | Extract into profile contracts before adding more profiles |
+| Hard-coded business folders, note types, statuses, and linter assumptions | V1-C2, V1-C3, V1-C7 | Continue extracting into profile contracts before adding more profiles; `lint` and `catalog` now read profile-defined allowed values and canonical folders |
 | Current business template and examples | V1-C3, V1-C4 | Treat as `business-operations`; migrate rather than fork |
 | Above-sentinel notes in generated mirrors | V1-C5 | Preserve first, then make mirrors fully machine-owned |
 | Obsidian Bases and future Canvas outputs | V1-C6, V1-C7 | Adapter only; correctness must remain testable without Obsidian |

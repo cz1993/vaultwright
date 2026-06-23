@@ -14,6 +14,9 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 - The installable `vaultwright` CLI now supports `init --profile business-operations`,
   `profile list`, `profile show`, and `profile validate` against the package-owned profile
   contract.
+- `vaultwright lint` and `vaultwright catalog` now read `_meta/profile.yml` for profile-defined
+  domains, note types, statuses, required properties, and canonical content folders, while
+  `_meta/domain-map.yml` remains the legacy alias compatibility layer.
 - Added `tools/catalog_report.py` and `vaultwright catalog`, which writes a generated
   source-path-only `CATALOG.md` inventory gateway with domain, format, lifecycle, mirror, repo,
   unmanaged-source, and legacy-folder summaries.
