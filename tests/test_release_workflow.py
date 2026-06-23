@@ -93,6 +93,7 @@ def test_ci_workflow_smokes_sandbox_command() -> None:
     text = CI_WORKFLOW.read_text(encoding="utf-8")
 
     assert "src/vaultwright/catalog.py" in text
+    assert "src/vaultwright/conversion.py" in text
     assert "src/vaultwright/doctor.py" in text
     assert "src/vaultwright/m365.py" in text
     assert "src/vaultwright/recovery.py" in text

@@ -508,6 +508,110 @@ def test_packaged_m365_does_not_require_vault_wrapper_or_local_report(tmp_path: 
     assert "CATALOG.html" in report["report"]["handoff_bundle"]
 
 
+def test_packaged_conversion_does_not_require_vault_wrapper_or_local_report(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    (vault / "tools" / "vaultwright.py").unlink()
+    (vault / "tools" / "conversion_report.py").unlink()
+    source = vault / "30_customers" / "acme-manufacturing" / "conversion-source.docx"
+    mirror = vault / "_mirrors" / "30_customers" / "acme-manufacturing" / "conversion-source.md"
+    source.parent.mkdir(parents=True, exist_ok=True)
+    source.write_bytes(b"synthetic conversion source")
+    mirror.parent.mkdir(parents=True, exist_ok=True)
+    mirror.write_text("# Synthetic mirror\n", encoding="utf-8")
+    manifest = vault / "_meta" / "source-manifest.json"
+    manifest.write_text(
+        json.dumps(
+            {
+                "records": [
+                    {
+                        "source_id": "conversion-smoke-source",
+                        "current_source_path": source.relative_to(vault).as_posix(),
+                        "mirror_path": mirror.relative_to(vault).as_posix(),
+                        "source_format": "docx",
+                        "lifecycle_state": "clean",
+                        "source_size": source.stat().st_size,
+                        "warnings": [],
+                        "errors": [],
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    env = {**os.environ, "PYTHONPATH": str(ROOT / "src")}
+
+    result = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "conversion"],
+        cwd=ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+    assert "conversion: read-only spot-check report; no files were changed" in result.stdout
+    assert "conversion-smoke-source" not in result.stdout
+    assert "missing tools/vaultwright.py" not in result.stderr
+    assert "conversion_report.py" not in result.stderr
+
+    guide = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "conversion", "--guide"],
+        cwd=ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert guide.returncode == 0, guide.stderr or guide.stdout
+    assert "conversion guide: operator review checklist; no files were changed" in guide.stdout
+
+    scaffold = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "conversion", "--init-results"],
+        cwd=ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert scaffold.returncode == 0, scaffold.stderr or scaffold.stdout
+    assert "conversion results scaffold: wrote _meta/conversion-quality-results.yml" in scaffold.stdout
+    quality_path = vault / "_meta" / "conversion-quality-results.yml"
+    text = quality_path.read_text(encoding="utf-8")
+    text = text.replace("status: not-reviewed", "status: pass")
+    text = text.replace("score: null", "score: 2")
+    text = text.replace("reviewer_corrections: null", "reviewer_corrections: 0")
+    text = text.replace("checked_source: false", "checked_source: true")
+    text = text.replace("checked_mirror: false", "checked_mirror: true")
+    text = text.replace("checked_links: false", "checked_links: true")
+    quality_path.write_text(text, encoding="utf-8")
+
+    json_result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "vaultwright.cli",
+            "--root",
+            str(vault),
+            "conversion",
+            "--results",
+            "_meta/conversion-quality-results.yml",
+            "--require-reviewed",
+            "--json",
+        ],
+        cwd=ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert json_result.returncode == 0, json_result.stderr or json_result.stdout
+    payload = json.loads(json_result.stdout)
+    assert payload["summary"]["total"] == 1
+    assert payload["quality_results"]["reviewed"] == 1
+    assert payload["quality_results"]["average_score"] == 2
+
+
 def test_packaged_vaultwright_cli_runs_target_vault_commands(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     shutil.copytree(ROOT / "template", vault)

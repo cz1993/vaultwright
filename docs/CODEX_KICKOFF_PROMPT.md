@@ -187,7 +187,7 @@ not broad industry expansion. Prove the narrow promise first:
   `m365`, `review`, `overlap`, `migration`, `pilot`, `recovery`, `sandbox`, `lint`,
   `benchmark`, and `doctor` exist; keep them thin. The source-installable
   `vaultwright` console entry point now owns `plan`, `sync`, `status`, `doctor`, `catalog`, `lint`,
-  `m365`, `recovery`, and `review` through the package while remaining legacy operator commands delegate to the same
+  `conversion`, `m365`, `recovery`, and `review` through the package while remaining legacy operator commands delegate to the same
   vault-local wrapper during migration. `plan` must remain
   non-destructive; keep improving its sensitive-file risks, duplicate warnings, and
   conversion-quality estimates before writing. `conversion`, `m365`, `migration`, `pilot`, and `recovery` must

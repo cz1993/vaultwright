@@ -16,6 +16,7 @@ import sys
 from pathlib import Path
 
 from vaultwright import catalog as catalog_module
+from vaultwright import conversion as conversion_module
 from vaultwright import doctor as doctor_module
 from vaultwright import lint as lint_module
 from vaultwright import m365 as m365_module
@@ -279,6 +280,27 @@ def command_catalog(args: argparse.Namespace) -> int:
     return catalog_module.main(catalog_args(args), root=root)
 
 
+def conversion_args(args: argparse.Namespace) -> list[str]:
+    return (
+        (["--results", str(args.results)] if args.results else [])
+        + (["--init-results"] if args.init_results else [])
+        + (["--force"] if args.force else [])
+        + (["--require-reviewed"] if args.require_reviewed else [])
+        + (["--json"] if args.json else [])
+        + (["--guide"] if args.guide else [])
+        + (
+            ["--low-risk-per-format", str(args.low_risk_per_format)]
+            if args.low_risk_per_format != 1
+            else []
+        )
+    )
+
+
+def command_conversion(args: argparse.Namespace) -> int:
+    root = args.root.expanduser().resolve()
+    return conversion_module.main(conversion_args(args), root=root)
+
+
 def command_lint(args: argparse.Namespace) -> int:
     root = args.root.expanduser().resolve()
     return lint_module.main(root=root)
@@ -528,22 +550,7 @@ def build_parser() -> argparse.ArgumentParser:
         default=1,
         help="Include this many low-risk sample records per format in the spot-check list.",
     )
-    conversion.set_defaults(
-        func=command_delegate,
-        delegate_args=lambda args: (
-            (["--results", str(args.results)] if args.results else [])
-            + (["--init-results"] if args.init_results else [])
-            + (["--force"] if args.force else [])
-            + (["--require-reviewed"] if args.require_reviewed else [])
-            + (["--json"] if args.json else [])
-            + (["--guide"] if args.guide else [])
-            + (
-                ["--low-risk-per-format", str(args.low_risk_per_format)]
-                if args.low_risk_per_format != 1
-                else []
-            )
-        ),
-    )
+    conversion.set_defaults(func=command_conversion)
     migration = sub.add_parser("migration", help="Report legacy folder/frontmatter migration work.")
     migration_output = migration.add_mutually_exclusive_group()
     migration_output.add_argument("--json", action="store_true", help="Print machine-readable migration JSON.")
