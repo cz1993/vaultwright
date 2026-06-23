@@ -34,6 +34,7 @@ from vaultwright.mirrors import github_repos as repo_sync_module
 from vaultwright.mirrors import office as office_sync_module
 from vaultwright.profile_migration import profile_migration_plan, write_profile_migration
 from vaultwright.profiles import ProfileContract, ProfileValidationError, load_profile
+from vaultwright.views import profile_views_plan, write_profile_views
 
 
 def template_source() -> Path | None:
@@ -147,6 +148,62 @@ def command_profile_validate(args: argparse.Namespace) -> int:
         print(json.dumps(payload, indent=2, sort_keys=True))
     else:
         print(f"profile validate: OK {profile.id} {profile.profile_version} (schema {profile.schema_version})")
+    return 0
+
+
+def command_profile_views(args: argparse.Namespace) -> int:
+    root = args.root.expanduser().resolve()
+    try:
+        profile, _path = load_current_profile(root)
+    except ProfileValidationError as exc:
+        print(f"profile views: {exc}", file=sys.stderr)
+        return 1
+    plan = profile_views_plan(root, profile)
+    write_result = None
+    if args.write:
+        write_result = write_profile_views(root, profile)
+        plan = profile_views_plan(root, profile)
+    if args.json:
+        payload = {"plan": plan, "write": write_result} if write_result is not None else plan
+        print(json.dumps(payload, indent=2, sort_keys=True))
+    else:
+        mode = "--write" if args.write else "--check"
+        print(f"profile views {mode}: {profile.id} {profile.profile_version}")
+        print(
+            "Summary: "
+            f"{plan['summary']['views']} view(s), "
+            f"{plan['summary']['actions']} action(s), "
+            f"{plan['summary']['blockers']} blocker(s)"
+        )
+        if plan["blockers"]:
+            print("Blockers:")
+            for blocker in plan["blockers"]:
+                print(f"- {blocker['code']}: {blocker['path']}: {blocker['detail']}")
+        elif args.write and write_result is not None:
+            print(
+                "Write summary: "
+                f"{write_result['summary']['written']} written, "
+                f"{write_result['summary']['skipped']} skipped, "
+                f"{write_result['summary']['errors']} error(s)"
+            )
+            for item in write_result["written"]:
+                print(f"- wrote {item['path']}: {item['detail']}")
+            for item in write_result["skipped"]:
+                print(f"- skipped {item['path']}: {item['detail']}")
+            for item in write_result["errors"]:
+                print(f"- error {item['path']}: {item['detail']}")
+        elif not plan["actions"]:
+            print("Profile-generated views are current.")
+        else:
+            print("Required view updates:")
+            for action in plan["actions"]:
+                print(f"- {action['action']}: {action['path']} ({action['reason']})")
+    if plan["blockers"]:
+        return 1
+    if write_result and write_result["errors"]:
+        return 1
+    if args.check and plan["actions"]:
+        return 1
     return 0
 
 
@@ -541,6 +598,12 @@ def build_parser() -> argparse.ArgumentParser:
     profile_validate.add_argument("--path", type=Path, help="Profile YAML path. Defaults to --root/_meta/profile.yml.")
     profile_validate.add_argument("--json", action="store_true", help="Print machine-readable validation result.")
     profile_validate.set_defaults(func=command_profile_validate)
+    profile_views = profile_sub.add_parser("views", help="Check or regenerate profile-owned view files.")
+    profile_views_mode = profile_views.add_mutually_exclusive_group(required=True)
+    profile_views_mode.add_argument("--check", action="store_true", help="Fail if generated profile views are stale.")
+    profile_views_mode.add_argument("--write", action="store_true", help="Regenerate profile-owned view files.")
+    profile_views.add_argument("--json", action="store_true", help="Print machine-readable view generation output.")
+    profile_views.set_defaults(func=command_profile_views)
     profile_diff = profile_sub.add_parser("diff", help="Compare current vault profile with a built-in target version.")
     profile_diff.add_argument("target_profile_version", help="Target built-in profile version, for example 0.1.0.")
     profile_diff.add_argument("--json", action="store_true", help="Print machine-readable diff and migration plan.")

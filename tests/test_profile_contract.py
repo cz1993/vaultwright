@@ -8,7 +8,8 @@ from pathlib import Path
 
 import pytest
 
-from vaultwright.profiles import ProfileValidationError, load_profile, validate_profile_mapping
+from vaultwright.profiles import ProfileContract, ProfileValidationError, load_profile, validate_profile_mapping
+from vaultwright.views import profile_views_plan, render_documents_base
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -40,6 +41,19 @@ def test_template_business_operations_profile_validates() -> None:
     assert "source-mirror" in profile.note_types
     assert "active" in profile.statuses
     assert "Documents.base" in profile.views
+
+
+def test_documents_base_matches_profile_generated_view() -> None:
+    vaults = [
+        ROOT / "template",
+        ROOT / "src" / "vaultwright" / "template",
+        ROOT / "examples" / "government-services-vault",
+        ROOT / "examples" / "northwind-robotics-vault",
+    ]
+
+    for vault in vaults:
+        profile = load_profile(vault / "_meta" / "profile.yml")
+        assert (vault / "Documents.base").read_text(encoding="utf-8") == render_documents_base(profile)
 
 
 def test_packaged_and_example_profiles_match_template() -> None:
@@ -112,6 +126,72 @@ def test_profile_cli_initializes_and_validates_current_profile(tmp_path: Path) -
     current = run_cli("--root", str(vault), "profile", "show", "--json")
     assert current.returncode == 0, current.stderr
     assert json.loads(current.stdout)["id"] == "business-operations"
+
+
+def test_profile_cli_views_check_current_initialized_vault(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    init = run_cli("init", "--profile", "business-operations", str(vault))
+    assert init.returncode == 0, init.stderr
+
+    check = run_cli("--root", str(vault), "profile", "views", "--check", "--json")
+
+    assert check.returncode == 0, check.stderr
+    payload = json.loads(check.stdout)
+    assert payload["summary"] == {"actions": 0, "blockers": 0, "up_to_date": True, "views": 1}
+    assert payload["views"][0]["path"] == "Documents.base"
+    assert payload["views"][0]["state"] == "current"
+
+
+def test_profile_cli_views_write_regenerates_stale_documents_base(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    init = run_cli("init", "--profile", "business-operations", str(vault))
+    assert init.returncode == 0, init.stderr
+    documents_base = vault / "Documents.base"
+    documents_base.write_text("views: []\n", encoding="utf-8")
+
+    check = run_cli("--root", str(vault), "profile", "views", "--check", "--json")
+    assert check.returncode == 1
+    check_payload = json.loads(check.stdout)
+    assert check_payload["actions"][0]["action"] == "write-view"
+    assert check_payload["actions"][0]["path"] == "Documents.base"
+    assert check_payload["views"][0]["state"] == "stale"
+
+    write = run_cli("--root", str(vault), "profile", "views", "--write", "--json")
+
+    assert write.returncode == 0, write.stderr
+    payload = json.loads(write.stdout)
+    assert payload["write"]["summary"]["written"] == 1
+    assert payload["plan"]["summary"]["up_to_date"] is True
+    profile = load_profile(vault / "_meta" / "profile.yml")
+    assert documents_base.read_text(encoding="utf-8") == render_documents_base(profile)
+
+
+def test_profile_view_generation_omits_absent_mirror_views() -> None:
+    data = minimal_profile()
+    data["required_properties"] = ["title", "type", "status", "domain", "updated"]
+    data["optional_properties"] = ["owner"]
+    data["note_types"] = {"note": {"purpose": "general note"}}
+    data["statuses"] = {"queued": {"purpose": "pending"}, "done": {"purpose": "complete"}}
+    data["views"] = ["Documents.base"]
+    profile = ProfileContract.from_mapping(data)
+
+    rendered = render_documents_base(profile)
+
+    assert "By domain" in rendered
+    assert "Office mirrors" not in rendered
+    assert "Repos" not in rendered
+    assert "queued" not in rendered
+
+
+def test_profile_views_plan_blocks_unsafe_view_paths(tmp_path: Path) -> None:
+    data = minimal_profile()
+    data["views"] = ["../Documents.base"]
+    profile = ProfileContract.from_mapping(data)
+
+    plan = profile_views_plan(tmp_path, profile)
+
+    assert plan["summary"]["blockers"] == 1
+    assert plan["blockers"][0]["code"] == "unsafe-view-path"
 
 
 def test_profile_cli_diff_and_migrate_plan_clean_initialized_vault(tmp_path: Path) -> None:

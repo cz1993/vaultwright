@@ -26,6 +26,9 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 - Added `docs/PROFILE_SCHEMA.md` and conservative package-owned `profile migrate --write` support
   that creates missing profile directories and copies missing packaged profile/template files
   without overwriting existing files, source documents, generated mirrors, or annotation sidecars.
+- Added package-owned `profile views --check` and `profile views --write` commands that generate
+  the profile-owned `Documents.base` file from `_meta/profile.yml`, with CI smoke coverage for
+  source and wheel installs.
 - Added package-owned `migrate annotations --plan` and `migrate annotations --write` commands that
   move above-sentinel mirror notes and preserved frontmatter into `_meta/mirror-annotations/`
   sidecars keyed by `source_id` or `repo_id`, without editing original sources or generated mirrors.

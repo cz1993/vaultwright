@@ -6,7 +6,9 @@ views:
       - type
       - status
       - domain
+      - created
       - updated
+      - owner
     sort:
       - property: file.mtime
         direction: DESC
@@ -18,8 +20,21 @@ views:
       - type
       - domain
       - owner
+      - updated
     sort:
       - property: status
+        direction: ASC
+  - type: table
+    name: By domain
+    order:
+      - file.name
+      - domain
+      - type
+      - status
+      - owner
+      - updated
+    sort:
+      - property: domain
         direction: ASC
   - type: table
     name: Office mirrors
@@ -46,6 +61,7 @@ views:
       - status
       - type
       - domain
+      - owner
       - updated
   - type: table
     name: Repos

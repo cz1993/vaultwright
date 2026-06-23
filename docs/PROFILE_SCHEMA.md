@@ -31,6 +31,8 @@ vaultwright --root <vault> profile validate
 vaultwright --root <vault> profile diff 0.1.0
 vaultwright --root <vault> profile migrate --plan
 vaultwright --root <vault> profile migrate --write
+vaultwright --root <vault> profile views --check
+vaultwright --root <vault> profile views --write
 ```
 
 ## Required Fields
@@ -103,6 +105,24 @@ valid.
 note types, statuses, and required properties. `_meta/domain-map.yml` remains a legacy alias and
 operator guidance layer; it must not contradict the profile's canonical domain folders.
 
+## Profile-Generated Views
+
+`vaultwright profile views --check` is read-only. It loads the current vault profile and fails when
+a supported generated view is missing or stale, or when the profile requests a view path this
+installed Vaultwright version cannot safely generate.
+
+`vaultwright profile views --write` regenerates supported profile-owned view files. In the current
+release, the supported generated view is `Documents.base`. Its tables are derived from the active
+profile's required properties, optional properties, note types, and statuses:
+
+- core document tables use profile-defined frontmatter keys;
+- source mirror and repo mirror tables are emitted only when the profile declares those note types;
+- review-attention filters are emitted only when the profile declares supported review statuses.
+
+Generated view writes are explicit and may replace stale generated view files. They do not move,
+delete, or rewrite source documents, generated mirrors, annotation sidecars, or curated markdown
+notes.
+
 ## Migration Semantics
 
 `vaultwright profile migrate --plan` is read-only. It reports:
@@ -128,6 +148,9 @@ It will not:
 - migrate mirror annotations;
 - normalize frontmatter domains;
 - resolve template drift automatically.
+
+Use `vaultwright profile views --write` after reviewing view drift when you want to regenerate the
+profile-owned `Documents.base` file from the active profile contract.
 
 Use `vaultwright migration --normalize-frontmatter-domains --worksheet` for frontmatter cleanup
 review, and `vaultwright migrate annotations --write` for mirror annotation sidecars. Profile

@@ -27,11 +27,14 @@ Stage 1 remains the active lane. Current status:
 | Requirement | Status |
 | --- | --- |
 | V1-C1 package-owned runtime | In progress. Package CLI exists; `plan`, `sync`, `status`, `doctor`, `catalog`, `lint`, `conversion`, `m365`, `migration`, `overlap`, `benchmark`, `pilot`, `sandbox`, `recovery`, and `review` are package-owned; Office mirror planning/sync/status lives in `vaultwright.mirrors.office`; GitHub repo mirror planning/sync/status lives in `vaultwright.mirrors.github_repos`; sync, lint, conversion, m365, migration, overlap, benchmark, pilot, sandbox, recovery, review-ledger, and operator-wrapper scripts remain compatibility shims. |
-| V1-C2 versioned profile contract | In progress. Schema validation, schema documentation, read-only profile commands, and conservative write-mode profile migration exist; remaining profile-driven behavior is not done. |
+| V1-C2 versioned profile contract | In progress. Schema validation, schema documentation, read-only profile commands, conservative write-mode profile migration, and profile-generated `Documents.base` check/write support exist; remaining profile-driven behavior is not done. |
 | V1-C4 safe migration path | In progress. Reports, read-only plans, and conservative write-mode profile migration exist; broader workspace/profile migration coverage will be needed as profile-driven behavior expands. |
 | V1-C5 machine-owned mirrors | Stage 1 closed by this batch. Fresh mirrors are machine-owned, sync blocks unmigrated mirror annotations, sidecar-aware sync rewrites migrated mirrors as machine-owned, and lint blocks unmigrated annotations. |
 
-Stages 2 through 6 have not started and should remain gated until Stage 1 exits.
+Stage 3 now has one preparatory slice: package-owned `profile views --check/--write` generates the
+current profile's `Documents.base` without requiring Obsidian. Governance skills, Canvas outputs,
+and the broader Obsidian adapter gate remain open. Stages 2, 4, 5, and 6 have not started and
+should remain gated until Stage 1 exits.
 
 ## Remaining Execution Plan
 
@@ -40,7 +43,8 @@ Stages 2 through 6 have not started and should remain gated until Stage 1 exits.
    - preserve current no-data, lifecycle, recovery, catalog, benchmark, and example gates.
 2. Finish the profile contract:
    - move remaining business folder/type/status assumptions into `business-operations` profile data;
-   - make linter/sync/report behavior read those contracts consistently.
+   - make linter/sync/report behavior read those contracts consistently;
+   - keep generated Bases reading the active profile contract.
 3. Add write-mode profile migration:
    - expand beyond conservative missing-file/profile bootstrap only when the next profile-driven
      behavior requires it;
@@ -56,7 +60,7 @@ Stages 2 through 6 have not started and should remain gated until Stage 1 exits.
 ## Next Recommended Slice
 
 Move the next Stage 1 gap deeper into profile-driven behavior: keep removing hard-coded business
-folder/type/status assumptions from sync, reports, docs, and generated views, and make those paths
-read `business-operations` profile data consistently. Preserve the example regeneration gates and
+folder/type/status assumptions from sync, reports, and docs, and make those paths read
+`business-operations` profile data consistently. Preserve the example regeneration gates and
 require no-data, lifecycle, recovery, catalog, package-install, and profile-validation coverage
 before treating the slice as closed.

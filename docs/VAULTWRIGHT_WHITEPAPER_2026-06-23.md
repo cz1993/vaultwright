@@ -209,6 +209,8 @@ vaultwright profile validate
 vaultwright profile diff <target-profile-version>
 vaultwright profile migrate --plan
 vaultwright profile migrate --write
+vaultwright profile views --check
+vaultwright profile views --write
 ```
 
 A public profile marketplace is explicitly out of scope for v1. Third-party profiles can be loaded from local paths after the profile contract stabilizes.
