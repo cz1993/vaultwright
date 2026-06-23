@@ -66,6 +66,9 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 - The installable `vaultwright pilot` command now runs package-owned `vaultwright.pilot` code and
   imports package-owned report modules for its aggregate evidence summaries; vault-local
   `tools/pilot_report.py` remains available as a compatibility surface.
+- The installable `vaultwright sandbox` command now runs package-owned `vaultwright.sandbox` code
+  and imports package-owned recovery reporting for its copied-vault preflight; vault-local
+  `tools/sandbox_report.py` remains available as a compatibility surface.
 - The installable `vaultwright recovery` command now runs package-owned `vaultwright.recovery`
   code; vault-local `tools/recovery_report.py` remains available as a compatibility surface, and
   CI smoke tests cover package-level JSON and worksheet output.
@@ -127,8 +130,8 @@ All notable changes to Vaultwright are documented here. Format loosely follows
   readiness, and backup posture without printing source paths or document text.
 - CI and release smoke checks now compile and exercise `sandbox`, including packaged-template
   installation coverage.
-- The installable `vaultwright` console entry point now delegates `sandbox` to the target vault's
-  local wrapper, matching the vault-local CLI.
+- The installable `vaultwright` console entry point now exercises `sandbox` through the package
+  runtime while the vault-local wrapper remains available for compatibility.
 - Office sync now blocks ambiguous same-hash source moves as `conflict` when multiple missing
   manifest records could match one new source path.
 - Office sync now exits nonzero for review-blocking sync states and flags duplicate exact
@@ -257,8 +260,9 @@ Initial scaffold extracted and generalized from a real small-business vault.
   missing, moved, changed, unreachable, conflict, unsupported, and error states.
 - Added `tools/vaultwright.py`, a thin operator wrapper for `plan`, `sync`, `status`, `lint`, and
   `doctor`, plus repo-root `init`.
-- Added `pyproject.toml` and the source-installable `vaultwright` console entry point, which
-  delegates to vault-local tools instead of forking sync/lint behavior.
+- Added `pyproject.toml` and the source-installable `vaultwright` console entry point; current
+  command behavior has since converged into package-owned modules while vault-local tools remain
+  compatibility shims.
 - Packaged the starter vault template under `src/vaultwright/template`, so `vaultwright init` can
   scaffold from an installed wheel without a source checkout or `VAULTWRIGHT_REPO`.
 - CI now builds a wheel, installs it into a clean environment, and smoke-tests packaged

@@ -3301,6 +3301,88 @@ def test_vaultwright_sandbox_report_checks_copied_boundary_without_content(tmp_p
     assert archived_raw_folder_mirror.read_text(encoding="utf-8") == before_archived_raw_folder_mirror
 
 
+def test_packaged_vaultwright_sandbox_does_not_require_vault_wrapper_or_local_sandbox_runtime(
+    tmp_path: Path,
+) -> None:
+    source_root = tmp_path / "original-documents"
+    source_root.mkdir()
+    (source_root / "original-client-plan.docx").write_bytes(b"original private source bytes")
+    vault = tmp_path / "copied-vault"
+    shutil.copytree(ROOT / "template", vault)
+    source = vault / "40_delivery" / "client-plan.docx"
+    mirror = vault / "_mirrors" / "40_delivery" / "client-plan.md"
+    source.parent.mkdir(parents=True, exist_ok=True)
+    mirror.parent.mkdir(parents=True, exist_ok=True)
+    source.write_bytes(b"copied private source bytes")
+    mirror.write_text(
+        "---\n"
+        "type: source-mirror\n"
+        "---\n"
+        "Packaged sandbox mirror text that should not appear\n",
+        encoding="utf-8",
+    )
+    (vault / "tools" / "vaultwright.py").unlink()
+    (vault / "tools" / "sandbox_report.py").unlink()
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "vaultwright.cli",
+            "--root",
+            str(vault),
+            "sandbox",
+            "--source-root",
+            str(source_root),
+        ],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+    )
+    json_result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "vaultwright.cli",
+            "--root",
+            str(vault),
+            "sandbox",
+            "--source-root",
+            str(source_root),
+            "--json",
+        ],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+    assert "sandbox: source boundary status=distinct" in result.stdout
+    assert "sandbox: generated mirrors dedicated=1 raw_folder=0 repo=0" in result.stdout
+    assert "missing tools/vaultwright.py" not in result.stdout
+    assert "missing tools/vaultwright.py" not in result.stderr
+    assert "sandbox_report.py" not in result.stdout
+    assert "sandbox_report.py" not in result.stderr
+    assert "copied private source bytes" not in result.stdout
+    assert "Packaged sandbox mirror text" not in result.stdout
+    assert "client-plan.docx" not in result.stdout
+    assert str(vault) not in result.stdout
+    assert str(source_root) not in result.stdout
+
+    assert json_result.returncode == 0, json_result.stderr or json_result.stdout
+    payload = json.loads(json_result.stdout)
+    assert payload["report"]["source_boundary"]["status"] == "distinct"
+    assert payload["report"]["inventory"]["dedicated_generated_mirrors"] == 1
+    assert "missing tools/vaultwright.py" not in json_result.stdout
+    assert "missing tools/vaultwright.py" not in json_result.stderr
+    assert "sandbox_report.py" not in json_result.stdout
+    assert "copied private source bytes" not in json_result.stdout
+    assert "Packaged sandbox mirror text" not in json_result.stdout
+    assert "client-plan.docx" not in json_result.stdout
+    assert str(vault) not in json_result.stdout
+    assert str(source_root) not in json_result.stdout
+
+
 def test_vaultwright_sandbox_report_fails_when_source_root_is_vault(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     shutil.copytree(ROOT / "template", vault)

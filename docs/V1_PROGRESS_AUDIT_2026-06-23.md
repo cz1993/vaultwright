@@ -26,7 +26,7 @@ Stage 1 remains the active lane. Current status:
 
 | Requirement | Status |
 | --- | --- |
-| V1-C1 package-owned runtime | In progress. Package CLI exists; `plan`, `sync`, `status`, `doctor`, `catalog`, `lint`, `conversion`, `m365`, `migration`, `overlap`, `benchmark`, `pilot`, `recovery`, and `review` are package-owned; Office mirror planning/sync/status lives in `vaultwright.mirrors.office`; GitHub repo mirror planning/sync/status lives in `vaultwright.mirrors.github_repos`; sync, lint, conversion, m365, migration, overlap, benchmark, pilot, recovery, review-ledger, and operator-wrapper scripts remain compatibility shims. |
+| V1-C1 package-owned runtime | In progress. Package CLI exists; `plan`, `sync`, `status`, `doctor`, `catalog`, `lint`, `conversion`, `m365`, `migration`, `overlap`, `benchmark`, `pilot`, `sandbox`, `recovery`, and `review` are package-owned; Office mirror planning/sync/status lives in `vaultwright.mirrors.office`; GitHub repo mirror planning/sync/status lives in `vaultwright.mirrors.github_repos`; sync, lint, conversion, m365, migration, overlap, benchmark, pilot, sandbox, recovery, review-ledger, and operator-wrapper scripts remain compatibility shims. |
 | V1-C2 versioned profile contract | In progress. Schema validation and read-only profile commands exist; full schema docs, write migration, and remaining profile-driven behavior are not done. |
 | V1-C4 safe migration path | In progress. Reports and read-only plans exist; write-mode workspace/profile migration is still needed. |
 | V1-C5 machine-owned mirrors | Stage 1 closed by this batch. Fresh mirrors are machine-owned, sync blocks unmigrated mirror annotations, sidecar-aware sync rewrites migrated mirrors as machine-owned, and lint blocks unmigrated annotations. |
@@ -36,8 +36,7 @@ Stages 2 through 6 have not started and should remain gated until Stage 1 exits.
 ## Remaining Execution Plan
 
 1. Finish Stage 1 kernel convergence:
-   - move remaining delegated command behavior into package modules under `src/vaultwright/`;
-   - leave vault-local tools as compatibility shims only;
+   - keep vault-local tools as compatibility shims only and prevent implementation drift;
    - preserve current no-data, lifecycle, recovery, catalog, benchmark, and example gates.
 2. Finish the profile contract:
    - document the profile schema;
@@ -56,9 +55,8 @@ Stages 2 through 6 have not started and should remain gated until Stage 1 exits.
 
 ## Next Recommended Slice
 
-Move the next copied runtime surface into `src/vaultwright/`, with `sandbox` as the likely
-remaining delegated report surface now that sync orchestration, doctor, lint, catalog, conversion,
-m365, migration, overlap, benchmark, pilot, recovery, and review are package-owned. Keep
-vault-local tools as compatibility shims, preserve the example regeneration gates, and require
-no-data, lifecycle, recovery, catalog, and package-install coverage before treating the slice as
-closed.
+Move the next Stage 1 gap from runtime migration into profile convergence: document the profile
+schema, add write-mode `profile migrate`, and keep removing hard-coded business folder/type/status
+assumptions from core behavior. Preserve the example regeneration gates and require no-data,
+lifecycle, recovery, catalog, package-install, and profile-validation coverage before treating the
+slice as closed.

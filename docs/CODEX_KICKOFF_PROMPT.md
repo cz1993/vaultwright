@@ -187,10 +187,12 @@ not broad industry expansion. Prove the narrow promise first:
   `m365`, `review`, `overlap`, `migration`, `pilot`, `recovery`, `sandbox`, `lint`,
   `benchmark`, and `doctor` exist; keep them thin. The source-installable
   `vaultwright` console entry point now owns `plan`, `sync`, `status`, `doctor`, `catalog`, `lint`,
-  `conversion`, `m365`, `migration`, `overlap`, `benchmark`, `pilot`, `recovery`, and `review` through the package while remaining legacy operator commands delegate to the same
-  vault-local wrapper during migration. `plan` must remain
+  `conversion`, `m365`, `migration`, `overlap`, `benchmark`, `pilot`, `sandbox`, `recovery`, and
+  `review` through the package while vault-local operator commands remain compatibility surfaces
+  during migration. `plan` must remain
   non-destructive; keep improving its sensitive-file risks, duplicate warnings, and
-  conversion-quality estimates before writing. `conversion`, `m365`, `migration`, `pilot`, and `recovery` must
+  conversion-quality estimates before writing. `conversion`, `m365`, `migration`, `pilot`,
+  `sandbox`, and `recovery` must
   remain read-only operator reports. `review` may append metadata-only decisions to
   `_meta/review-ledger.jsonl`, but must not copy source text, mirror bodies, answer text, secrets,
   or client identifiers. `catalog` writes generated path-and-metadata-only
@@ -218,9 +220,9 @@ not broad industry expansion. Prove the narrow promise first:
 - **Repo mirror:** large-repo handling, rate-limit/backoff, and groundwork for **typed links**.
 
 **P2 — DX & adoption**
-- Continue shrinking the **`vaultwright` CLI** by moving remaining report runtimes from the existing
-  wrapper into the package; keep doctor checks for Obsidian config, `gh` auth, backup posture, and
-  recovery readiness package-owned.
+- Keep the vault-local **`vaultwright` CLI** wrappers thin compatibility surfaces, prevent drift
+  from the package-owned runtime, and keep doctor checks for Obsidian config, `gh` auth, backup
+  posture, and recovery readiness package-owned.
 - **Industry starter profiles** only after design-partner evidence shows reusable patterns.
 - **Docs site** (MkDocs or Quartz); quickstart polish; screenshots/GIFs.
 - **Typed links** (`supports` / `contradicts` / `supersedes` / `depends-on`) across schema, linter,

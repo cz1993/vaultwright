@@ -1,9 +1,8 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Installable Vaultwright console entry point.
 
-The packaged command owns profile commands and package-migrated runtime behavior directly. Legacy
-operator commands still delegate to the target vault's local `tools/vaultwright.py` wrapper until
-their behavior moves into the package; migrated commands run directly from package modules.
+The packaged command owns profile commands and migrated runtime behavior directly. Vault-local
+operator scripts remain compatibility shims for users who run commands from inside a copied vault.
 """
 from __future__ import annotations
 
@@ -11,7 +10,6 @@ import argparse
 import json
 import os
 import shutil
-import subprocess
 import sys
 from pathlib import Path
 
@@ -26,6 +24,7 @@ from vaultwright import overlap as overlap_module
 from vaultwright import pilot as pilot_module
 from vaultwright import recovery as recovery_module
 from vaultwright import review_ledger as review_ledger_module
+from vaultwright import sandbox as sandbox_module
 from vaultwright.annotation_migration import (
     annotation_migration_plan,
     public_plan,
@@ -54,17 +53,6 @@ def template_source() -> Path | None:
 def ensure_empty_or_missing(target: Path) -> None:
     if target.exists() and any(target.iterdir()):
         raise ValueError(f"refusing: '{target}' exists and is not empty")
-
-
-def run(cmd: list[str], cwd: Path) -> int:
-    return subprocess.run(cmd, cwd=cwd).returncode
-
-
-def vault_wrapper(root: Path) -> Path:
-    wrapper = root / "tools" / "vaultwright.py"
-    if not wrapper.exists():
-        raise FileNotFoundError(f"{root} does not look like a Vaultwright vault: missing tools/vaultwright.py")
-    return wrapper
 
 
 def built_in_profile() -> tuple[ProfileContract, Path] | None:
@@ -258,16 +246,6 @@ def command_init(args: argparse.Namespace) -> int:
     return 0
 
 
-def command_delegate(args: argparse.Namespace) -> int:
-    root = args.root.expanduser().resolve()
-    try:
-        wrapper = vault_wrapper(root)
-    except FileNotFoundError as exc:
-        print(str(exc), file=sys.stderr)
-        return 1
-    return run([sys.executable, str(wrapper), args.command, *getattr(args, "delegate_args", [])], root)
-
-
 def catalog_args(args: argparse.Namespace) -> list[str]:
     return (
         (["--json"] if args.json else [])
@@ -406,6 +384,18 @@ def pilot_args(args: argparse.Namespace) -> list[str]:
 def command_pilot(args: argparse.Namespace) -> int:
     root = args.root.expanduser().resolve()
     return pilot_module.main(pilot_args(args), root=root)
+
+
+def sandbox_args(args: argparse.Namespace) -> list[str]:
+    return (
+        (["--source-root", str(args.source_root)] if args.source_root else [])
+        + (["--json"] if args.json else [])
+    )
+
+
+def command_sandbox(args: argparse.Namespace) -> int:
+    root = args.root.expanduser().resolve()
+    return sandbox_module.main(sandbox_args(args), root=root)
 
 
 def command_doctor(args: argparse.Namespace) -> int:
@@ -662,21 +652,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="Original source collection root. Used only to verify the pilot vault is a separate copy.",
     )
     sandbox.add_argument("--json", action="store_true", help="Print machine-readable sandbox JSON.")
-    sandbox.set_defaults(
-        func=command_delegate,
-        delegate_args=lambda args: (
-            (["--source-root", str(args.source_root)] if args.source_root else [])
-            + (["--json"] if args.json else [])
-        ),
-    )
+    sandbox.set_defaults(func=command_sandbox)
     return parser
 
 
 def main() -> int:
     parser = build_parser()
     args = parser.parse_args()
-    if callable(getattr(args, "delegate_args", None)):
-        args.delegate_args = args.delegate_args(args)
     return int(args.func(args))
 
 
