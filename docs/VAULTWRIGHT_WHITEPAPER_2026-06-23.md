@@ -63,7 +63,7 @@ The current repository is substantially stronger than an ordinary prototype. It 
 
 The current `CATALOG.md` and `CATALOG.html` work is particularly relevant to the new direction. It already establishes a non-Obsidian, metadata-only presentation layer with lifecycle, format, domain, source, mirror, and repository summaries.
 
-However, the repository also shows the main risk of the proposed expansion: **tool and concept proliferation**. The CLI exposes a growing collection of reports and workflows, while runtime behavior is still delegated to scripts copied into each vault. The current linter also hard-codes business-oriented content roots, required fields, note types, and statuses. Adding templates, indexing, skills, and visualization on top of that structure would multiply maintenance cost.
+However, the repository also shows the main risk of the proposed expansion: **tool and concept proliferation**. The CLI exposes a growing collection of reports and workflows, while remaining report and doctor behavior still depends on scripts copied into each vault. The current linter also hard-codes some business-oriented content assumptions. Adding templates, indexing, skills, and visualization on top of that structure would multiply maintenance cost.
 
 Therefore the next step is not to add four new feature families. The next step is to create a stable kernel into which profiles, adapters, indexes, and renderers can plug.
 

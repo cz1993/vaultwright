@@ -345,6 +345,32 @@ def test_vaultwright_cli_root_uses_target_vault_tools(tmp_path: Path) -> None:
     assert not (vault / "80_sources" / "repos" / "fixture.md").exists()
 
 
+def test_packaged_plan_sync_status_do_not_require_vault_wrapper(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    (vault / "tools" / "vaultwright.py").unlink()
+    env = {**os.environ, "PYTHONPATH": str(ROOT / "src")}
+
+    results: dict[str, subprocess.CompletedProcess[str]] = {}
+    for command in ("plan", "sync", "status"):
+        result = subprocess.run(
+            [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), command],
+            cwd=ROOT,
+            env=env,
+            text=True,
+            capture_output=True,
+        )
+        results[command] = result
+        assert result.returncode == 0, result.stderr or result.stdout
+
+    assert "sync_office_md plan" in results["plan"].stdout
+    assert "vaultwright plan: no tools/repos.yml found; repo plan skipped" in results["plan"].stdout
+    assert "sync_office_md:" in results["sync"].stdout
+    assert "sync_github_repos: no repos.yml found; skipped" in results["sync"].stdout
+    assert "sync_office_md status" in results["status"].stdout
+    assert "vaultwright status: no tools/repos.yml found; repo status skipped" in results["status"].stdout
+
+
 def test_packaged_vaultwright_cli_runs_target_vault_commands(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     shutil.copytree(ROOT / "template", vault)

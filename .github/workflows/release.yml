@@ -49,6 +49,8 @@ jobs:
           "$RUNNER_TEMP/vaultwright-release-venv/bin/vaultwright" --root "$tmp_vault" doctor
           "$RUNNER_TEMP/vaultwright-release-venv/bin/vaultwright" --root "$tmp_vault" lint
           "$RUNNER_TEMP/vaultwright-release-venv/bin/vaultwright" --root "$tmp_vault" plan
+          "$RUNNER_TEMP/vaultwright-release-venv/bin/vaultwright" --root "$tmp_vault" sync
+          "$RUNNER_TEMP/vaultwright-release-venv/bin/vaultwright" --root "$tmp_vault" status
           "$RUNNER_TEMP/vaultwright-release-venv/bin/vaultwright" --root "$tmp_vault" sandbox --source-root "$RUNNER_TEMP/vaultwright-release-original-documents" --json
           "$RUNNER_TEMP/vaultwright-release-venv/bin/vaultwright" --root "$tmp_vault" benchmark
           "$RUNNER_TEMP/vaultwright-release-venv/bin/vaultwright" --root "$tmp_vault" catalog

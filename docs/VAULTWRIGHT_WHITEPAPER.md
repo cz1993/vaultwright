@@ -419,7 +419,7 @@ Current evidence is encouraging but limited.
 | Review ledger | `_meta/review-ledger.jsonl` stores artifact hash, reviewer, status, and short metadata notes from `vaultwright review` | Useful approval evidence; not a substitute for expert review of document meaning |
 | Pilot evidence report | Read-only aggregate report summarizes corpus shape, manifest states, audit counts, conversion priorities, optional conversion-quality result counts/scores, recovery counts, overlap candidate/near-miss counts and thresholds, review-ledger counts, benchmark tasks, optional benchmark result scores, and a redacted Markdown worksheet summary without source content, source paths, artifact paths, overlap shared terms, or reviewer notes; benchmark can now initialize private task/result scaffolds and print a path-redacted run worksheet | Useful for private design-partner worksheets; not external validation by itself |
 | Repo source manifest | Stable repo IDs, local-tree/remote-HEAD hashes, audit events, manual-edit detection | Useful coverage for repo mirrors |
-| Source-installable CLI | Console entry point supports source-checkout `init`; `catalog`, `lint`, Office mirror planning/sync/status, and GitHub repo mirror planning/sync/status now run package-owned code while remaining legacy commands delegate to vault-local tools | Good development ergonomics and a stronger package-runtime migration path |
+| Source-installable CLI | Console entry point supports source-checkout `init`; installed `plan`, `sync`, `status`, `catalog`, and `lint` now run package-owned code while remaining legacy commands delegate to vault-local tools | Good development ergonomics and a stronger package-runtime migration path |
 | Private dogfood | Copied local corpus outside this repository now has 40 source manifest records, 39 clean generated source mirrors, 1 unsupported legacy `.doc`, regenerated `CATALOG.md`/`CATALOG.html`, conversion/migration/recovery/Microsoft 365 reports, and no source-folder mirror clutter | Useful smoke test only; not public evidence and not a production-readiness claim |
 
 Known gaps:
@@ -710,7 +710,8 @@ Available today:
 - Thin `tools/vaultwright.py` wrapper for `plan`, `sync`, `status`, `catalog`, `conversion`,
   `m365`, `review`, `overlap`, `migration`, `pilot`, `recovery`, `sandbox`, `benchmark`,
   `lint`, and `doctor`.
-- Source-installable `vaultwright` console entry point via `pyproject.toml`.
+- Source-installable `vaultwright` console entry point via `pyproject.toml`, with installed
+  `plan`, `sync`, `status`, `catalog`, and `lint` commands running package-owned runtime code.
 - Warning-level plan risk reporting for sensitive-looking paths, duplicate bytes, and
   format-specific conversion caveats.
 - Recovery guide and design-partner validation protocol.

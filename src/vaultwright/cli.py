@@ -22,6 +22,8 @@ from vaultwright.annotation_migration import (
     public_plan,
     write_annotation_sidecars,
 )
+from vaultwright.mirrors import github_repos as repo_sync_module
+from vaultwright.mirrors import office as office_sync_module
 from vaultwright.profile_migration import profile_migration_plan
 from vaultwright.profiles import ProfileContract, ProfileValidationError, load_profile
 
@@ -278,6 +280,39 @@ def command_lint(args: argparse.Namespace) -> int:
     return lint_module.main(root=root)
 
 
+def repo_config(root: Path) -> Path:
+    return root / "tools" / "repos.yml"
+
+
+def command_plan(args: argparse.Namespace) -> int:
+    root = args.root.expanduser().resolve()
+    status = office_sync_module.main(["--plan"], default_root=root)
+    config = repo_config(root)
+    if config.exists():
+        status = max(status, repo_sync_module.main(["--plan"], default_root=root, default_config=config))
+    else:
+        print("vaultwright plan: no tools/repos.yml found; repo plan skipped")
+    return status
+
+
+def command_sync(args: argparse.Namespace) -> int:
+    root = args.root.expanduser().resolve()
+    office = office_sync_module.main([], default_root=root)
+    repos = repo_sync_module.main([], default_root=root, default_config=repo_config(root))
+    return office or repos
+
+
+def command_status(args: argparse.Namespace) -> int:
+    root = args.root.expanduser().resolve()
+    status = office_sync_module.main(["--status"], default_root=root)
+    config = repo_config(root)
+    if config.exists():
+        status = max(status, repo_sync_module.main(["--status"], default_root=root, default_config=config))
+    else:
+        print("vaultwright status: no tools/repos.yml found; repo status skipped")
+    return status
+
+
 def command_migrate_annotations(args: argparse.Namespace) -> int:
     root = args.root.expanduser().resolve()
     plan = annotation_migration_plan(root)
@@ -374,13 +409,13 @@ def build_parser() -> argparse.ArgumentParser:
     annotations_mode.add_argument("--write", action="store_true", help="Write annotation sidecars without editing mirrors.")
     annotations.add_argument("--json", action="store_true", help="Print machine-readable migration output.")
     annotations.set_defaults(func=command_migrate_annotations)
-    for name, help_text in (
-        ("plan", "Inventory sources and proposed mirror actions without writing."),
-        ("sync", "Run Office and repo mirror syncs."),
-        ("status", "Report manifest-backed lifecycle status."),
-        ("doctor", "Check required files, Python version, and dependencies."),
-    ):
-        sub.add_parser(name, help=help_text).set_defaults(func=command_delegate, delegate_args=[])
+    sub.add_parser("plan", help="Inventory sources and proposed mirror actions without writing.").set_defaults(func=command_plan)
+    sub.add_parser("sync", help="Run Office and repo mirror syncs.").set_defaults(func=command_sync)
+    sub.add_parser("status", help="Report manifest-backed lifecycle status.").set_defaults(func=command_status)
+    sub.add_parser("doctor", help="Check required files, Python version, and dependencies.").set_defaults(
+        func=command_delegate,
+        delegate_args=[],
+    )
     sub.add_parser("lint", help="Run vault health checks.").set_defaults(func=command_lint)
     overlap = sub.add_parser("overlap", help="Print a read-only overlap threshold calibration report.")
     overlap_output = overlap.add_mutually_exclusive_group()
