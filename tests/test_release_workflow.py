@@ -94,6 +94,7 @@ def test_ci_workflow_smokes_sandbox_command() -> None:
 
     assert "src/vaultwright/catalog.py" in text
     assert "src/vaultwright/doctor.py" in text
+    assert "src/vaultwright/m365.py" in text
     assert "src/vaultwright/recovery.py" in text
     assert "src/vaultwright/review_ledger.py" in text
     assert "src/vaultwright/annotation_migration.py" in text

@@ -26,7 +26,7 @@ required migration. New ideas that do not map here move to the post-v1 backlog.
 
 | ID | Requirement | Current Evidence | Gap To Close | Stage |
 | --- | --- | --- | --- | --- |
-| V1-C1 | One installable cross-platform core package owns runtime behavior | `pyproject.toml` exposes a `vaultwright` console entry point; CI installs package; installed `vaultwright plan`, `vaultwright sync`, and `vaultwright status` orchestrate package-owned Office/repo sync modules directly; `vaultwright doctor` runs package-owned preflight checks; `vaultwright catalog` runs package-owned catalog code; `vaultwright lint` runs package-owned lint code; `vaultwright recovery` runs package-owned recovery-report code; `vaultwright review` runs package-owned review-ledger code; Office mirror planning/sync/status runs from `vaultwright.mirrors.office`; GitHub repo mirror planning/sync/status runs from `vaultwright.mirrors.github_repos`; vault-local sync, lint, recovery, review-ledger, and operator-wrapper tools remain compatibility surfaces | Runtime still lives partly in copied `template/tools/` scripts; continue moving remaining commands into `src/vaultwright/` and leave vault-local tools as compatibility shims | 1 |
+| V1-C1 | One installable cross-platform core package owns runtime behavior | `pyproject.toml` exposes a `vaultwright` console entry point; CI installs package; installed `vaultwright plan`, `vaultwright sync`, and `vaultwright status` orchestrate package-owned Office/repo sync modules directly; `vaultwright doctor` runs package-owned preflight checks; `vaultwright catalog` runs package-owned catalog code; `vaultwright lint` runs package-owned lint code; `vaultwright m365` runs package-owned Microsoft 365 handoff-report code; `vaultwright recovery` runs package-owned recovery-report code; `vaultwright review` runs package-owned review-ledger code; Office mirror planning/sync/status runs from `vaultwright.mirrors.office`; GitHub repo mirror planning/sync/status runs from `vaultwright.mirrors.github_repos`; vault-local sync, lint, m365, recovery, review-ledger, and operator-wrapper tools remain compatibility surfaces | Runtime still lives partly in copied `template/tools/` scripts; continue moving remaining commands into `src/vaultwright/` and leave vault-local tools as compatibility shims | 1 |
 | V1-C2 | One versioned profile contract | `src/vaultwright/profiles.py` validates schema version 1; `_meta/profile.yml` declares the current `business-operations` template; package CLI exposes `init --profile business-operations`, `profile list`, `profile show`, `profile validate`, `profile diff`, and read-only `profile migrate --plan`; linter/catalog read profile domains, note types, statuses, required properties, and canonical folders | Need full profile schema docs, write-mode profile migration support, and remaining core behavior reading profile data | 1 |
 | V1-C3 | Three official content profiles plus a blank starter | Existing template approximates `business-operations`; government-services example exercises that profile shape | Need `business-operations`, `research-learning`, `software-project`, and `blank` as package-owned profiles | 2 |
 | V1-C4 | Safe migration path from current business template | Migration reports, frontmatter domain normalization, and package-owned `profile migrate --plan` exist | Need write-mode workspace/profile migration that moves from current template to profile contract without source mutation or annotation loss | 1 |
@@ -51,7 +51,7 @@ the index has benchmark evidence.
 
 | Open Work | Finish-Line Mapping | Execution Rule |
 | --- | --- | --- |
-| Copied vault-local scripts | V1-C1 | Refactor into package modules first; leave scripts only as shims during migration; Office sync, repo sync, installed plan/sync/status orchestration, doctor, lint, catalog, recovery, and review are the current package-owned examples |
+| Copied vault-local scripts | V1-C1 | Refactor into package modules first; leave scripts only as shims during migration; Office sync, repo sync, installed plan/sync/status orchestration, doctor, lint, catalog, m365, recovery, and review are the current package-owned examples |
 | Hard-coded business folders, note types, statuses, and linter assumptions | V1-C2, V1-C3, V1-C7 | Continue extracting into profile contracts before adding more profiles; `lint` and `catalog` now read profile-defined allowed values and canonical folders |
 | Current business template and examples | V1-C3, V1-C4 | Treat as `business-operations`; migrate rather than fork |
 | Above-sentinel notes in generated mirrors | V1-C5 | Preserve first with `migrate annotations --write`; sync blocks unmigrated mirror annotations, fresh mirrors are machine-owned, and sidecar-aware sync makes migrated mirrors machine-owned on the next regeneration |
@@ -87,9 +87,9 @@ a finish-line requirement above.
 Current Stage 1 command status: `init --profile business-operations`, `profile list`,
 `profile show`, `profile validate`, `profile diff`, read-only `profile migrate --plan`,
 `migrate annotations --plan`, `migrate annotations --write`, `plan`, `sync`, `status`, `doctor`,
-`lint`, `catalog`, `recovery`, and `review` are implemented against package-owned runtime. Office mirror
+`lint`, `catalog`, `m365`, `recovery`, and `review` are implemented against package-owned runtime. Office mirror
 planning/sync/status and repo mirror planning/sync/status are package-owned while their vault-local
-tools remain compatibility surfaces; vault-local recovery and review-ledger tooling remains as a
+tools remain compatibility surfaces; vault-local m365, recovery, and review-ledger tooling remains as a
 compatibility surface.
 Sidecar-aware Office/repo sync rewrites migrated mirrors as machine-owned on regeneration; fresh
 mirrors are machine-owned; sync and lint block unmigrated mirror annotations.

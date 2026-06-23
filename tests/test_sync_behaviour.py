@@ -473,6 +473,41 @@ def test_packaged_recovery_does_not_require_vault_wrapper_or_local_report(tmp_pa
     assert "Recovery items needing operator action: 0 (office=0, repo=0, temp=0)" in worksheet.stdout
 
 
+def test_packaged_m365_does_not_require_vault_wrapper_or_local_report(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    (vault / "tools" / "vaultwright.py").unlink()
+    (vault / "tools" / "m365_report.py").unlink()
+    env = {**os.environ, "PYTHONPATH": str(ROOT / "src")}
+
+    result = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "m365"],
+        cwd=ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+    assert "m365 handoff: read-only readiness report; no source content was printed" in result.stdout
+    assert "Run `vaultwright sync` before handoff" in result.stdout
+    assert "missing tools/vaultwright.py" not in result.stderr
+    assert "m365_report.py" not in result.stderr
+
+    json_result = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "m365", "--json"],
+        cwd=ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert json_result.returncode == 0, json_result.stderr or json_result.stdout
+    report = json.loads(json_result.stdout)
+    assert report["report"]["catalogs"]["markdown"]["path"] == "CATALOG.md"
+    assert "CATALOG.html" in report["report"]["handoff_bundle"]
+
+
 def test_packaged_vaultwright_cli_runs_target_vault_commands(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     shutil.copytree(ROOT / "template", vault)

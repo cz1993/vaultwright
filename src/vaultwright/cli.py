@@ -18,6 +18,7 @@ from pathlib import Path
 from vaultwright import catalog as catalog_module
 from vaultwright import doctor as doctor_module
 from vaultwright import lint as lint_module
+from vaultwright import m365 as m365_module
 from vaultwright import recovery as recovery_module
 from vaultwright import review_ledger as review_ledger_module
 from vaultwright.annotation_migration import (
@@ -313,6 +314,11 @@ def command_recovery(args: argparse.Namespace) -> int:
     return recovery_module.main(recovery_args(args), root=root)
 
 
+def command_m365(args: argparse.Namespace) -> int:
+    root = args.root.expanduser().resolve()
+    return m365_module.main(["--json"] if args.json else [], root=root)
+
+
 def command_doctor(args: argparse.Namespace) -> int:
     root = args.root.expanduser().resolve()
     return doctor_module.main(root=root)
@@ -586,10 +592,7 @@ def build_parser() -> argparse.ArgumentParser:
     recovery.set_defaults(func=command_recovery)
     m365 = sub.add_parser("m365", help="Print a read-only Microsoft 365/Copilot handoff report.")
     m365.add_argument("--json", action="store_true", help="Print machine-readable handoff JSON.")
-    m365.set_defaults(
-        func=command_delegate,
-        delegate_args=lambda args: ["--json"] if args.json else [],
-    )
+    m365.set_defaults(func=command_m365)
     review = sub.add_parser("review", help="Record or summarize metadata-only artifact review decisions.")
     review.add_argument("--artifact", type=Path, help="Generated artifact to review, relative to the vault root.")
     review.add_argument("--status", choices=["approved", "blocked", "deferred", "needs-work"], help="Review decision to record.")
