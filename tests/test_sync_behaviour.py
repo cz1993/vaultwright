@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 from pathlib import Path
+import importlib
 import importlib.util
 import json
 import os
@@ -65,14 +66,7 @@ def load_sync_module():
 
 
 def load_office_sync_module():
-    spec = importlib.util.spec_from_file_location(
-        "sync_office_md_for_test",
-        ROOT / "template/tools/sync_office_md.py",
-    )
-    assert spec and spec.loader
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+    return importlib.import_module("vaultwright.mirrors.office")
 
 
 def test_vaultwright_cli_doctor_passes_on_template() -> None:

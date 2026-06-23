@@ -33,6 +33,9 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 - Office and repo sync now stop preserving legacy above-sentinel annotations automatically: unmigrated
   annotations become force-blocking review work, and fresh mirrors use machine-owned headers without
   a curated `## Notes` region.
+- Office mirror planning, sync, and status behavior now lives in package-owned
+  `vaultwright.mirrors.office`; vault-local `tools/sync_office_md.py` is a compatibility shim copied
+  through the package template and examples.
 - Added `tools/catalog_report.py` and `vaultwright catalog`, which writes a generated
   source-path-only `CATALOG.md` inventory gateway with domain, format, lifecycle, mirror, repo,
   unmanaged-source, and legacy-folder summaries.

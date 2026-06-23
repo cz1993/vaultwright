@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 from pathlib import Path
+import importlib
 import importlib.util
 
 import yaml
@@ -27,6 +28,10 @@ def load_tool_module(filename: str):
     return module
 
 
+def load_office_sync_module():
+    return importlib.import_module("vaultwright.mirrors.office")
+
+
 def load_contract() -> dict:
     data = yaml.safe_load(CONTRACT.read_text(encoding="utf-8"))
     assert isinstance(data, dict)
@@ -51,7 +56,7 @@ def assert_state_contract(section: str, states: dict) -> None:
 
 
 def test_lifecycle_contract_covers_sync_and_report_states() -> None:
-    office_sync = load_tool_module("sync_office_md.py")
+    office_sync = load_office_sync_module()
     repo_sync = load_tool_module("sync_github_repos.py")
     conversion = load_tool_module("conversion_report.py")
     m365 = load_tool_module("m365_report.py")

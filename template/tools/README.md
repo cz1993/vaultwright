@@ -193,6 +193,10 @@ python3.11 tools/sync_office_md.py --include-pdf # also mirror text-based PDFs
 python3.11 tools/sync_office_md.py --mirror-mode sibling # legacy sibling layout
 ```
 
+`tools/sync_office_md.py` is a compatibility shim for the package-owned
+`vaultwright.mirrors.office` runtime. Run it from an environment where Vaultwright is installed, or
+from a source checkout with `PYTHONPATH=src`.
+
 Edit the **original** Office file, never a generated mirror body. If a legacy mirror already has
 above-sentinel annotations, run `vaultwright migrate annotations --write` before refreshing it.
 Keep durable human notes in regular curated notes or `_meta/mirror-annotations/` sidecars.

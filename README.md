@@ -33,8 +33,8 @@ parts nobody else ships:
    PDF mirrors are available with `sync_office_md.py --include-pdf` or by setting
    `office_mirrors.include_pdf: true` in `_meta/mirror-config.yml` for unattended syncs. The
    original stays the source of truth; the mirror is searchable, linkable, diffable, and easier for
-   agents to inspect than opaque binaries. Your hand-written notes in each mirror are preserved
-   across syncs.
+   agents to inspect than opaque binaries. Generated mirrors are machine-owned; durable human notes
+   belong in curated notes or migrated `_meta/mirror-annotations/` sidecars.
 2. **Linking-first retrieval.** Maps of Content, entity pages, backlinks, and a frontmatter-driven
    index (Obsidian **Bases**) are the initial retrieval engine. `vaultwright catalog` also
    generates a path-and-metadata-only `CATALOG.md` gateway for reviewers and agents that do not use
