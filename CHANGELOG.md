@@ -47,6 +47,9 @@ All notable changes to Vaultwright are documented here. Format loosely follows
   Obsidian, backup, git, and GitHub auth posture checks.
 - Vault health checks now live in package-owned `vaultwright.lint`; vault-local
   `tools/lint_vault.py` is a compatibility shim copied through the package template and examples.
+- The installable `vaultwright review` command now runs package-owned `vaultwright.review_ledger`
+  code; vault-local `tools/review_ledger.py` remains available as a compatibility surface, and CI
+  smoke tests cover package-level record/check behavior.
 - Added `tools/catalog_report.py` and `vaultwright catalog`, which writes a generated
   source-path-only `CATALOG.md` inventory gateway with domain, format, lifecycle, mirror, repo,
   unmanaged-source, and legacy-folder summaries.

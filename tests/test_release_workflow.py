@@ -94,6 +94,7 @@ def test_ci_workflow_smokes_sandbox_command() -> None:
 
     assert "src/vaultwright/catalog.py" in text
     assert "src/vaultwright/doctor.py" in text
+    assert "src/vaultwright/review_ledger.py" in text
     assert "src/vaultwright/annotation_migration.py" in text
     assert "src/vaultwright/profile_migration.py" in text
     assert "template/tools/catalog_report.py" in text
@@ -128,6 +129,7 @@ def test_ci_workflow_smokes_sandbox_command() -> None:
     assert "overlap --json" in text
     assert "overlap --worksheet" in text
     assert "m365 --json" in text
+    assert "review --artifact CATALOG.md --status approved --reviewer CI --json" in text
     assert "review --artifact CATALOG.html --status approved --reviewer CI --json" in text
     assert "review --check" in text
     assert "recovery --worksheet" in text

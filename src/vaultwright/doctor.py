@@ -12,6 +12,8 @@ import sys
 from collections import Counter
 from pathlib import Path
 
+from vaultwright import review_ledger as review_ledger_module
+
 LIFECYCLE_CONTRACT = Path("_meta/lifecycle-states.yml")
 LIFECYCLE_REQUIRED_FIELDS = {
     "entry_condition",
@@ -377,12 +379,7 @@ def review_preflight(root: Path) -> tuple[list[str], list[str]]:
     if not script.exists():
         return info, warnings
     try:
-        spec = importlib.util.spec_from_file_location("vaultwright_review_ledger_for_doctor", script)
-        if not spec or not spec.loader:
-            raise ImportError("cannot load review_ledger.py")
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        report, report_warnings = module.build_report(root)
+        report, report_warnings = review_ledger_module.build_report(root)
     except Exception as exc:
         detail = f"{exc.__class__.__name__}: {str(exc)[:120]}"
         warnings.append(f"review ledger: unavailable ({detail})")

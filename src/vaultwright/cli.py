@@ -18,6 +18,7 @@ from pathlib import Path
 from vaultwright import catalog as catalog_module
 from vaultwright import doctor as doctor_module
 from vaultwright import lint as lint_module
+from vaultwright import review_ledger as review_ledger_module
 from vaultwright.annotation_migration import (
     annotation_migration_plan,
     public_plan,
@@ -279,6 +280,23 @@ def command_catalog(args: argparse.Namespace) -> int:
 def command_lint(args: argparse.Namespace) -> int:
     root = args.root.expanduser().resolve()
     return lint_module.main(root=root)
+
+
+def review_args(args: argparse.Namespace) -> list[str]:
+    return (
+        (["--artifact", str(args.artifact)] if args.artifact else [])
+        + (["--status", args.status] if args.status else [])
+        + (["--reviewer", args.reviewer] if args.reviewer else [])
+        + (["--note", args.note] if args.note else [])
+        + (["--kind", args.kind] if args.kind else [])
+        + (["--json"] if args.json else [])
+        + (["--check"] if args.check else [])
+    )
+
+
+def command_review(args: argparse.Namespace) -> int:
+    root = args.root.expanduser().resolve()
+    return review_ledger_module.main(review_args(args), root=root)
 
 
 def command_doctor(args: argparse.Namespace) -> int:
@@ -573,18 +591,7 @@ def build_parser() -> argparse.ArgumentParser:
     review.add_argument("--kind", help="Override artifact kind after path safety checks.")
     review.add_argument("--json", action="store_true", help="Print machine-readable review ledger output.")
     review.add_argument("--check", action="store_true", help="Fail unless every latest review is approved and current.")
-    review.set_defaults(
-        func=command_delegate,
-        delegate_args=lambda args: (
-            (["--artifact", str(args.artifact)] if args.artifact else [])
-            + (["--status", args.status] if args.status else [])
-            + (["--reviewer", args.reviewer] if args.reviewer else [])
-            + (["--note", args.note] if args.note else [])
-            + (["--kind", args.kind] if args.kind else [])
-            + (["--json"] if args.json else [])
-            + (["--check"] if args.check else [])
-        ),
-    )
+    review.set_defaults(func=command_review)
     catalog = sub.add_parser("catalog", help="Generate a source-path-only documentation catalog.")
     catalog.add_argument("--json", action="store_true", help="Print machine-readable catalog JSON.")
     catalog.add_argument("--html", action="store_true", help="Write or print an HTML catalog instead of Markdown.")

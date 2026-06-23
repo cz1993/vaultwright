@@ -391,6 +391,55 @@ def test_packaged_doctor_does_not_require_vault_wrapper(tmp_path: Path) -> None:
     assert "missing tools/vaultwright.py" not in result.stderr
 
 
+def test_packaged_review_does_not_require_vault_wrapper(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    (vault / "CATALOG.md").write_text("# Documentation Catalog\n", encoding="utf-8")
+    (vault / "tools" / "vaultwright.py").unlink()
+    env = {**os.environ, "PYTHONPATH": str(ROOT / "src")}
+
+    record = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "vaultwright.cli",
+            "--root",
+            str(vault),
+            "review",
+            "--artifact",
+            "CATALOG.md",
+            "--status",
+            "approved",
+            "--reviewer",
+            "CodeX",
+            "--json",
+        ],
+        cwd=ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert record.returncode == 0, record.stderr or record.stdout
+    payload = json.loads(record.stdout)
+    assert payload["recorded"]["artifact_path"] == "CATALOG.md"
+    assert payload["recorded"]["artifact_kind"] == "catalog-markdown"
+    assert payload["recorded"]["status"] == "approved"
+    assert (vault / "_meta" / "review-ledger.jsonl").exists()
+
+    check = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "review", "--check"],
+        cwd=ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert check.returncode == 0, check.stderr or check.stdout
+    assert "approved/current" in check.stdout
+    assert "missing tools/vaultwright.py" not in check.stderr
+
+
 def test_packaged_vaultwright_cli_runs_target_vault_commands(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     shutil.copytree(ROOT / "template", vault)
