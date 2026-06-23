@@ -440,6 +440,39 @@ def test_packaged_review_does_not_require_vault_wrapper(tmp_path: Path) -> None:
     assert "missing tools/vaultwright.py" not in check.stderr
 
 
+def test_packaged_recovery_does_not_require_vault_wrapper_or_local_report(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    (vault / "tools" / "vaultwright.py").unlink()
+    (vault / "tools" / "recovery_report.py").unlink()
+    env = {**os.environ, "PYTHONPATH": str(ROOT / "src")}
+
+    result = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "recovery"],
+        cwd=ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+    assert "recovery: no manifest records need operator action" in result.stdout
+    assert "missing tools/vaultwright.py" not in result.stderr
+    assert "recovery_report.py" not in result.stderr
+
+    worksheet = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "recovery", "--worksheet"],
+        cwd=ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert worksheet.returncode == 0, worksheet.stderr or worksheet.stdout
+    assert "# Vaultwright Recovery Worksheet" in worksheet.stdout
+    assert "Recovery items needing operator action: 0 (office=0, repo=0, temp=0)" in worksheet.stdout
+
+
 def test_packaged_vaultwright_cli_runs_target_vault_commands(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     shutil.copytree(ROOT / "template", vault)

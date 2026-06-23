@@ -18,6 +18,7 @@ from pathlib import Path
 from vaultwright import catalog as catalog_module
 from vaultwright import doctor as doctor_module
 from vaultwright import lint as lint_module
+from vaultwright import recovery as recovery_module
 from vaultwright import review_ledger as review_ledger_module
 from vaultwright.annotation_migration import (
     annotation_migration_plan,
@@ -299,6 +300,19 @@ def command_review(args: argparse.Namespace) -> int:
     return review_ledger_module.main(review_args(args), root=root)
 
 
+def recovery_args(args: argparse.Namespace) -> list[str]:
+    return (
+        (["--json"] if args.json else [])
+        + (["--worksheet"] if args.worksheet else [])
+        + (["--runbook"] if args.runbook else [])
+    )
+
+
+def command_recovery(args: argparse.Namespace) -> int:
+    root = args.root.expanduser().resolve()
+    return recovery_module.main(recovery_args(args), root=root)
+
+
 def command_doctor(args: argparse.Namespace) -> int:
     root = args.root.expanduser().resolve()
     return doctor_module.main(root=root)
@@ -569,14 +583,7 @@ def build_parser() -> argparse.ArgumentParser:
     recovery_output.add_argument("--json", action="store_true", help="Print machine-readable recovery JSON.")
     recovery_output.add_argument("--worksheet", action="store_true", help="Print a Markdown recovery review worksheet.")
     recovery_output.add_argument("--runbook", action="store_true", help="Print a Markdown recovery resolution runbook.")
-    recovery.set_defaults(
-        func=command_delegate,
-        delegate_args=lambda args: (
-            (["--json"] if args.json else [])
-            + (["--worksheet"] if args.worksheet else [])
-            + (["--runbook"] if args.runbook else [])
-        ),
-    )
+    recovery.set_defaults(func=command_recovery)
     m365 = sub.add_parser("m365", help="Print a read-only Microsoft 365/Copilot handoff report.")
     m365.add_argument("--json", action="store_true", help="Print machine-readable handoff JSON.")
     m365.set_defaults(

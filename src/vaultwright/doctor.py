@@ -12,6 +12,7 @@ import sys
 from collections import Counter
 from pathlib import Path
 
+from vaultwright import recovery as recovery_module
 from vaultwright import review_ledger as review_ledger_module
 
 LIFECYCLE_CONTRACT = Path("_meta/lifecycle-states.yml")
@@ -344,13 +345,8 @@ def recovery_preflight(root: Path) -> tuple[list[str], list[str]]:
     if not script.exists():
         return info, warnings
     try:
-        spec = importlib.util.spec_from_file_location("vaultwright_recovery_report_for_doctor", script)
-        if not spec or not spec.loader:
-            raise ImportError("cannot load recovery_report.py")
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        items, report_warnings, report_errors = module.build_report(root)
-        summary = module.summary_counts(items)
+        items, report_warnings, report_errors = recovery_module.build_report(root)
+        summary = recovery_module.summary_counts(items)
     except Exception as exc:
         detail = f"{exc.__class__.__name__}: {str(exc)[:120]}"
         warnings.append(f"recovery: unavailable ({detail})")

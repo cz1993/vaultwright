@@ -47,6 +47,9 @@ All notable changes to Vaultwright are documented here. Format loosely follows
   Obsidian, backup, git, and GitHub auth posture checks.
 - Vault health checks now live in package-owned `vaultwright.lint`; vault-local
   `tools/lint_vault.py` is a compatibility shim copied through the package template and examples.
+- The installable `vaultwright recovery` command now runs package-owned `vaultwright.recovery`
+  code; vault-local `tools/recovery_report.py` remains available as a compatibility surface, and
+  CI smoke tests cover package-level JSON and worksheet output.
 - The installable `vaultwright review` command now runs package-owned `vaultwright.review_ledger`
   code; vault-local `tools/review_ledger.py` remains available as a compatibility surface, and CI
   smoke tests cover package-level record/check behavior.
