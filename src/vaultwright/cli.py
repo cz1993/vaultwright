@@ -21,6 +21,7 @@ from vaultwright import doctor as doctor_module
 from vaultwright import lint as lint_module
 from vaultwright import m365 as m365_module
 from vaultwright import migration as migration_module
+from vaultwright import overlap as overlap_module
 from vaultwright import recovery as recovery_module
 from vaultwright import review_ledger as review_ledger_module
 from vaultwright.annotation_migration import (
@@ -357,6 +358,19 @@ def command_migration(args: argparse.Namespace) -> int:
     return migration_module.main(migration_args(args), root=root)
 
 
+def overlap_args(args: argparse.Namespace) -> list[str]:
+    return (
+        (["--json"] if args.json else [])
+        + (["--worksheet"] if args.worksheet else [])
+        + (["--max-pairs", str(args.max_pairs)] if args.max_pairs != 40 else [])
+    )
+
+
+def command_overlap(args: argparse.Namespace) -> int:
+    root = args.root.expanduser().resolve()
+    return overlap_module.main(overlap_args(args), root=root)
+
+
 def command_doctor(args: argparse.Namespace) -> int:
     root = args.root.expanduser().resolve()
     return doctor_module.main(root=root)
@@ -501,14 +515,7 @@ def build_parser() -> argparse.ArgumentParser:
     overlap_output.add_argument("--json", action="store_true", help="Print machine-readable overlap calibration JSON.")
     overlap_output.add_argument("--worksheet", action="store_true", help="Print a Markdown calibration worksheet.")
     overlap.add_argument("--max-pairs", type=int, default=40, help="Maximum current/near-miss pairs to print.")
-    overlap.set_defaults(
-        func=command_delegate,
-        delegate_args=lambda args: (
-            (["--json"] if args.json else [])
-            + (["--worksheet"] if args.worksheet else [])
-            + (["--max-pairs", str(args.max_pairs)] if args.max_pairs != 40 else [])
-        ),
-    )
+    overlap.set_defaults(func=command_overlap)
     benchmark = sub.add_parser("benchmark", help="Validate the agent-readiness benchmark task pack and optional result pack.")
     benchmark.add_argument("--tasks", type=Path, help="Task pack path relative to the vault root.")
     benchmark.add_argument("--results", type=Path, help="Optional benchmark results path relative to the vault root.")

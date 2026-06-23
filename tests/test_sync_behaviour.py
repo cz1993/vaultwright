@@ -712,6 +712,91 @@ def test_packaged_migration_does_not_require_vault_wrapper_or_local_report(tmp_p
     assert legacy.exists()
 
 
+def test_packaged_overlap_does_not_require_vault_wrapper_or_local_report(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    (vault / "tools" / "vaultwright.py").unlink()
+    (vault / "tools" / "overlap_report.py").unlink()
+    left = vault / "20_market" / "overlap-a.md"
+    right = vault / "20_market" / "overlap-b.md"
+    body = (
+        "Shared planning readiness customer delivery workflow evidence governance operations "
+        "market finance people source mirror catalog review recovery migration benchmark "
+        "pilot sandbox lifecycle profile domain status artifact."
+    )
+    left.write_text(
+        "---\n"
+        "title: Overlap Alpha\n"
+        "type: note\n"
+        "status: active\n"
+        "domain: market\n"
+        "created: 2026-06-20\n"
+        "updated: 2026-06-20\n"
+        "---\n"
+        f"# Overlap Alpha\n\n{body}\n",
+        encoding="utf-8",
+    )
+    right.write_text(
+        "---\n"
+        "title: Overlap Beta\n"
+        "type: note\n"
+        "status: active\n"
+        "domain: market\n"
+        "created: 2026-06-20\n"
+        "updated: 2026-06-20\n"
+        "---\n"
+        f"# Overlap Beta\n\n{body}\n",
+        encoding="utf-8",
+    )
+    env = {**os.environ, "PYTHONPATH": str(ROOT / "src")}
+
+    result = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "overlap", "--max-pairs", "1"],
+        cwd=ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+    assert "overlap: read-only calibration report" in result.stdout
+    assert "20_market/overlap-a.md <-> 20_market/overlap-b.md" in result.stdout
+    assert "Shared planning readiness" not in result.stdout
+    assert "missing tools/vaultwright.py" not in result.stderr
+    assert "overlap_report.py" not in result.stderr
+
+    json_result = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "overlap", "--json", "--max-pairs", "1"],
+        cwd=ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert json_result.returncode == 0, json_result.stderr or json_result.stdout
+    payload = json.loads(json_result.stdout)
+    assert payload["report"]["summary"]["current_candidates"] == 1
+    assert len(payload["report"]["current_candidates"]) == 1
+    candidate = payload["report"]["current_candidates"][0]
+    assert candidate["left_path"] == "20_market/overlap-a.md"
+    assert candidate["right_path"] == "20_market/overlap-b.md"
+    assert "Shared planning readiness" not in json_result.stdout
+
+    worksheet = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "overlap", "--worksheet", "--max-pairs", "1"],
+        cwd=ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert worksheet.returncode == 0, worksheet.stderr or worksheet.stdout
+    assert "# Vaultwright Overlap Calibration Worksheet" in worksheet.stdout
+    assert "No note bodies, shared terms, source text, or reviewer notes are included." in worksheet.stdout
+    assert "20_market/overlap-a.md" in worksheet.stdout
+    assert "Shared planning readiness" not in worksheet.stdout
+
+
 def test_packaged_vaultwright_cli_runs_target_vault_commands(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     shutil.copytree(ROOT / "template", vault)
