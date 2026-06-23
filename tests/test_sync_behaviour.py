@@ -612,6 +612,106 @@ def test_packaged_conversion_does_not_require_vault_wrapper_or_local_report(tmp_
     assert payload["quality_results"]["average_score"] == 2
 
 
+def test_packaged_migration_does_not_require_vault_wrapper_or_local_report(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    (vault / "tools" / "vaultwright.py").unlink()
+    (vault / "tools" / "migration_report.py").unlink()
+    legacy = vault / "marketing"
+    legacy.mkdir()
+    note = legacy / "campaign.md"
+    note.write_text(
+        "---\n"
+        "title: Campaign\n"
+        "type: note\n"
+        "status: active\n"
+        "domain: marketing\n"
+        "created: 2026-06-20\n"
+        "updated: 2026-06-20\n"
+        "---\n"
+        "# Campaign\n",
+        encoding="utf-8",
+    )
+    env = {**os.environ, "PYTHONPATH": str(ROOT / "src")}
+
+    result = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "migration"],
+        cwd=ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+    assert "migration: dry-run only; no files were moved" in result.stdout
+    assert "[alias_folder  ] marketing -> 20_market" in result.stdout
+    assert "missing tools/vaultwright.py" not in result.stderr
+    assert "migration_report.py" not in result.stderr
+
+    json_result = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "migration", "--json"],
+        cwd=ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert json_result.returncode == 0, json_result.stderr or json_result.stdout
+    report = json.loads(json_result.stdout)
+    assert report["summary"] == {"alias": 1, "total": 1, "unknown": 0}
+    assert report["frontmatter_summary"] == {"alias": 1, "total": 1, "unknown": 0}
+    assert report["items"][0]["recommended_folder"] == "20_market"
+
+    worksheet = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "migration", "--worksheet"],
+        cwd=ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert worksheet.returncode == 0, worksheet.stderr or worksheet.stdout
+    assert "# Vaultwright Migration Review Worksheet" in worksheet.stdout
+    assert "- [ ] `marketing` -> `20_market`" in worksheet.stdout
+
+    runbook = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "migration", "--runbook"],
+        cwd=ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert runbook.returncode == 0, runbook.stderr or runbook.stdout
+    assert "# Vaultwright Legacy Folder Migration Runbook" in runbook.stdout
+    assert "- [ ] `marketing/` -> `20_market/`" in runbook.stdout
+
+    normalize_write = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "vaultwright.cli",
+            "--root",
+            str(vault),
+            "migration",
+            "--normalize-frontmatter-domains",
+            "--write",
+        ],
+        cwd=ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert normalize_write.returncode == 0, normalize_write.stderr or normalize_write.stdout
+    assert "write mode; no files were moved" in normalize_write.stdout
+    assert "[updated] marketing/campaign.md: marketing -> market" in normalize_write.stdout
+    updated_fm, updated_body = note.read_text(encoding="utf-8").split("---\n", 2)[1:]
+    assert yaml.safe_load(updated_fm)["domain"] == "market"
+    assert "# Campaign" in updated_body
+    assert legacy.exists()
+
+
 def test_packaged_vaultwright_cli_runs_target_vault_commands(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     shutil.copytree(ROOT / "template", vault)

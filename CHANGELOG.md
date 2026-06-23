@@ -53,6 +53,9 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 - The installable `vaultwright m365` command now runs package-owned `vaultwright.m365` code;
   vault-local `tools/m365_report.py` remains available as a compatibility surface, and CI smoke
   tests cover package-level handoff JSON output.
+- The installable `vaultwright migration` command now runs package-owned `vaultwright.migration`
+  code; vault-local `tools/migration_report.py` remains available as a compatibility surface, and
+  CI smoke tests cover package-level migration JSON output.
 - The installable `vaultwright recovery` command now runs package-owned `vaultwright.recovery`
   code; vault-local `tools/recovery_report.py` remains available as a compatibility surface, and
   CI smoke tests cover package-level JSON and worksheet output.

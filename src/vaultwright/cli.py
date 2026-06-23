@@ -20,6 +20,7 @@ from vaultwright import conversion as conversion_module
 from vaultwright import doctor as doctor_module
 from vaultwright import lint as lint_module
 from vaultwright import m365 as m365_module
+from vaultwright import migration as migration_module
 from vaultwright import recovery as recovery_module
 from vaultwright import review_ledger as review_ledger_module
 from vaultwright.annotation_migration import (
@@ -341,6 +342,21 @@ def command_m365(args: argparse.Namespace) -> int:
     return m365_module.main(["--json"] if args.json else [], root=root)
 
 
+def migration_args(args: argparse.Namespace) -> list[str]:
+    return (
+        (["--json"] if args.json else [])
+        + (["--worksheet"] if args.worksheet else [])
+        + (["--runbook"] if args.runbook else [])
+        + (["--normalize-frontmatter-domains"] if args.normalize_frontmatter_domains else [])
+        + (["--write"] if args.write else [])
+    )
+
+
+def command_migration(args: argparse.Namespace) -> int:
+    root = args.root.expanduser().resolve()
+    return migration_module.main(migration_args(args), root=root)
+
+
 def command_doctor(args: argparse.Namespace) -> int:
     root = args.root.expanduser().resolve()
     return doctor_module.main(root=root)
@@ -566,16 +582,7 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="With --normalize-frontmatter-domains, rewrite known frontmatter domain aliases. Does not move files.",
     )
-    migration.set_defaults(
-        func=command_delegate,
-        delegate_args=lambda args: (
-            (["--json"] if args.json else [])
-            + (["--worksheet"] if args.worksheet else [])
-            + (["--runbook"] if args.runbook else [])
-            + (["--normalize-frontmatter-domains"] if args.normalize_frontmatter_domains else [])
-            + (["--write"] if args.write else [])
-        ),
-    )
+    migration.set_defaults(func=command_migration)
     pilot = sub.add_parser("pilot", help="Print a read-only design-partner pilot evidence report.")
     pilot_output = pilot.add_mutually_exclusive_group()
     pilot_output.add_argument("--json", action="store_true", help="Print machine-readable pilot JSON.")
