@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 from pathlib import Path
 import importlib
-import importlib.util
 import json
 import os
 import shutil
@@ -55,14 +54,7 @@ class FailingConverter:
 
 
 def load_sync_module():
-    spec = importlib.util.spec_from_file_location(
-        "sync_github_repos_for_test",
-        ROOT / "template/tools/sync_github_repos.py",
-    )
-    assert spec and spec.loader
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+    return importlib.import_module("vaultwright.mirrors.github_repos")
 
 
 def load_office_sync_module():

@@ -254,6 +254,10 @@ python3.11 tools/sync_github_repos.py --status   # repo manifest lifecycle repor
 python3.11 tools/sync_github_repos.py --force     # rebuild even if unchanged
 ```
 
+`tools/sync_github_repos.py` is a compatibility shim for the package-owned
+`vaultwright.mirrors.github_repos` runtime. Run it from an environment where Vaultwright is
+installed, or from a source checkout with `PYTHONPATH=src`.
+
 **Auth — read-only is enough, and never in the vault.** Either `gh auth login` (the script reads
 `gh auth token` + git's credential helper), or export a fine-grained PAT with **Contents: read** +
 **Metadata: read**:

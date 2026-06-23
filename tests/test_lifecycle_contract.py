@@ -32,6 +32,10 @@ def load_office_sync_module():
     return importlib.import_module("vaultwright.mirrors.office")
 
 
+def load_repo_sync_module():
+    return importlib.import_module("vaultwright.mirrors.github_repos")
+
+
 def load_contract() -> dict:
     data = yaml.safe_load(CONTRACT.read_text(encoding="utf-8"))
     assert isinstance(data, dict)
@@ -57,7 +61,7 @@ def assert_state_contract(section: str, states: dict) -> None:
 
 def test_lifecycle_contract_covers_sync_and_report_states() -> None:
     office_sync = load_office_sync_module()
-    repo_sync = load_tool_module("sync_github_repos.py")
+    repo_sync = load_repo_sync_module()
     conversion = load_tool_module("conversion_report.py")
     m365 = load_tool_module("m365_report.py")
 

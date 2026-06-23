@@ -36,6 +36,9 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 - Office mirror planning, sync, and status behavior now lives in package-owned
   `vaultwright.mirrors.office`; vault-local `tools/sync_office_md.py` is a compatibility shim copied
   through the package template and examples.
+- GitHub repo mirror planning, sync, and status behavior now lives in package-owned
+  `vaultwright.mirrors.github_repos`; vault-local `tools/sync_github_repos.py` is a compatibility
+  shim copied through the package template and examples.
 - Added `tools/catalog_report.py` and `vaultwright catalog`, which writes a generated
   source-path-only `CATALOG.md` inventory gateway with domain, format, lifecycle, mirror, repo,
   unmanaged-source, and legacy-folder summaries.
