@@ -79,6 +79,7 @@ FORBIDDEN_MIRROR_PARTS = {
     ".git", ".githooks", ".github", ".obsidian", "_archive", "_fixtures",
     "_meta", "_templates", "_tmp", "node_modules", "tools",
 }
+LIFECYCLE_CONTRACT_REL = Path("_meta/lifecycle-states.yml")
 LIFECYCLE_GUIDANCE = {
     "planned": "review the plan, then run sync to create the generated mirror.",
     "source_changed": "run sync to refresh the generated region, then review linked curated notes.",
@@ -91,6 +92,7 @@ LIFECYCLE_GUIDANCE = {
     "conflict": "resolve the target mirror/source identity conflict before syncing.",
     "error": "fix the reported error, then rerun plan/status before syncing.",
 }
+OFFICE_LIFECYCLE_STATES = set(LIFECYCLE_GUIDANCE) | {"clean"}
 MANAGED_SOURCE_FRONTMATTER_DRIFT_WARNING = (
     "Mirror frontmatter managed source metadata differs from the manifest/source; "
     "sync will rewrite managed frontmatter."
@@ -211,7 +213,7 @@ def sync_audit_event(root: Path, plan: dict, manifest: dict, status: str) -> dic
         )[0]
         or planned_record
     )
-    return {
+    event = {
         "tool": "sync_office_md",
         "source_id": planned_record.get("source_id"),
         "source_path": planned_record.get("current_source_path"),
@@ -221,6 +223,62 @@ def sync_audit_event(root: Path, plan: dict, manifest: dict, status: str) -> dic
         "warnings": unique_list(record.get("warnings", [])),
         "errors": unique_list(record.get("errors", [])),
     }
+    if record.get("lifecycle_contract"):
+        event["lifecycle_contract"] = record.get("lifecycle_contract")
+    if record.get("lifecycle_contract_schema_version") is not None:
+        event["lifecycle_contract_schema_version"] = record.get("lifecycle_contract_schema_version")
+    return event
+
+
+def load_lifecycle_contract(root: Path) -> dict:
+    path = root / LIFECYCLE_CONTRACT_REL
+    if not path.exists():
+        return {}
+    try:
+        data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    except (OSError, yaml.YAMLError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def lifecycle_contract_section(contract: dict, section: str) -> dict:
+    states = contract.get(section)
+    return states if isinstance(states, dict) else {}
+
+
+def lifecycle_state_spec(contract: dict, section: str, state: str) -> dict:
+    spec = lifecycle_contract_section(contract, section).get(state)
+    return spec if isinstance(spec, dict) else {}
+
+
+def lifecycle_record_metadata(root: Path) -> dict:
+    contract = load_lifecycle_contract(root)
+    if not contract:
+        return {}
+    metadata = {"lifecycle_contract": LIFECYCLE_CONTRACT_REL.as_posix()}
+    schema_version = contract.get("schema_version")
+    if isinstance(schema_version, int):
+        metadata["lifecycle_contract_schema_version"] = schema_version
+    return metadata
+
+
+def lifecycle_guidance_text(state: str, contract: dict) -> str | None:
+    spec = lifecycle_state_spec(contract, "office", state)
+    explanation = str(spec.get("explanation", "") or "").strip()
+    actions = spec.get("permitted_next_actions")
+    first_action = ""
+    if isinstance(actions, list):
+        for action in actions:
+            first_action = str(action or "").strip()
+            if first_action:
+                break
+    if explanation and first_action:
+        return f"{explanation} Next: {first_action}"
+    if explanation:
+        return explanation
+    if first_action:
+        return first_action
+    return LIFECYCLE_GUIDANCE.get(state)
 
 
 def is_excluded(rel: Path, mirror_root: Path | None = None) -> bool:
@@ -784,6 +842,7 @@ def mark_missing_sources(manifest: dict, root: Path, seen_source_ids: set[str]) 
             continue
         updated = dict(record)
         updated["lifecycle_state"] = "source_missing"
+        updated.update(lifecycle_record_metadata(root))
         updated["warnings"] = unique_list((updated.get("warnings") or []) + [
             "Source file is missing; mirror was retained for review.",
         ])
@@ -1107,6 +1166,7 @@ def plan_one(
         "mirror_mode": mirror_mode,
         "mirror_root": mirror_root,
         "lifecycle_state": lifecycle_state,
+        **lifecycle_record_metadata(root),
         "last_successful_sync": (existing_record or {}).get("last_successful_sync"),
         "warnings": unique_list(warnings),
         "errors": unique_list(errors),
@@ -1158,20 +1218,21 @@ def plan_detail_lines(record: dict) -> list[str]:
     return details
 
 
-def lifecycle_guidance_lines(state_counts: dict[str, int]) -> list[str]:
+def lifecycle_guidance_lines(state_counts: dict[str, int], contract: dict | None = None) -> list[str]:
+    active_contract = contract if contract is not None else load_lifecycle_contract(Path(__file__).resolve().parent.parent)
     lines: list[str] = []
     for state in sorted(state_counts):
         count = state_counts.get(state, 0)
         if count <= 0 or state == "clean":
             continue
-        guidance = LIFECYCLE_GUIDANCE.get(state)
+        guidance = lifecycle_guidance_text(state, active_contract)
         if guidance:
             lines.append(f"{state} ({count}): {guidance}")
     return lines
 
 
-def print_lifecycle_guidance(state_counts: dict[str, int]) -> None:
-    lines = lifecycle_guidance_lines(state_counts)
+def print_lifecycle_guidance(state_counts: dict[str, int], contract: dict | None = None) -> None:
+    lines = lifecycle_guidance_lines(state_counts, contract)
     if not lines:
         return
     print("next actions:")
@@ -1390,6 +1451,7 @@ def print_plan_or_status(
     state_counts: dict[str, int] = {}
     seen_source_ids: set[str] = set()
     plans = [plan_one(src, root, mirror_config, routing, manifest, converter_name, converter_version) for src in files]
+    lifecycle_contract = load_lifecycle_contract(root)
     annotate_duplicate_plans(plans)
 
     for plan in plans:
@@ -1432,7 +1494,7 @@ def print_plan_or_status(
     print(f"\nsync_office_md {mode}: {len(files)} current sources, {missing} missing manifest sources -> {action_summary}")
     print(f"lifecycle: {state_summary}")
     print(f"warnings: {warning_total}")
-    print_lifecycle_guidance(state_counts)
+    print_lifecycle_guidance(state_counts, lifecycle_contract)
     return 1 if action_counts.get("error", 0) else 0
 
 

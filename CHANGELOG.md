@@ -107,6 +107,9 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 - Added `_meta/lifecycle-states.yml` as the machine-readable Office/repo lifecycle contract, and
   `vaultwright doctor` now validates that every state has entry conditions, explanations, permitted
   next actions, and exit conditions during preflight.
+- Office and repo sync plan/status guidance now reads `_meta/lifecycle-states.yml`, and generated
+  source/repo manifest records plus sync audit events record the lifecycle contract path/schema
+  version that governed each lifecycle state.
 - Office sync/status now detects managed source frontmatter metadata drift as stale and normal
   sync rewrites the managed fields from the manifest/source.
 - Office sync now strips obvious spreadsheet extraction noise from `.xlsx` mirrors, including

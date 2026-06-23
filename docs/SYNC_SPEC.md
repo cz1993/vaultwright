@@ -24,6 +24,7 @@ Each source record should include:
 - converter name and version;
 - sync configuration version;
 - lifecycle state;
+- lifecycle contract path and schema version;
 - last successful sync timestamp;
 - warnings, omissions, and errors.
 
@@ -32,7 +33,7 @@ Current implementation status:
 - implemented for Office mirrors: stable source IDs, current/previous source paths, mirror path,
   source hash/size, converter/config version, lifecycle state, warnings/errors, source-missing
   marking, non-mutating plan/status reports, sensitive-name warnings, duplicate-byte warnings, and
-  format-specific conversion-quality warnings, plus lifecycle next-action guidance in plan/status
+  format-specific conversion-quality warnings, plus contract-backed lifecycle next-action guidance in plan/status
   output, and post-conversion source hash checks that abort mirror writes if the source changes
   while conversion is running, plus mirror-root-change conflict detection when the old generated
   mirror still exists, plus moved-source review blocking while the previous generated mirror still
@@ -47,7 +48,7 @@ Current implementation status:
   blocks sync as `conflict` when multiple missing manifest records could match one new source;
 - implemented for repo mirrors: stable repo IDs, configured/resolved repo, note path, local-tree or
   remote HEAD hash, lifecycle state, warnings/errors, non-mutating plan/status reports, and
-  generated-region manual-edit detection, plus lifecycle next-action guidance in plan/status
+  generated-region manual-edit detection, plus contract-backed lifecycle next-action guidance in plan/status
   output, plus repo stub-to-populated tests that preserve curated notes/frontmatter, plus repo-note
   write-failure recovery tests that preserve the previous note and allow later clean regeneration,
   plus config validation and blocking lint checks for duplicate configured repo note targets, plus
@@ -60,8 +61,10 @@ Current implementation status:
 - implemented for lifecycle operator semantics: the template now includes
   `_meta/lifecycle-states.yml`, a machine-readable Office/repo state contract with entry
   conditions, user-visible explanations, permitted next actions, exit conditions, and
-  manifest-state markers; `vaultwright doctor` validates the contract during preflight and tests
-  ensure sync/report states remain covered;
+  manifest-state markers; sync plan/status guidance reads this contract, source/repo manifest
+  records and audit events identify the contract path/schema version that governed the lifecycle
+  state, `vaultwright doctor` validates the contract during preflight, and tests ensure sync/report
+  states remain covered;
 - partially implemented: full move/rename UX beyond unique hash matching and ambiguous-move
   conflict detection;
 - not complete: full rename/move UX, rollback automation, automated conversion-quality scoring
@@ -98,8 +101,9 @@ Every release-ready state must have:
 - exit condition.
 
 The authoritative machine-readable contract lives in `_meta/lifecycle-states.yml` in every
-initialized vault. Sync/reporting code may still keep local constants for concise terminal output,
-but new lifecycle states must be added to the contract and covered by tests before release.
+initialized vault. Sync plan/status guidance reads this contract and falls back to local concise
+guidance only when a nonstandard or damaged vault is missing the contract. New lifecycle states
+must be added to the contract and covered by tests before release.
 
 ## Rename, Move, and Delete Handling
 
@@ -180,9 +184,10 @@ Every generated change should be explainable from:
 - output path.
 - optional `_meta/review-ledger.jsonl` decision tied to the generated artifact hash.
 
-Audit events must include the generated artifact path, lifecycle state, status, and structured
-`warnings` / `errors` copied from the manifest record after the sync attempt. They must not include
-raw source content, extracted document text, repo document bodies, secrets, or tokens.
+Audit events must include the generated artifact path, lifecycle state, lifecycle contract
+path/schema version when available, status, and structured `warnings` / `errors` copied from the
+manifest record after the sync attempt. They must not include raw source content, extracted
+document text, repo document bodies, secrets, or tokens.
 
 Rollback guidance lives in `docs/RECOVERY.md` and must be tested before a public release.
 

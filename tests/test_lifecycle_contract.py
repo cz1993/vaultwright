@@ -64,14 +64,14 @@ def test_lifecycle_contract_covers_sync_and_report_states() -> None:
     assert_state_contract("repo", repo_states)
 
     expected_office = (
-        set(office_sync.LIFECYCLE_GUIDANCE)
+        set(office_sync.OFFICE_LIFECYCLE_STATES)
         | set(conversion.CLEAN_STATES)
         | set(conversion.HIGH_RISK_STATES)
         | {"source_changed", "converter_changed", "stale"}
         | TRANSITION_STATES
     )
     expected_repo = (
-        set(repo_sync.LIFECYCLE_GUIDANCE)
+        set(repo_sync.REPO_LIFECYCLE_STATES)
         | {"clean", "stale"}
         | {
             state

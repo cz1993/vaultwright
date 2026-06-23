@@ -3874,6 +3874,8 @@ def test_github_sync_writes_manifest_audit_and_status_for_local_repo(tmp_path: P
     fixture = vault / "_fixtures" / "repo"
     tools.mkdir(parents=True)
     fixture.mkdir(parents=True)
+    (vault / "_meta").mkdir()
+    shutil.copy(ROOT / "template/_meta/lifecycle-states.yml", vault / "_meta" / "lifecycle-states.yml")
     (fixture / "README.md").write_text("# Fixture\n", encoding="utf-8")
     shutil.copy(ROOT / "template/tools/sync_github_repos.py", tools / "sync_github_repos.py")
     (tools / "repos.yml").write_text(
@@ -3905,8 +3907,15 @@ def test_github_sync_writes_manifest_audit_and_status_for_local_repo(tmp_path: P
     manifest = (vault / "_meta" / "repo-manifest.json").read_text(encoding="utf-8")
     assert '"repo_id": "repo_' in manifest
     assert '"lifecycle_state": "clean"' in manifest
+    parsed_manifest = json.loads(manifest)
+    record = parsed_manifest["records"][0]
+    assert record["lifecycle_contract"] == "_meta/lifecycle-states.yml"
+    assert record["lifecycle_contract_schema_version"] == 1
     audit = (vault / "_meta" / "sync-audit.jsonl").read_text(encoding="utf-8")
-    assert '"tool": "sync_github_repos"' in audit
+    event = json.loads(audit.splitlines()[-1])
+    assert event["tool"] == "sync_github_repos"
+    assert event["lifecycle_contract"] == "_meta/lifecycle-states.yml"
+    assert event["lifecycle_contract_schema_version"] == 1
     assert "clean=1" in status_result.stdout
 
 
@@ -4659,6 +4668,8 @@ def test_office_sync_writes_manifest_and_preserves_source_bytes(tmp_path: Path) 
     vault = tmp_path / "vault"
     source = vault / "40_delivery" / "registration.docx"
     source.parent.mkdir(parents=True)
+    (vault / "_meta").mkdir()
+    shutil.copy(ROOT / "template/_meta/lifecycle-states.yml", vault / "_meta" / "lifecycle-states.yml")
     original = b"office bytes"
     source.write_bytes(original)
     config = sync.load_mirror_config(vault)
@@ -4687,6 +4698,8 @@ def test_office_sync_writes_manifest_and_preserves_source_bytes(tmp_path: Path) 
     assert saved["records"][0]["current_source_path"] == "40_delivery/registration.docx"
     assert saved["records"][0]["mirror_path"] == "_mirrors/40_delivery/registration.md"
     assert saved["records"][0]["lifecycle_state"] == "clean"
+    assert saved["records"][0]["lifecycle_contract"] == "_meta/lifecycle-states.yml"
+    assert saved["records"][0]["lifecycle_contract_schema_version"] == 1
     assert saved["records"][0]["source_id"].startswith("src_")
 
 
@@ -5610,9 +5623,11 @@ def test_office_lifecycle_guidance_explains_review_states() -> None:
         "source_moved": 1,
     })
 
-    assert any("manual_modification (1): inspect the mirror below the generated sentinel" in line for line in lines)
-    assert any("source_missing (2): do not delete the retained mirror automatically" in line for line in lines)
-    assert any("source_moved (1): confirm the source move is intentional" in line for line in lines)
+    assert any("manual_modification (1): Human or external edits may exist inside machine-owned content." in line for line in lines)
+    assert any("Next: Inspect content below the generated sentinel." in line for line in lines)
+    assert any("source_missing (2): Vaultwright retains the mirror and manifest record for review instead of deleting evidence." in line for line in lines)
+    assert any("Next: Locate or restore the source." in line for line in lines)
+    assert any("source_moved (1): Vaultwright found a likely move but will not strand or duplicate generated mirrors automatically." in line for line in lines)
     assert not any(line.startswith("clean") for line in lines)
 
 
@@ -5627,10 +5642,11 @@ def test_repo_lifecycle_guidance_explains_review_states() -> None:
         "unreachable": 1,
     })
 
-    assert any("manual_modification (1): inspect the repo mirror below the generated sentinel" in line for line in lines)
-    assert any("repo_changed (2): run sync to refresh README/docs/metadata" in line for line in lines)
-    assert any("repo_unconfigured (1): confirm whether the repo mirror is retired" in line for line in lines)
-    assert any("unreachable (1): check repo spelling, network access, and GitHub auth" in line for line in lines)
+    assert any("manual_modification (1): Human or external edits may exist inside machine-owned repo mirror content." in line for line in lines)
+    assert any("repo_changed (2): The retained repo mirror may describe an older repo state." in line for line in lines)
+    assert any("Next: Run sync to refresh README, docs, and metadata." in line for line in lines)
+    assert any("repo_unconfigured (1): The retained repo mirror is no longer governed by repo sync configuration." in line for line in lines)
+    assert any("unreachable (1): Existing mirror content is retained but may be outdated or incomplete." in line for line in lines)
     assert not any(line.startswith("clean") for line in lines)
 
 

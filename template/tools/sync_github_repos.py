@@ -40,6 +40,7 @@ REPO_MANIFEST_REL = Path("_meta/repo-manifest.json")
 AUDIT_REL = Path("_meta/sync-audit.jsonl")
 MANIFEST_SCHEMA_VERSION = 1
 CONFIG_VERSION = "repo-mirrors:v1"
+LIFECYCLE_CONTRACT_REL = Path("_meta/lifecycle-states.yml")
 MANAGED = {"type", "repo_id", "repo_manifest", "repo", "repo_url", "default_branch", "last_commit",
            "last_commit_date", "open_issues", "synced", "updated"}
 KEY_ORDER = ["title", "type", "status", "domain", "owner", "created", "updated",
@@ -65,6 +66,7 @@ LIFECYCLE_GUIDANCE = {
     "conflict": "resolve the target note/repo identity conflict before syncing.",
     "error": "fix the reported error, then rerun plan/status before syncing.",
 }
+REPO_LIFECYCLE_STATES = set(LIFECYCLE_GUIDANCE) | {"clean"}
 
 
 def now_iso():
@@ -105,6 +107,57 @@ def unique_list(items: list[str]) -> list[str]:
             seen.add(item)
             out.append(item)
     return out
+
+
+def load_lifecycle_contract(root: Path = ROOT) -> dict:
+    path = root / LIFECYCLE_CONTRACT_REL
+    if not path.exists():
+        return {}
+    try:
+        data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    except (OSError, yaml.YAMLError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def lifecycle_contract_section(contract: dict, section: str) -> dict:
+    states = contract.get(section)
+    return states if isinstance(states, dict) else {}
+
+
+def lifecycle_state_spec(contract: dict, section: str, state: str) -> dict:
+    spec = lifecycle_contract_section(contract, section).get(state)
+    return spec if isinstance(spec, dict) else {}
+
+
+def lifecycle_record_metadata(root: Path = ROOT) -> dict:
+    contract = load_lifecycle_contract(root)
+    if not contract:
+        return {}
+    metadata = {"lifecycle_contract": LIFECYCLE_CONTRACT_REL.as_posix()}
+    schema_version = contract.get("schema_version")
+    if isinstance(schema_version, int):
+        metadata["lifecycle_contract_schema_version"] = schema_version
+    return metadata
+
+
+def lifecycle_guidance_text(state: str, contract: dict) -> str | None:
+    spec = lifecycle_state_spec(contract, "repo", state)
+    explanation = str(spec.get("explanation", "") or "").strip()
+    actions = spec.get("permitted_next_actions")
+    first_action = ""
+    if isinstance(actions, list):
+        for action in actions:
+            first_action = str(action or "").strip()
+            if first_action:
+                break
+    if explanation and first_action:
+        return f"{explanation} Next: {first_action}"
+    if explanation:
+        return explanation
+    if first_action:
+        return first_action
+    return LIFECYCLE_GUIDANCE.get(state)
 
 
 def get_token():
@@ -479,6 +532,7 @@ def mark_unconfigured_repos(manifest: dict, seen_repo_ids: set[str]) -> int:
             continue
         updated = dict(record)
         updated["lifecycle_state"] = "repo_unconfigured"
+        updated.update(lifecycle_record_metadata(ROOT))
         updated["warnings"] = unique_list((updated.get("warnings") or []) + [
             "Repo config entry is missing; retained repo mirror is no longer governed by tools/repos.yml.",
         ])
@@ -506,7 +560,7 @@ def append_audit(event: dict, root: Path = ROOT) -> None:
 def sync_audit_event(plan: dict, manifest: dict, status: str, entry: dict) -> dict:
     planned_record = plan["record"]
     record = repo_record_by_id(manifest, planned_record.get("repo_id")) or planned_record
-    return {
+    event = {
         "tool": "sync_github_repos",
         "repo_id": planned_record.get("repo_id"),
         "repo": entry.get("repo"),
@@ -516,6 +570,11 @@ def sync_audit_event(plan: dict, manifest: dict, status: str, entry: dict) -> di
         "warnings": unique_list(record.get("warnings", [])),
         "errors": unique_list(record.get("errors", [])),
     }
+    if record.get("lifecycle_contract"):
+        event["lifecycle_contract"] = record.get("lifecycle_contract")
+    if record.get("lifecycle_contract_schema_version") is not None:
+        event["lifecycle_contract_schema_version"] = record.get("lifecycle_contract_schema_version")
+    return event
 
 
 def dump_fm(data):
@@ -807,6 +866,7 @@ def plan_one(entry, settings, token, manifest):
         ),
         "config_version": CONFIG_VERSION,
         "lifecycle_state": lifecycle_state,
+        **lifecycle_record_metadata(ROOT),
         "last_successful_sync": existing_record.get("last_successful_sync"),
         "warnings": unique_list(warnings),
         "errors": unique_list(errors),
@@ -830,20 +890,21 @@ def status_for_plan(plan: dict) -> str:
     return state
 
 
-def lifecycle_guidance_lines(state_counts: dict[str, int]) -> list[str]:
+def lifecycle_guidance_lines(state_counts: dict[str, int], contract: dict | None = None) -> list[str]:
+    active_contract = contract if contract is not None else load_lifecycle_contract(ROOT)
     lines: list[str] = []
     for state in sorted(state_counts):
         count = state_counts.get(state, 0)
         if count <= 0 or state == "clean":
             continue
-        guidance = LIFECYCLE_GUIDANCE.get(state)
+        guidance = lifecycle_guidance_text(state, active_contract)
         if guidance:
             lines.append(f"{state} ({count}): {guidance}")
     return lines
 
 
-def print_lifecycle_guidance(state_counts: dict[str, int]) -> None:
-    lines = lifecycle_guidance_lines(state_counts)
+def print_lifecycle_guidance(state_counts: dict[str, int], contract: dict | None = None) -> None:
+    lines = lifecycle_guidance_lines(state_counts, contract)
     if not lines:
         return
     print("next actions:")
@@ -888,6 +949,7 @@ def print_plan_or_status(settings, repos, token, manifest, mode: str, quiet: boo
     action_counts = {"create": 0, "update": 0, "unchanged": 0, "skip": 0, "review": 0, "error": 0}
     state_counts: dict[str, int] = {}
     seen_repo_ids: set[str] = set()
+    lifecycle_contract = load_lifecycle_contract(ROOT)
     for entry in repos:
         plan = plan_one(entry, settings, token, manifest)
         action = plan["action"]
@@ -917,7 +979,7 @@ def print_plan_or_status(settings, repos, token, manifest, mode: str, quiet: boo
     state_summary = ", ".join(f"{state}={count}" for state, count in sorted(state_counts.items())) or "no states"
     print(f"\nsync_github_repos {mode}: {len(repos)} configured repos, {unconfigured} unconfigured manifest repos -> {summary}")
     print(f"lifecycle: {state_summary}")
-    print_lifecycle_guidance(state_counts)
+    print_lifecycle_guidance(state_counts, lifecycle_contract)
     return 1 if action_counts.get("error", 0) else 0
 
 

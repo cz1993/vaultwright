@@ -75,6 +75,9 @@ from the current sources and mirrors, then review all `planned`, `stale`, `sourc
 When an error state exists, inspect the newest `_meta/sync-audit.jsonl` event for that `source_id` or
 `repo_id`. The event records the generated artifact path, lifecycle state, sync status, and
 structured `warnings` / `errors` without embedding source document text or repo document bodies.
+When the vault has `_meta/lifecycle-states.yml`, source/repo manifest records and audit events also
+identify that lifecycle contract path and schema version so reviewers can tie a state back to the
+operator contract used by sync.
 
 Important limitation: without the old manifest, Vaultwright cannot prove whether an existing
 generated region is pristine. Existing Office and repo mirrors without a manifest-generated baseline
@@ -130,8 +133,8 @@ path, the report includes `duplicate_source_ids`. Correct the duplicate manifest
 syncing; Vaultwright will not choose one source history silently.
 
 For each item with audit history, the report includes the latest audit timestamp, status, lifecycle
-state, and structured warnings/errors. This is diagnostic metadata only; it should not contain raw
-document text or repo documentation bodies.
+state, lifecycle contract provenance when available, and structured warnings/errors. This is
+diagnostic metadata only; it should not contain raw document text or repo documentation bodies.
 
 For `temp:interrupted_write` items, rerun status/sync first to confirm the canonical generated file
 or manifest is complete. Then remove the temp file after backup review; Vaultwright does not delete
