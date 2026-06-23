@@ -223,9 +223,14 @@ def build_parser() -> argparse.ArgumentParser:
     recovery_output = recovery.add_mutually_exclusive_group()
     recovery_output.add_argument("--json", action="store_true", help="Print machine-readable recovery JSON.")
     recovery_output.add_argument("--worksheet", action="store_true", help="Print a Markdown recovery review worksheet.")
+    recovery_output.add_argument("--runbook", action="store_true", help="Print a Markdown recovery resolution runbook.")
     recovery.set_defaults(
         func=command_delegate,
-        delegate_args=lambda args: (["--json"] if args.json else []) + (["--worksheet"] if args.worksheet else []),
+        delegate_args=lambda args: (
+            (["--json"] if args.json else [])
+            + (["--worksheet"] if args.worksheet else [])
+            + (["--runbook"] if args.runbook else [])
+        ),
     )
     m365 = sub.add_parser("m365", help="Print a read-only Microsoft 365/Copilot handoff report.")
     m365.add_argument("--json", action="store_true", help="Print machine-readable handoff JSON.")

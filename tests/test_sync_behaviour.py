@@ -523,6 +523,19 @@ def test_packaged_vaultwright_cli_delegates_to_target_vault(tmp_path: Path) -> N
     assert "Recovery items needing operator action: 0 (office=0, repo=0, temp=0)" in recovery_worksheet.stdout
     assert "No manifest records need operator action" in recovery_worksheet.stdout
 
+    recovery_runbook = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "recovery", "--runbook"],
+        cwd=ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    assert recovery_runbook.returncode == 0, recovery_runbook.stderr or recovery_runbook.stdout
+    assert "# Vaultwright Recovery Runbook" in recovery_runbook.stdout
+    assert "Recovery items needing operator action: 0 (office=0, repo=0, temp=0)" in recovery_runbook.stdout
+    assert "No source_missing Office records in the current recovery queue." in recovery_runbook.stdout
+
     recovery_json = subprocess.run(
         [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "recovery", "--json"],
         cwd=ROOT,
@@ -3435,6 +3448,31 @@ def test_vaultwright_recovery_reports_manifest_actions(tmp_path: Path) -> None:
     assert f"- [ ] `repo:conflict` `{repo_conflict_id}`" in worksheet_result.stdout
     assert "Audit error: Target note belongs to another repo_id." in worksheet_result.stdout
 
+    runbook_result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "vaultwright.py"), "recovery", "--runbook"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert runbook_result.returncode == 0, runbook_result.stderr or runbook_result.stdout
+    assert "# Vaultwright Recovery Runbook" in runbook_result.stdout
+    assert "Read-only; no files were changed." in runbook_result.stdout
+    assert "Recovery items needing operator action: 6 (office=5, repo=1, temp=0)" in runbook_result.stdout
+    assert "## Source Missing Resolution" in runbook_result.stdout
+    assert "- [ ] `src-missing`: restore or retire `40_delivery/missing.docx`" in runbook_result.stdout
+    assert "## Source Move Resolution" in runbook_result.stdout
+    assert (
+        "- [ ] `src-moved`: review previous mirror `_mirrors/40_delivery/registration.md` "
+        "before regenerating `_mirrors/50_operations/registration.md`"
+    ) in runbook_result.stdout
+    assert "## Manual Generated Region Resolution" in runbook_result.stdout
+    assert "- [ ] `src-manual`: preserve human edits before regenerating `_mirrors/40_delivery/registration.md`" in runbook_result.stdout
+    assert "## Conflict And Error Resolution" in runbook_result.stdout
+    assert f"- [ ] `repo:conflict` `{repo_conflict_id}`: resolve blockers" in runbook_result.stdout
+    assert "Ambiguous candidates: 6 candidate(s): 40_delivery/duplicate-a.docx" in runbook_result.stdout
+    assert "## Verification Gate" in runbook_result.stdout
+
     json_result = subprocess.run(
         [sys.executable, str(vault / "tools" / "vaultwright.py"), "recovery", "--json"],
         cwd=vault,
@@ -6279,6 +6317,18 @@ def test_repo_sync_marks_manifest_record_unconfigured_when_config_entry_removed(
     assert recovery.returncode == 0, recovery.stderr or recovery.stdout
     assert "[repo:repo_unconfigured" in recovery.stdout
     assert "restore its repos.yml entry" in recovery.stdout
+    runbook = subprocess.run(
+        [sys.executable, str(tools / "recovery_report.py"), "--runbook"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert runbook.returncode == 0, runbook.stderr or runbook.stdout
+    assert "# Vaultwright Recovery Runbook" in runbook.stdout
+    assert "Repo config queue: 1" in runbook.stdout
+    assert f"- [ ] `{record['repo_id']}`: restore config or retire `80_sources/repos/fixture.md`" in runbook.stdout
+    assert "Repo identity: `local/fixture`" in runbook.stdout
 
 
 def test_local_path_repo_mirror_rejects_escape(tmp_path: Path) -> None:

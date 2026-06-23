@@ -93,6 +93,7 @@ Use the read-only recovery report before changing files:
 ```bash
 python3.11 tools/vaultwright.py recovery
 python3.11 tools/vaultwright.py recovery --worksheet
+python3.11 tools/vaultwright.py recovery --runbook
 python3.11 tools/vaultwright.py recovery --json
 ```
 
@@ -100,7 +101,9 @@ The report reads `_meta/source-manifest.json`, `_meta/repo-manifest.json`,
 `_meta/lifecycle-states.yml`, `tools/repos.yml`, and the latest matching events in
 `_meta/sync-audit.jsonl`, then lists only records that need operator action. It does not move,
 delete, regenerate, or archive anything. Use `--worksheet` when you need a Markdown review
-checklist for a private pilot record before changing files. Treat it as a triage checklist for:
+checklist for a private pilot record before changing files. Use `--runbook` when you need a
+state-grouped execution protocol for resolving the queue in a controlled batch. Treat recovery
+output as triage evidence for:
 
 - `planned`, `source_changed`, `source_moved`, `stale`, `converter_changed`, `unsupported`,
   `source_missing`, `manual_modification`, `conflict`, and `error` Office records;
@@ -119,6 +122,10 @@ latest audit context as the human report. Office and repo items also include a s
 `permitted_next_actions`, `exit_condition`, and `manifest_state`. The worksheet prints the
 contract-backed explanation, next actions, and exit condition for each item so operators can see
 how to leave the state safely.
+The runbook form groups the same queue into resolution paths for missing Office sources, moved
+sources, repo mirrors whose config entry was removed, manual generated-region edits, conflicts or
+errors, and stale atomic temp files. It prints execution rules and verification gates, but does not
+change files.
 For Office move and mirror-root conflict records, the report also includes `previous_target`,
 `previous_target_exists`, and `previous_target_reason` so operators can identify the retained
 generated mirror that must be preserved, moved, archived, or removed before syncing again.

@@ -47,7 +47,11 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 - `vaultwright recovery --worksheet` now prints a read-only Markdown recovery checklist with
   lifecycle actions, lifecycle-contract explanations/exit conditions, previous mirror context,
   bounded conflict summaries, and latest audit context.
-- CI and release smoke checks now exercise recovery worksheet output through the packaged CLI.
+- `vaultwright recovery --runbook` now prints a read-only, state-grouped resolution protocol for
+  missing sources, moved sources, unconfigured repo mirrors, manual generated-region edits,
+  conflicts/errors, and interrupted write temp files.
+- CI and release smoke checks now exercise recovery worksheet and runbook output through the
+  packaged CLI.
 - Added `tools/sandbox_report.py` and `vaultwright sandbox`, a read-only copied-vault preflight for
   safe pilot workspaces that checks source-root separation, mirror isolation, manifest/recovery
   readiness, and backup posture without printing source paths or document text.
