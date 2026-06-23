@@ -43,6 +43,8 @@ jobs:
           test -f "$tmp_vault/tools/overlap_report.py"
           test -f "$tmp_vault/tools/review_ledger.py"
           test -f "$tmp_vault/tools/sandbox_report.py"
+          "$RUNNER_TEMP/vaultwright-release-venv/bin/vaultwright" --root "$tmp_vault" profile diff 0.1.0
+          "$RUNNER_TEMP/vaultwright-release-venv/bin/vaultwright" --root "$tmp_vault" profile migrate --plan
           "$RUNNER_TEMP/vaultwright-release-venv/bin/vaultwright" --root "$tmp_vault" doctor
           "$RUNNER_TEMP/vaultwright-release-venv/bin/vaultwright" --root "$tmp_vault" plan
           "$RUNNER_TEMP/vaultwright-release-venv/bin/vaultwright" --root "$tmp_vault" sandbox --source-root "$RUNNER_TEMP/vaultwright-release-original-documents" --json

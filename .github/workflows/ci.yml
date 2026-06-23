@@ -20,7 +20,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e . pytest
       - name: Compile Python tools
-        run: python -m py_compile template/tools/lint_vault.py template/tools/sync_office_md.py template/tools/sync_github_repos.py template/tools/benchmark_tasks.py template/tools/catalog_report.py template/tools/conversion_report.py template/tools/m365_report.py template/tools/migration_report.py template/tools/overlap_report.py template/tools/pilot_report.py template/tools/recovery_report.py template/tools/review_ledger.py template/tools/sandbox_report.py template/tools/vaultwright.py src/vaultwright/catalog.py src/vaultwright/cli.py src/vaultwright/__init__.py scripts/no_data_scan.py scripts/sync_template_copies.py
+        run: python -m py_compile template/tools/lint_vault.py template/tools/sync_office_md.py template/tools/sync_github_repos.py template/tools/benchmark_tasks.py template/tools/catalog_report.py template/tools/conversion_report.py template/tools/m365_report.py template/tools/migration_report.py template/tools/overlap_report.py template/tools/pilot_report.py template/tools/recovery_report.py template/tools/review_ledger.py template/tools/sandbox_report.py template/tools/vaultwright.py src/vaultwright/catalog.py src/vaultwright/cli.py src/vaultwright/profile_migration.py src/vaultwright/__init__.py scripts/no_data_scan.py scripts/sync_template_copies.py
       - name: Shell syntax
         run: bash -n scripts/init.sh template/tools/sync_all.sh .githooks/pre-commit
       - name: Template copy drift check
@@ -32,6 +32,8 @@ jobs:
           vaultwright --help
           tmp_vault="$(mktemp -d)/vault"
           VAULTWRIGHT_REPO="$PWD" vaultwright init "$tmp_vault"
+          vaultwright --root "$tmp_vault" profile diff 0.1.0
+          vaultwright --root "$tmp_vault" profile migrate --plan
           vaultwright --root "$tmp_vault" plan
       - name: Wheel CLI smoke test
         run: |
@@ -51,6 +53,8 @@ jobs:
           test -f "$tmp_vault/tools/recovery_report.py"
           test -f "$tmp_vault/tools/review_ledger.py"
           test -f "$tmp_vault/tools/sandbox_report.py"
+          "$tmp_build/venv/bin/vaultwright" --root "$tmp_vault" profile diff 0.1.0
+          "$tmp_build/venv/bin/vaultwright" --root "$tmp_vault" profile migrate --plan
           "$tmp_build/venv/bin/vaultwright" --root "$tmp_vault" doctor
           "$tmp_build/venv/bin/vaultwright" --root "$tmp_vault" plan
           "$tmp_build/venv/bin/vaultwright" --root "$tmp_vault" sandbox --source-root "$tmp_build/original-documents" --json

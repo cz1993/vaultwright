@@ -113,11 +113,79 @@ def test_profile_cli_initializes_and_validates_current_profile(tmp_path: Path) -
     assert json.loads(current.stdout)["id"] == "business-operations"
 
 
+def test_profile_cli_diff_and_migrate_plan_clean_initialized_vault(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    init = run_cli("init", "--profile", "business-operations", str(vault))
+    assert init.returncode == 0, init.stderr
+
+    diff = run_cli("--root", str(vault), "profile", "diff", "0.1.0", "--json")
+    assert diff.returncode == 0, diff.stderr
+    diff_payload = json.loads(diff.stdout)
+    assert diff_payload["summary"]["up_to_date"] is True
+    assert diff_payload["differences"] == []
+
+    plan = run_cli("--root", str(vault), "profile", "migrate", "--plan", "--json")
+    assert plan.returncode == 0, plan.stderr
+    plan_payload = json.loads(plan.stdout)
+    assert plan_payload["summary"] == {"actions": 0, "blockers": 0, "up_to_date": True}
+
+
+def test_profile_cli_migrate_plan_reports_missing_profile_file(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    init = run_cli("init", "--profile", "business-operations", str(vault))
+    assert init.returncode == 0, init.stderr
+    (vault / "Documents.base").unlink()
+
+    plan = run_cli("--root", str(vault), "profile", "migrate", "--plan", "--json")
+
+    assert plan.returncode == 0, plan.stderr
+    payload = json.loads(plan.stdout)
+    assert payload["summary"]["actions"] == 1
+    assert payload["summary"]["blockers"] == 0
+    assert payload["actions"][0]["action"] == "copy-template-file"
+    assert payload["actions"][0]["path"] == "Documents.base"
+    assert not (vault / "Documents.base").exists()
+
+
+def test_profile_cli_migrate_plan_reports_profile_contract_drift(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    init = run_cli("init", "--profile", "business-operations", str(vault))
+    assert init.returncode == 0, init.stderr
+    profile_path = vault / "_meta" / "profile.yml"
+    profile_path.write_text(
+        profile_path.read_text(encoding="utf-8").replace("profile_version: 0.1.0", "profile_version: 0.0.1"),
+        encoding="utf-8",
+    )
+
+    diff = run_cli("--root", str(vault), "profile", "diff", "0.1.0", "--json")
+
+    assert diff.returncode == 0, diff.stderr
+    payload = json.loads(diff.stdout)
+    assert payload["summary"]["actions"] >= 1
+    assert {
+        "field": "profile_version",
+        "kind": "changed",
+        "current": "0.0.1",
+        "target": "0.1.0",
+    } in payload["differences"]
+
+
 def test_profile_cli_rejects_unavailable_init_profile(tmp_path: Path) -> None:
     result = run_cli("init", "--profile", "research-learning", str(tmp_path / "vault"))
 
     assert result.returncode == 1
     assert "not available yet" in result.stderr
+
+
+def test_profile_cli_diff_rejects_unavailable_target_version(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    init = run_cli("init", "--profile", "business-operations", str(vault))
+    assert init.returncode == 0, init.stderr
+
+    result = run_cli("--root", str(vault), "profile", "diff", "9.9.9")
+
+    assert result.returncode == 1
+    assert "target profile version '9.9.9' is not available" in result.stderr
 
 
 def minimal_profile() -> dict:

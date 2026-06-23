@@ -20,6 +20,9 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 - The installable `vaultwright catalog` command now runs package-owned catalog code from
   `src/vaultwright/`, while the vault-local `tools/catalog_report.py` remains available as a
   compatibility surface.
+- Added package-owned `profile diff` and read-only `profile migrate --plan` commands so profile
+  version drift, missing profile files, and template drift can be reviewed before any future
+  write-mode migration.
 - Added `tools/catalog_report.py` and `vaultwright catalog`, which writes a generated
   source-path-only `CATALOG.md` inventory gateway with domain, format, lifecycle, mirror, repo,
   unmanaged-source, and legacy-folder summaries.
