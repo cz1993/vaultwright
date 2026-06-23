@@ -38,6 +38,7 @@ CONFIG = Path(__file__).resolve().parent / "repos.yml"
 SENTINEL = "%% AUTO-GENERATED BELOW — DO NOT EDIT %%"
 REPO_MANIFEST_REL = Path("_meta/repo-manifest.json")
 AUDIT_REL = Path("_meta/sync-audit.jsonl")
+ANNOTATION_ROOT = Path("_meta/mirror-annotations")
 MANIFEST_SCHEMA_VERSION = 1
 CONFIG_VERSION = "repo-mirrors:v1"
 LIFECYCLE_CONTRACT_REL = Path("_meta/lifecycle-states.yml")
@@ -401,6 +402,98 @@ def split_body_at_sentinel(body: str) -> tuple[str, bool]:
     if body.rstrip("\r\n") == SENTINEL:
         return "", True
     return body, False
+
+
+def safe_annotation_identity(value: str) -> str:
+    cleaned = "".join(ch if ch.isalnum() or ch in "-_." else "-" for ch in value.strip()).strip(".-")
+    return cleaned or sha256_text(value)[:20]
+
+
+def annotation_sidecar_path(kind: str, identity: str) -> Path:
+    group = "source" if kind == "source-mirror" else "repo"
+    return ANNOTATION_ROOT / group / f"{safe_annotation_identity(identity)}.md"
+
+
+def json_safe(value):
+    if isinstance(value, dict):
+        return {str(key): json_safe(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [json_safe(item) for item in value]
+    if isinstance(value, tuple):
+        return [json_safe(item) for item in value]
+    if isinstance(value, (dt.date, dt.datetime)):
+        return value.isoformat()
+    return value
+
+
+def preserved_annotation_frontmatter(existing_fm: dict | None) -> dict:
+    if not isinstance(existing_fm, dict):
+        return {}
+    return {str(key): value for key, value in existing_fm.items() if str(key) not in MANAGED}
+
+
+def preserved_annotation_hash(
+    *,
+    kind: str,
+    identity: str,
+    mirror_path: str,
+    existing_fm: dict | None,
+    preserved_body: str,
+    repo: str,
+) -> str:
+    payload = {
+        "kind": kind,
+        "identity": identity,
+        "mirror_path": mirror_path,
+        "frontmatter": preserved_annotation_frontmatter(existing_fm),
+        "body": preserved_body.rstrip() + ("\n" if preserved_body.strip() else ""),
+        "repo": repo,
+    }
+    encoded = json.dumps(json_safe(payload), sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+    return sha256_text(encoded)
+
+
+def split_sidecar_frontmatter(path: Path) -> dict | None:
+    try:
+        fm, _body = split_fm(path.read_text(encoding="utf-8"))
+    except OSError:
+        return None
+    return fm if isinstance(fm, dict) else None
+
+
+def annotation_sidecar_matches(
+    root: Path,
+    *,
+    repo_id: str,
+    mirror_path: str,
+    existing_fm: dict | None,
+    preserved_body: str,
+    repo: str,
+) -> Path | None:
+    sidecar_rel = annotation_sidecar_path("repo-mirror", repo_id)
+    sidecar_fm = split_sidecar_frontmatter(root / sidecar_rel)
+    if not sidecar_fm:
+        return None
+    expected = preserved_annotation_hash(
+        kind="repo-mirror",
+        identity=repo_id,
+        mirror_path=mirror_path,
+        existing_fm=existing_fm,
+        preserved_body=preserved_body,
+        repo=repo,
+    )
+    if str(sidecar_fm.get("preserved_sha256", "") or "") != expected:
+        return None
+    return sidecar_rel
+
+
+def machine_owned_preserved(repo: str, url: str, sidecar_rel: Path) -> str:
+    return (
+        f"> [!info] GitHub repo mirror — auto-generated\n"
+        f"> Source: {repo} ({url}). Edit the source repo, never this note.\n"
+        f"> Human annotations were migrated to [[{sidecar_rel.as_posix()}|{sidecar_rel.name}]].\n"
+        f"> This mirror is machine-owned; do not edit it directly.\n\n"
+    )
 
 
 def repo_note_conflict(existing_fm: dict, body: str, expected_repo_id: str) -> str | None:
@@ -990,6 +1083,7 @@ def sync_one(entry, settings, token, force, dry, trusted_existing_baseline=False
     except ValueError as e:
         return f"error:output-path ({e})"
     domain = domain_from_notes_dir(notes_dir)
+    repo_id = repo_id_for(str(entry["repo"]), str(entry["note"]))
     existing_fm, existing_body = ({}, "")
     if note_path.exists():
         existing_fm, existing_body = split_fm(note_path.read_text(encoding="utf-8"))
@@ -997,14 +1091,36 @@ def sync_one(entry, settings, token, force, dry, trusted_existing_baseline=False
         conflict_reason = repo_note_conflict(
             existing_fm,
             existing_body,
-            repo_id_for(str(entry["repo"]), str(entry["note"])),
+            repo_id,
         )
         if conflict_reason:
             return "skipped:conflict"
         if not trusted_existing_baseline:
             return "skipped:manual_modification"
     preserved_prefix, sentinel_found = split_body_at_sentinel(existing_body or "")
-    preserved = preserved_prefix if sentinel_found else fresh_preserved(entry["repo"], entry)
+    note_rel = str(note_path.relative_to(ROOT)) if note_path.is_relative_to(ROOT) else str(note_path)
+    repo_for_annotation = str(existing_fm.get("repo") or entry.get("repo") or "")
+    matched_annotation_sidecar = None
+    if sentinel_found:
+        matched_annotation_sidecar = annotation_sidecar_matches(
+            ROOT,
+            repo_id=repo_id,
+            mirror_path=note_rel,
+            existing_fm=existing_fm,
+            preserved_body=preserved_prefix,
+            repo=repo_for_annotation,
+        )
+    if matched_annotation_sidecar:
+        repo_url = str(
+            existing_fm.get("repo_url")
+            or entry.get("repo_url")
+            or (f"local:{entry['local_path']}" if entry.get("local_path") else f"https://github.com/{repo_for_annotation}")
+        )
+        preserved = machine_owned_preserved(repo_for_annotation, repo_url, matched_annotation_sidecar)
+        frontmatter_source = {}
+    else:
+        preserved = preserved_prefix if sentinel_found else fresh_preserved(entry["repo"], entry)
+        frontmatter_source = existing_fm
 
     try:
         local_path = local_source_path(entry)
@@ -1029,8 +1145,12 @@ def sync_one(entry, settings, token, force, dry, trusted_existing_baseline=False
             "pushed_at": "",
             "html_url": entry.get("repo_url", ""),
         }
-        fm = base_fm(existing_fm, entry, slug, domain=domain)
-        fm["status"] = "active" if existing_fm.get("status") in (None, "", "draft") else existing_fm["status"]
+        fm = base_fm(frontmatter_source, entry, slug, domain=domain)
+        fm["status"] = (
+            "active"
+            if frontmatter_source.get("status") in (None, "", "draft")
+            else frontmatter_source["status"]
+        )
         fm["default_branch"] = meta["default_branch"]
         fm["last_commit"] = sha
         fm["last_commit_date"] = (commits[0][1] if commits else "")
@@ -1048,7 +1168,7 @@ def sync_one(entry, settings, token, force, dry, trusted_existing_baseline=False
         # unreachable (private/no-auth/renamed/offline): keep real content, else scaffold a stub
         if existing_fm.get("last_commit"):
             return "skipped:unreachable"
-        fm = base_fm(existing_fm, entry, entry["repo"], domain=domain)
+        fm = base_fm(frontmatter_source, entry, entry["repo"], domain=domain)
         fm.setdefault("status", "draft")
         fm["synced"] = ""
         error = write_note_error(note_path, fm, preserved, pending_auto(entry["repo"], "not reachable / auth not configured"), dry)
@@ -1064,7 +1184,7 @@ def sync_one(entry, settings, token, force, dry, trusted_existing_baseline=False
     if not tmp:
         if existing_fm.get("last_commit"):
             return f"error:clone ({err})"
-        fm = base_fm(existing_fm, entry, slug, domain=domain)
+        fm = base_fm(frontmatter_source, entry, slug, domain=domain)
         fm.setdefault("status", "draft")
         fm["synced"] = ""
         error = write_note_error(note_path, fm, preserved, pending_auto(slug, f"clone failed: {err}"), dry)
@@ -1083,9 +1203,13 @@ def sync_one(entry, settings, token, force, dry, trusted_existing_baseline=False
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
-    fm = base_fm(existing_fm, entry, slug, domain=domain)
+    fm = base_fm(frontmatter_source, entry, slug, domain=domain)
     # promote a never-synced/draft stub to active; otherwise respect the curated status
-    fm["status"] = "active" if existing_fm.get("status") in (None, "", "draft") else existing_fm["status"]
+    fm["status"] = (
+        "active"
+        if frontmatter_source.get("status") in (None, "", "draft")
+        else frontmatter_source["status"]
+    )
     fm["default_branch"] = (meta or {}).get("default_branch", "")
     fm["last_commit"] = sha
     fm["last_commit_date"] = (commits[0][1] if commits else "")

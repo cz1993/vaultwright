@@ -26,6 +26,8 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 - Added package-owned `migrate annotations --plan` and `migrate annotations --write` commands that
   move above-sentinel mirror notes and preserved frontmatter into `_meta/mirror-annotations/`
   sidecars keyed by `source_id` or `repo_id`, without editing original sources or generated mirrors.
+- Office and repo mirror sync now recognize matching annotation sidecars and reset regenerated
+  mirrors to machine-owned headers instead of carrying migrated human annotations forward.
 - Added `tools/catalog_report.py` and `vaultwright catalog`, which writes a generated
   source-path-only `CATALOG.md` inventory gateway with domain, format, lifecycle, mirror, repo,
   unmanaged-source, and legacy-folder summaries.

@@ -71,6 +71,7 @@ DEFAULT_MIRROR_MODE = "dedicated"
 DEFAULT_MIRROR_ROOT = "_mirrors"
 MANIFEST_REL = Path("_meta/source-manifest.json")
 AUDIT_REL = Path("_meta/sync-audit.jsonl")
+ANNOTATION_ROOT = Path("_meta/mirror-annotations")
 MANIFEST_SCHEMA_VERSION = 1
 CONFIG_VERSION = "office-mirrors:v1"
 XLSX_CONFIG_VERSION = "office-mirrors:v2"
@@ -653,6 +654,99 @@ def split_body_at_sentinel(body: str) -> tuple[str, bool]:
     if body.rstrip("\r\n") == SENTINEL:
         return "", True
     return body, False
+
+
+def safe_annotation_identity(value: str) -> str:
+    cleaned = "".join(ch if ch.isalnum() or ch in "-_." else "-" for ch in value.strip()).strip(".-")
+    return cleaned or sha256_text(value)[:20]
+
+
+def annotation_sidecar_path(kind: str, identity: str) -> Path:
+    group = "source" if kind == "source-mirror" else "repo"
+    return ANNOTATION_ROOT / group / f"{safe_annotation_identity(identity)}.md"
+
+
+def json_safe(value):
+    if isinstance(value, dict):
+        return {str(key): json_safe(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [json_safe(item) for item in value]
+    if isinstance(value, tuple):
+        return [json_safe(item) for item in value]
+    if isinstance(value, (dt.date, dt.datetime)):
+        return value.isoformat()
+    return value
+
+
+def preserved_annotation_frontmatter(existing_fm: dict | None) -> dict:
+    if not isinstance(existing_fm, dict):
+        return {}
+    return {str(key): value for key, value in existing_fm.items() if str(key) not in MANAGED_KEYS}
+
+
+def preserved_annotation_hash(
+    *,
+    kind: str,
+    identity: str,
+    mirror_path: str,
+    existing_fm: dict | None,
+    preserved_body: str,
+    source: str,
+) -> str:
+    payload = {
+        "kind": kind,
+        "identity": identity,
+        "mirror_path": mirror_path,
+        "frontmatter": preserved_annotation_frontmatter(existing_fm),
+        "body": preserved_body.rstrip() + ("\n" if preserved_body.strip() else ""),
+        "source": source,
+    }
+    encoded = json.dumps(json_safe(payload), sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+    return sha256_text(encoded)
+
+
+def split_sidecar_frontmatter(path: Path) -> dict | None:
+    try:
+        fm, _body = split_frontmatter(path.read_text(encoding="utf-8"))
+    except OSError:
+        return None
+    return fm if isinstance(fm, dict) else None
+
+
+def annotation_sidecar_matches(
+    root: Path,
+    *,
+    source_id: str,
+    mirror_path: str,
+    existing_fm: dict | None,
+    preserved_body: str,
+    source: str,
+) -> Path | None:
+    sidecar_rel = annotation_sidecar_path("source-mirror", source_id)
+    sidecar_fm = split_sidecar_frontmatter(root / sidecar_rel)
+    if not sidecar_fm:
+        return None
+    expected = preserved_annotation_hash(
+        kind="source-mirror",
+        identity=source_id,
+        mirror_path=mirror_path,
+        existing_fm=existing_fm,
+        preserved_body=preserved_body,
+        source=source,
+    )
+    if str(sidecar_fm.get("preserved_sha256", "") or "") != expected:
+        return None
+    return sidecar_rel
+
+
+def machine_owned_preserved_region(src: Path, root: Path, sidecar_rel: Path) -> str:
+    source_rel = as_posix_rel(src.relative_to(root))
+    return (
+        f"> [!info] Source-mirrored document — auto-generated\n"
+        f"> Original: [[{source_rel}|{src.name}]] · edit the **original**, never this mirror.\n"
+        f"> Human annotations were migrated to [[{sidecar_rel.as_posix()}|{sidecar_rel.name}]].\n"
+        f"> This mirror is machine-owned; do not edit it directly.\n\n"
+    )
 
 
 def source_manifest_path(root: Path) -> Path:
@@ -1362,15 +1456,29 @@ def sync_one(
 
     # preserve the curated region (above the sentinel) if the mirror already exists
     preserved_prefix, sentinel_found = split_body_at_sentinel(existing_body)
+    mirror_rel = as_posix_rel(mirror.relative_to(root)) if mirror.is_relative_to(root) else str(mirror)
+    source_rel = as_posix_rel(src.relative_to(root))
+    matched_annotation_sidecar = None
     if existing_body and sentinel_found:
-        preserved = preserved_prefix.rstrip() + "\n\n"
+        matched_annotation_sidecar = annotation_sidecar_matches(
+            root,
+            source_id=source_id,
+            mirror_path=mirror_rel,
+            existing_fm=existing_fm if isinstance(existing_fm, dict) else None,
+            preserved_body=preserved_prefix,
+            source=source_rel,
+        )
+        if matched_annotation_sidecar:
+            preserved = machine_owned_preserved_region(src, root, matched_annotation_sidecar)
+        else:
+            preserved = preserved_prefix.rstrip() + "\n\n"
     elif existing_body:
         preserved = existing_body.rstrip() + "\n\n"
     else:
         preserved = fresh_preserved_region(src, root)
 
     fm = managed_frontmatter(
-        existing_fm if isinstance(existing_fm, dict) else None,
+        None if matched_annotation_sidecar else existing_fm if isinstance(existing_fm, dict) else None,
         src,
         root,
         sha,

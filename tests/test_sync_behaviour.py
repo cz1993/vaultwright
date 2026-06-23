@@ -10,6 +10,8 @@ import sys
 
 import yaml
 
+from vaultwright.annotation_migration import annotation_migration_plan, write_annotation_sidecars
+
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -4155,6 +4157,57 @@ def test_github_sync_reports_manual_generated_region_modification(tmp_path: Path
     assert "Manual edit below sentinel" in note.read_text(encoding="utf-8")
 
 
+def test_github_sync_with_annotation_sidecar_makes_mirror_machine_owned(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    tools = vault / "tools"
+    fixture = vault / "_fixtures" / "repo"
+    tools.mkdir(parents=True)
+    fixture.mkdir(parents=True)
+    (fixture / "README.md").write_text("# Fixture\n", encoding="utf-8")
+    shutil.copy(ROOT / "template/tools/sync_github_repos.py", tools / "sync_github_repos.py")
+    (tools / "repos.yml").write_text(
+        "settings:\n"
+        "  notes_dir: 80_sources/repos\n"
+        "repos:\n"
+        "  - repo: local/fixture\n"
+        "    local_path: _fixtures/repo\n"
+        "    note: fixture.md\n",
+        encoding="utf-8",
+    )
+    first = subprocess.run(
+        [sys.executable, str(tools / "sync_github_repos.py"), "--quiet"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+    assert first.returncode == 0, first.stderr or first.stdout
+    note = vault / "80_sources" / "repos" / "fixture.md"
+    note.write_text(
+        note.read_text(encoding="utf-8").replace("## Notes\n", "## Notes\n\nHuman repo note.\n", 1),
+        encoding="utf-8",
+    )
+
+    migration_plan = annotation_migration_plan(vault)
+    migration_result = write_annotation_sidecars(vault, migration_plan)
+    sidecar_path = vault / migration_plan["actions"][0]["sidecar_path"]
+    (fixture / "README.md").write_text("# Fixture v2\n", encoding="utf-8")
+    second = subprocess.run(
+        [sys.executable, str(tools / "sync_github_repos.py"), "--quiet"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+    updated_text = note.read_text(encoding="utf-8")
+
+    assert migration_result["summary"]["written"] == 1
+    assert sidecar_path.exists()
+    assert "Human repo note." in sidecar_path.read_text(encoding="utf-8")
+    assert second.returncode == 0, second.stderr or second.stdout
+    assert "Human repo note." not in updated_text
+    assert "Human annotations were migrated" in updated_text
+    assert "_meta/mirror-annotations/repo/" in updated_text
+
+
 def test_github_sync_repairs_managed_repo_frontmatter_identity_drift(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     tools = vault / "tools"
@@ -4864,6 +4917,51 @@ def test_office_sync_update_preserves_frontmatter_and_curated_notes(tmp_path: Pa
     assert updated_fm["source_sha256"] != first_source_sha
     assert updated_record["source_id"] == first_record["source_id"]
     assert updated_record["lifecycle_state"] == "clean"
+
+
+def test_office_sync_with_annotation_sidecar_makes_mirror_machine_owned(tmp_path: Path) -> None:
+    sync = load_office_sync_module()
+    vault = tmp_path / "vault"
+    source = vault / "40_delivery" / "registration.docx"
+    source.parent.mkdir(parents=True)
+    source.write_bytes(b"office bytes v1")
+    config = sync.load_mirror_config(vault)
+    manifest = sync.empty_manifest()
+    first_status = sync.sync_one(source, vault, FakeConverter(), False, False, config, {}, manifest, "markitdown", "test")
+    sync.write_source_manifest(vault, manifest)
+    mirror = vault / "_mirrors" / "40_delivery" / "registration.md"
+    first_fm, first_body = sync.split_frontmatter(mirror.read_text(encoding="utf-8"))
+    first_fm["status"] = "reviewed"
+    first_fm["tags"] = ["delivery", "mirror"]
+    first_fm["related"] = ["[[CRA Business Registration Hub]]"]
+    first_fm["reviewed_by"] = "cz1993"
+    curated_body = first_body.replace("## Notes\n\n\n", "## Notes\n\nCurated delivery note.\n\n", 1)
+    mirror.write_text(sync.dump_frontmatter(first_fm) + "\n" + curated_body, encoding="utf-8")
+
+    migration_plan = annotation_migration_plan(vault)
+    migration_result = write_annotation_sidecars(vault, migration_plan)
+    sidecar = vault / "_meta" / "mirror-annotations" / "source" / f"{first_fm['source_id']}.md"
+
+    source.write_bytes(b"office bytes v2")
+    loaded = sync.load_source_manifest(vault)
+    second_status = sync.sync_one(source, vault, FakeConverter(), False, False, config, {}, loaded, "markitdown", "test")
+    sync.write_source_manifest(vault, loaded)
+    updated_text = mirror.read_text(encoding="utf-8")
+    updated_fm, _updated_body = sync.split_frontmatter(updated_text)
+
+    assert first_status == "created"
+    assert migration_result["summary"]["written"] == 1
+    assert sidecar.exists()
+    assert "Curated delivery note." in sidecar.read_text(encoding="utf-8")
+    assert second_status == "updated"
+    assert "Curated delivery note." not in updated_text
+    assert "Human annotations were migrated" in updated_text
+    assert "_meta/mirror-annotations/source/" in updated_text
+    assert "reviewed_by" not in updated_fm
+    assert updated_fm["status"] == "active"
+    assert updated_fm["tags"] == []
+    assert updated_fm["related"] == []
+    assert updated_fm["type"] == "source-mirror"
 
 
 def test_office_sync_repairs_managed_source_frontmatter_identity_drift(tmp_path: Path) -> None:

@@ -62,7 +62,8 @@ Current implementation status:
   above-sentinel source/repo mirror annotations without printing their text, and `--write` stores
   them under `_meta/mirror-annotations/source/<source_id>.md` or
   `_meta/mirror-annotations/repo/<repo_id>.md` while leaving original sources and generated mirrors
-  untouched;
+  untouched; after a matching sidecar exists, Office and repo sync reset regenerated mirrors to a
+  machine-owned header instead of preserving the migrated human annotation region in the mirror;
 - implemented for lifecycle operator semantics: the template now includes
   `_meta/lifecycle-states.yml`, a machine-readable Office/repo state contract with entry
   conditions, user-visible explanations, permitted next actions, exit conditions, and
@@ -73,8 +74,8 @@ Current implementation status:
 - partially implemented: full move/rename UX beyond unique hash matching and ambiguous-move
   conflict detection;
 - not complete: full rename/move UX, rollback automation, automated conversion-quality scoring
-  beyond private operator-entered result packs, fully machine-owned mirror rewrites after
-  annotation migration, and exhaustive conflict-resolution flows.
+  beyond private operator-entered result packs, enforcement that all annotated mirrors are migrated
+  before legacy preservation is disabled unconditionally, and exhaustive conflict-resolution flows.
 
 Human review decisions are recorded outside generated artifacts in `_meta/review-ledger.jsonl`.
 The ledger stores artifact paths, hashes, reviewer/status fields, and short metadata notes. It does
