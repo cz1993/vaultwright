@@ -64,6 +64,8 @@ Current implementation status:
   `_meta/mirror-annotations/repo/<repo_id>.md` while leaving original sources and generated mirrors
   untouched; after a matching sidecar exists, Office and repo sync reset regenerated mirrors to a
   machine-owned header instead of preserving the migrated human annotation region in the mirror;
+  lint blocks generated source/repo mirrors with unmigrated above-sentinel annotations so release
+  gates force sidecar migration before legacy preservation is removed;
 - implemented for lifecycle operator semantics: the template now includes
   `_meta/lifecycle-states.yml`, a machine-readable Office/repo state contract with entry
   conditions, user-visible explanations, permitted next actions, exit conditions, and
@@ -74,8 +76,9 @@ Current implementation status:
 - partially implemented: full move/rename UX beyond unique hash matching and ambiguous-move
   conflict detection;
 - not complete: full rename/move UX, rollback automation, automated conversion-quality scoring
-  beyond private operator-entered result packs, enforcement that all annotated mirrors are migrated
-  before legacy preservation is disabled unconditionally, and exhaustive conflict-resolution flows.
+  beyond private operator-entered result packs, unconditional removal of legacy above-sentinel
+  preservation after migration enforcement has been adopted, and exhaustive conflict-resolution
+  flows.
 
 Human review decisions are recorded outside generated artifacts in `_meta/review-ledger.jsonl`.
 The ledger stores artifact paths, hashes, reviewer/status fields, and short metadata notes. It does

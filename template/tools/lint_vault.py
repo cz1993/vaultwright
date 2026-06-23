@@ -10,7 +10,7 @@ gaps, and stale generated mirrors.
 Usage:  python3.11 tools/lint_vault.py
 """
 from __future__ import annotations
-import hashlib, itertools, json, re, sys
+import datetime as dt, hashlib, itertools, json, re, sys
 from pathlib import Path
 try:
     import yaml
@@ -38,6 +38,7 @@ LINT_CONFIG_REL = "_meta/lint-config.yml"
 REPO_CONFIG_REL = "tools/repos.yml"
 DEFAULT_REPO_NOTES_DIR = "80_sources/repos"
 SENTINEL = "%% AUTO-GENERATED BELOW — DO NOT EDIT %%"
+ANNOTATION_ROOT = Path("_meta/mirror-annotations")
 MIRROR_MODES = {"dedicated", "sibling"}
 DEFAULT_CONTENT_ROOTS = {
     "00_inbox", "10_governance", "20_market", "30_customers", "40_delivery",
@@ -52,6 +53,16 @@ OVERLAP_CONTENT_THRESHOLD = 0.72
 OVERLAP_TITLE_THRESHOLD = 0.82
 CURRENT_SOURCE_STATES = {"clean", "reviewed", "regenerated"}
 CURRENT_REPO_STATES = {"clean", "reviewed", "regenerated"}
+SOURCE_MANAGED_KEYS = {
+    "type", "source_id", "source", "source_manifest", "source_format", "source_modified",
+    "synced", "source_sha256", "converter", "converter_version", "updated",
+}
+REPO_MANAGED_KEYS = {
+    "type", "repo_id", "repo_manifest", "repo", "repo_url", "default_branch", "last_commit",
+    "last_commit_date", "open_issues", "synced", "updated",
+}
+DEFAULT_ANNOTATION_FRONTMATTER_KEYS = {"title", "domain", "owner", "created", "updated"}
+PROFILE_CONTEXT_KEYS = {"account", "client", "program", "vendor"}
 STOPWORDS = {
     "about", "after", "again", "against", "also", "because", "before", "being", "between",
     "could", "during", "each", "from", "have", "into", "more", "must", "need", "only",
@@ -262,7 +273,7 @@ def repo_id_for(repo: str, note: str) -> str:
     digest = hashlib.sha256(f"{repo}\0{note}".encode("utf-8")).hexdigest()[:20]
     return f"repo_{digest}"
 
-def repo_config() -> tuple[list[dict[str, str | Path]], list[tuple[str, str]]]:
+def repo_config() -> tuple[list[dict[str, object]], list[tuple[str, str]]]:
     path = ROOT / REPO_CONFIG_REL
     if not path.exists():
         return [], []
@@ -287,7 +298,7 @@ def repo_config() -> tuple[list[dict[str, str | Path]], list[tuple[str, str]]]:
         return [], [*errors, (f"{REPO_CONFIG_REL}:repos", "must be a list")]
 
     notes_dir = str(settings.get("notes_dir", DEFAULT_REPO_NOTES_DIR))
-    configured: list[dict[str, str | Path]] = []
+    configured: list[dict[str, object]] = []
     seen_note_paths: dict[str, str] = {}
     for index, entry in enumerate(repos):
         label = f"{REPO_CONFIG_REL}:repos[{index}]"
@@ -314,12 +325,21 @@ def repo_config() -> tuple[list[dict[str, str | Path]], list[tuple[str, str]]]:
             continue
         seen_note_paths[note_key] = label
         if isinstance(repo, str) and repo.strip():
-            configured.append({
+            item: dict[str, object] = {
                 "repo": repo.strip(),
                 "note": note.strip(),
                 "repo_id": repo_id_for(repo.strip(), note.strip()),
                 "path": note_path,
-            })
+            }
+            for key in ("tags", "related"):
+                value = entry.get(key)
+                if isinstance(value, list):
+                    item[key] = [str(part).strip() for part in value if str(part).strip()]
+            for key in ("account", "client", "program", "vendor"):
+                value = entry.get(key)
+                if isinstance(value, str) and value.strip():
+                    item[key] = value.strip()
+            configured.append(item)
     return configured, errors
 
 def load_manifest_records(rel: str, id_key: str) -> tuple[dict[str, dict], list[tuple[str, str]]]:
@@ -495,6 +515,11 @@ MIRROR_CONFIG, mirror_config_errors = mirror_config()
 LINT_CONFIG, lint_config_errors = lint_config()
 CONFIGURED_REPOS, repo_config_errors = repo_config()
 CONFIGURED_REPO_NOTE_PATHS = {item["path"] for item in CONFIGURED_REPOS if isinstance(item.get("path"), Path)}
+CONFIGURED_REPOS_BY_NOTE_PATH = {
+    item["path"]: item
+    for item in CONFIGURED_REPOS
+    if isinstance(item.get("path"), Path)
+}
 CONFIGURED_REPO_IDS = {str(item.get("repo_id")) for item in CONFIGURED_REPOS if str(item.get("repo_id", "")).strip()}
 SOURCE_MANIFEST_RECORDS, source_manifest_errors = load_manifest_records(SOURCE_MANIFEST_REL, "source_id")
 REPO_MANIFEST_RECORDS, repo_manifest_errors = load_manifest_records(REPO_MANIFEST_REL, "repo_id")
@@ -505,6 +530,7 @@ overlap_content_threshold = float(LINT_CONFIG["overlap_content_threshold"])
 overlap_title_threshold = float(LINT_CONFIG["overlap_title_threshold"])
 DOMAINS = set(DOMAIN_FOLDERS)
 missing_fm, bad_type, bad_status, bad_domain, bad_domain_folder, bad_account_client, bad_mirror_layout, unresolved = [], [], [], [], [], [], [], []
+mirror_annotations_need_migration: list[tuple[str, str]] = []
 stale_office_mirrors: list[tuple[str, str]] = []
 stale_repo_mirrors: list[tuple[str, str]] = []
 overlap_inputs: list[dict[str, object]] = []
@@ -547,6 +573,161 @@ def has_generated_sentinel(body: str) -> bool:
         if line.rstrip("\r\n") == SENTINEL:
             return True
     return body.rstrip("\r\n") == SENTINEL
+
+def split_body_at_sentinel(body: str) -> tuple[str, bool]:
+    lines = body.splitlines(keepends=True)
+    for index, line in enumerate(lines):
+        if line.rstrip("\r\n") == SENTINEL:
+            return "".join(lines[:index]), True
+    if body.rstrip("\r\n") == SENTINEL:
+        return "", True
+    return body, False
+
+def safe_annotation_identity(value: str) -> str:
+    cleaned = "".join(ch if ch.isalnum() or ch in "-_." else "-" for ch in value.strip()).strip(".-")
+    return cleaned or hashlib.sha256(value.encode("utf-8")).hexdigest()[:20]
+
+def annotation_sidecar_path(note_type: str, identity: str) -> Path:
+    group = "source" if note_type == "source-mirror" else "repo"
+    return ANNOTATION_ROOT / group / f"{safe_annotation_identity(identity)}.md"
+
+def json_safe(value):
+    if isinstance(value, dict):
+        return {str(key): json_safe(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [json_safe(item) for item in value]
+    if isinstance(value, tuple):
+        return [json_safe(item) for item in value]
+    if isinstance(value, (dt.date, dt.datetime)):
+        return value.isoformat()
+    return value
+
+def annotation_managed_keys(note_type: str) -> set[str]:
+    return SOURCE_MANAGED_KEYS if note_type == "source-mirror" else REPO_MANAGED_KEYS
+
+def preserved_annotation_frontmatter(fm: dict, note_type: str) -> dict:
+    managed = annotation_managed_keys(note_type)
+    return {str(key): value for key, value in fm.items() if str(key) not in managed}
+
+def configured_repo_seed(rel: Path | None) -> dict[str, object]:
+    if rel is None:
+        return {}
+    entry = CONFIGURED_REPOS_BY_NOTE_PATH.get(ROOT / rel)
+    if not entry:
+        return {}
+    seed: dict[str, object] = {}
+    seed["tags"] = entry.get("tags", ["repo"])
+    seed["related"] = entry.get("related", [])
+    account = entry.get("account") or entry.get("client")
+    if account:
+        seed["account"] = str(account)
+        seed["client"] = str(account)
+    for key in ("program", "vendor"):
+        if entry.get(key):
+            seed[key] = str(entry[key])
+    return seed
+
+def annotation_frontmatter_has_content(fm: dict, note_type: str, rel: Path | None = None) -> bool:
+    preserved = preserved_annotation_frontmatter(fm, note_type)
+    repo_seed = configured_repo_seed(rel) if note_type == "repo-mirror" else {}
+    for key, value in preserved.items():
+        if key in DEFAULT_ANNOTATION_FRONTMATTER_KEYS:
+            continue
+        if key == "status" and str(value or "").strip() in {"", "active", "draft"}:
+            continue
+        if key == "tags":
+            tags = value if isinstance(value, list) else []
+            clean_tags = {str(item).strip() for item in tags if str(item).strip()}
+            expected_tags = {
+                str(item).strip()
+                for item in repo_seed.get("tags", ["repo"] if note_type == "repo-mirror" else [])
+                if str(item).strip()
+            }
+            if not clean_tags or (note_type == "repo-mirror" and clean_tags <= expected_tags):
+                continue
+            return True
+        if key == "related":
+            related = value if isinstance(value, list) else []
+            clean_related = {str(item).strip() for item in related if str(item).strip()}
+            expected_related = {
+                str(item).strip()
+                for item in repo_seed.get("related", [])
+                if str(item).strip()
+            }
+            if not clean_related or (note_type == "repo-mirror" and clean_related <= expected_related):
+                continue
+            return True
+        if key in PROFILE_CONTEXT_KEYS and value in (None, "", []):
+            continue
+        if note_type == "repo-mirror" and key in PROFILE_CONTEXT_KEYS and repo_seed.get(key) == str(value or "").strip():
+            continue
+        return True
+    return False
+
+def default_preserved_line(line: str) -> bool:
+    stripped = line.strip()
+    return (
+        not stripped
+        or stripped == "## Notes"
+        or stripped.startswith("# ")
+        or stripped == "> [!info] Source-mirrored document — auto-generated"
+        or stripped == "> [!info] GitHub repo mirror — auto-generated"
+        or stripped.startswith("> Original: ")
+        or stripped.startswith("> Source: ")
+        or stripped.startswith("> Human annotations were migrated to ")
+        or stripped == "> Curate notes below; everything under the line refreshes on each sync."
+        or stripped == "> Curate notes below; everything under the line refreshes on sync."
+        or stripped == "> This mirror is machine-owned; do not edit it directly."
+    )
+
+def preserved_body_has_annotation(body: str) -> bool:
+    return any(not default_preserved_line(line) for line in body.splitlines())
+
+def normalized_preserved_body(body: str) -> str:
+    return body[1:] if body.startswith("\n") else body
+
+def annotation_preserved_hash(note_type: str, identity: str, rel: Path, fm: dict, preserved_body: str) -> str:
+    payload = {
+        "kind": note_type,
+        "identity": identity,
+        "mirror_path": rel.as_posix(),
+        "frontmatter": preserved_annotation_frontmatter(fm, note_type),
+        "body": preserved_body.rstrip() + ("\n" if preserved_body.strip() else ""),
+    }
+    if note_type == "source-mirror":
+        payload["source"] = str(fm.get("source", "") or "")
+    else:
+        payload["repo"] = str(fm.get("repo", "") or "")
+    encoded = json.dumps(json_safe(payload), sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+    return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
+def matching_annotation_sidecar(rel: Path, note_type: str, fm: dict, preserved_body: str) -> bool:
+    id_key = "source_id" if note_type == "source-mirror" else "repo_id"
+    identity = str(fm.get(id_key, "") or "").strip()
+    if not identity:
+        return False
+    sidecar = ROOT / annotation_sidecar_path(note_type, identity)
+    if not sidecar.exists():
+        return False
+    sidecar_fm, _body = split_fm(sidecar.read_text(encoding="utf-8", errors="ignore"))
+    if not isinstance(sidecar_fm, dict):
+        return False
+    expected = annotation_preserved_hash(note_type, identity, rel, fm, preserved_body)
+    return str(sidecar_fm.get("preserved_sha256", "") or "") == expected
+
+def mirror_annotation_migration_issue(rel: Path, note_type: str, fm: dict, body: str) -> str | None:
+    if note_type not in {"source-mirror", "repo-mirror"}:
+        return None
+    preserved, sentinel_found = split_body_at_sentinel(body)
+    if not sentinel_found:
+        return None
+    preserved = normalized_preserved_body(preserved)
+    has_annotation = preserved_body_has_annotation(preserved) or annotation_frontmatter_has_content(fm, note_type, rel)
+    if not has_annotation:
+        return None
+    if matching_annotation_sidecar(rel, note_type, fm, preserved):
+        return None
+    return "above-sentinel annotations need sidecar migration; run vaultwright migrate annotations --write"
 
 def source_mirror_metadata_ok(rel: Path, fm: dict) -> bool:
     source = str(fm.get("source", "")).strip()
@@ -698,6 +879,9 @@ for p in md_notes:
                 freshness_issue = repo_mirror_freshness_issue(fm)
                 if freshness_issue:
                     stale_repo_mirrors.append((rels, freshness_issue))
+            annotation_issue = mirror_annotation_migration_issue(rel, note_type, fm, body)
+            if annotation_issue:
+                mirror_annotations_need_migration.append((rels, annotation_issue))
         miss = [k for k in REQUIRED if k not in fm or fm.get(k) in (None, "")]
         if miss:
             missing_fm.append((rels, "missing: " + ",".join(miss)))
@@ -869,6 +1053,7 @@ section("Manifest errors", manifest_errors)
 section("Domain/folder mismatch", bad_domain_folder)
 section("Account/client mismatch", bad_account_client)
 section("Mirror layout errors", bad_mirror_layout)
+section("Mirror annotations needing migration", mirror_annotations_need_migration)
 section("Stale Office mirrors", stale_office_mirrors)
 section("Stale repo mirrors", stale_repo_mirrors)
 section("Non-lowercase markdown extension", markdown_case)
@@ -882,7 +1067,7 @@ blocking = (
     missing_fm or bad_type or bad_status or bad_domain or profile_errors or domain_map_errors or mirror_config_errors
     or lint_config_errors
     or repo_config_errors or manifest_errors or bad_domain_folder or bad_account_client or bad_mirror_layout
-    or stale_office_mirrors or stale_repo_mirrors
+    or mirror_annotations_need_migration or stale_office_mirrors or stale_repo_mirrors
     or markdown_case or mirror_gap or repo_mirror_gap or repo_unconfigured
 )
 print("\nOK" if not blocking else "\nISSUES FOUND (unresolved links, orphans & overlap candidates are warnings)")

@@ -8,6 +8,8 @@ import sys
 
 import yaml
 
+from vaultwright.annotation_migration import annotation_migration_plan, write_annotation_sidecars
+
 
 ROOT = Path(__file__).resolve().parents[1]
 SENTINEL = "%% AUTO-GENERATED BELOW — DO NOT EDIT %%"
@@ -521,6 +523,84 @@ def test_template_linter_accepts_dedicated_office_mirror_layout(tmp_path: Path) 
     assert result.returncode == 0
     assert "Office files without a mirror: 0" in result.stdout
     assert "Domain/folder mismatch: 0" in result.stdout
+
+
+def test_template_linter_blocks_unmigrated_source_mirror_annotations(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    source = vault / "40_delivery" / "registration.docx"
+    source.parent.mkdir(parents=True, exist_ok=True)
+    source.write_bytes(b"not a real docx; lint only checks mirror presence")
+    mirror = vault / "_mirrors" / "40_delivery" / "registration.md"
+    mirror.parent.mkdir(parents=True)
+    mirror.write_text(
+        "---\n"
+        "title: Registration\n"
+        "type: source-mirror\n"
+        "status: active\n"
+        "domain: delivery\n"
+        f"{source_mirror_fields('40_delivery/registration.docx', source_sha256=source_sha_for(vault, '40_delivery/registration.docx'))}"
+        "created: 2026-01-01\n"
+        "updated: 2026-01-01\n"
+        "---\n"
+        f"# Registration\n\nHuman migration note.\n\n{SENTINEL}\n\n## Extracted content\n",
+        encoding="utf-8",
+    )
+    write_source_manifest(
+        vault,
+        ("src-test", "40_delivery/registration.docx", "_mirrors/40_delivery/registration.md"),
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "lint_vault.py")],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 1
+    assert "Mirror annotations needing migration: 1" in result.stdout
+    assert "above-sentinel annotations need sidecar migration; run vaultwright migrate annotations --write" in result.stdout
+    assert "Human migration note" not in result.stdout
+
+
+def test_template_linter_accepts_source_mirror_annotations_with_matching_sidecar(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    source = vault / "40_delivery" / "registration.docx"
+    source.parent.mkdir(parents=True, exist_ok=True)
+    source.write_bytes(b"not a real docx; lint only checks mirror presence")
+    mirror = vault / "_mirrors" / "40_delivery" / "registration.md"
+    mirror.parent.mkdir(parents=True)
+    mirror.write_text(
+        "---\n"
+        "title: Registration\n"
+        "type: source-mirror\n"
+        "status: active\n"
+        "domain: delivery\n"
+        f"{source_mirror_fields('40_delivery/registration.docx', source_sha256=source_sha_for(vault, '40_delivery/registration.docx'))}"
+        "created: 2026-01-01\n"
+        "updated: 2026-01-01\n"
+        "---\n"
+        f"# Registration\n\nHuman migration note.\n\n{SENTINEL}\n\n## Extracted content\n",
+        encoding="utf-8",
+    )
+    write_source_manifest(
+        vault,
+        ("src-test", "40_delivery/registration.docx", "_mirrors/40_delivery/registration.md"),
+    )
+    migration = write_annotation_sidecars(vault, annotation_migration_plan(vault))
+
+    result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "lint_vault.py")],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert migration["summary"]["written"] == 1
+    assert result.returncode == 0
+    assert "Mirror annotations needing migration: 0" in result.stdout
 
 
 def test_template_linter_accepts_alias_source_with_canonical_mirror_layout(tmp_path: Path) -> None:
@@ -1088,6 +1168,51 @@ def test_template_linter_accepts_configured_repo_with_generated_mirror(tmp_path:
 
     assert result.returncode == 0
     assert "Repo config errors: 0" in result.stdout
+    assert "Configured repos without a mirror: 0" in result.stdout
+
+
+def test_template_linter_accepts_configured_repo_seed_frontmatter(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    repo_id = repo_id_for("local/fixture", "fixture.md")
+    (vault / "tools" / "repos.yml").write_text(
+        "settings:\n"
+        "  notes_dir: 80_sources/repos\n"
+        "repos:\n"
+        "  - repo: local/fixture\n"
+        "    note: fixture.md\n"
+        "    tags: [repo, sample, synthetic]\n"
+        "    related: [\"[[Repositories]]\"]\n",
+        encoding="utf-8",
+    )
+    repo_note = vault / "80_sources" / "repos" / "fixture.md"
+    repo_note.parent.mkdir(parents=True, exist_ok=True)
+    repo_note.write_text(
+        "---\n"
+        "title: Fixture Repo\n"
+        "type: repo-mirror\n"
+        "status: active\n"
+        "domain: sources\n"
+        f"{repo_mirror_fields(repo_id=repo_id)}"
+        "tags: [repo, sample, synthetic]\n"
+        "related: [\"[[Repositories]]\"]\n"
+        "created: 2026-01-01\n"
+        "updated: 2026-01-01\n"
+        "---\n"
+        f"# Fixture Repo\n\n{SENTINEL}\n\n## Repository\n",
+        encoding="utf-8",
+    )
+    write_repo_manifest(vault, (repo_id, "80_sources/repos/fixture.md"))
+
+    result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "lint_vault.py")],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stdout
+    assert "Mirror annotations needing migration: 0" in result.stdout
     assert "Configured repos without a mirror: 0" in result.stdout
 
 
