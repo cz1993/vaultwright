@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 import json
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -9,6 +10,16 @@ import yaml
 
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def package_cli_env() -> dict[str, str]:
+    env = os.environ.copy()
+    src_path = str(ROOT / "src")
+    env["PYTHONPATH"] = (
+        src_path if not env.get("PYTHONPATH") else f"{src_path}{os.pathsep}{env['PYTHONPATH']}"
+    )
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
+    return env
 
 
 def test_catalog_reads_profile_domains_for_canonical_folders(tmp_path: Path) -> None:
@@ -51,3 +62,25 @@ def test_catalog_reads_profile_domains_for_canonical_folders(tmp_path: Path) -> 
     assert domains["research"]["markdown_files"] == 1
     assert "25_research" in report["canonical_folders"]
     assert {"folder": "25_research"} not in report["legacy_folders"]
+
+
+def test_package_cli_catalog_does_not_delegate_to_vault_local_script(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    (vault / "tools" / "catalog_report.py").write_text(
+        "raise SystemExit('vault-local catalog script should not run')\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "catalog", "--json"],
+        cwd=ROOT,
+        env=package_cli_env(),
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+    payload = json.loads(result.stdout)
+    assert payload["report"]["summary"]["generated_mirrors"] == 0
+    assert "vault-local catalog script should not run" not in result.stderr

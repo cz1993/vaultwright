@@ -85,6 +85,7 @@ def test_release_workflow_verifies_built_wheel_before_release() -> None:
 def test_ci_workflow_smokes_sandbox_command() -> None:
     text = CI_WORKFLOW.read_text(encoding="utf-8")
 
+    assert "src/vaultwright/catalog.py" in text
     assert "template/tools/catalog_report.py" in text
     assert "template/tools/m365_report.py" in text
     assert "template/tools/overlap_report.py" in text

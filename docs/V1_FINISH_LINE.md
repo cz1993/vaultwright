@@ -23,7 +23,7 @@ required migration. New ideas that do not map here move to the post-v1 backlog.
 
 | ID | Requirement | Current Evidence | Gap To Close | Stage |
 | --- | --- | --- | --- | --- |
-| V1-C1 | One installable cross-platform core package owns runtime behavior | `pyproject.toml` exposes a `vaultwright` console entry point; CI installs package | Runtime still lives primarily in copied `template/tools/` scripts | 1 |
+| V1-C1 | One installable cross-platform core package owns runtime behavior | `pyproject.toml` exposes a `vaultwright` console entry point; CI installs package; `vaultwright catalog` now runs package-owned catalog code | Runtime still lives primarily in copied `template/tools/` scripts; continue moving commands into `src/vaultwright/` and leave vault-local tools as compatibility shims | 1 |
 | V1-C2 | One versioned profile contract | `src/vaultwright/profiles.py` validates schema version 1; `_meta/profile.yml` declares the current `business-operations` template; package CLI exposes `init --profile business-operations`, `profile list`, `profile show`, and `profile validate`; linter/catalog read profile domains, note types, statuses, required properties, and canonical folders | Need full profile schema docs, profile migration support, and remaining core behavior reading profile data | 1 |
 | V1-C3 | Three official content profiles plus a blank starter | Existing template approximates `business-operations`; government-services example exercises that profile shape | Need `business-operations`, `research-learning`, `software-project`, and `blank` as package-owned profiles | 2 |
 | V1-C4 | Safe migration path from current business template | Migration reports and frontmatter domain normalization exist | Need workspace/profile migration command that moves from current template to profile contract without source mutation | 1 |
@@ -54,7 +54,7 @@ the index has benchmark evidence.
 | Above-sentinel notes in generated mirrors | V1-C5 | Preserve first, then make mirrors fully machine-owned |
 | Obsidian Bases and future Canvas outputs | V1-C6, V1-C7 | Adapter only; correctness must remain testable without Obsidian |
 | Agent-readiness benchmark | V1-C8, V1-E10, V1-E11 | Make profile-aware and use it to decide the Stage 4 Explorer gate |
-| Catalog JSON/Markdown/HTML | V1-C7, V1-E12 | Stabilize as shared view model before richer UI |
+| Catalog JSON/Markdown/HTML | V1-C1, V1-C7, V1-E12 | Package-owned `vaultwright catalog` is now the shared view-model path; continue stabilizing it before richer UI |
 | Microsoft 365/Copilot handoff | V1-C9 | Keep as support/deployment documentation, not an enterprise taxonomy profile |
 | Local evidence index | V1-E10 | Build after profile/core schema groundwork; no vector DB by default |
 | Visual Explorer | V1-E12 | Build only if Stage 4 benchmark gate passes |

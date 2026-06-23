@@ -17,6 +17,9 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 - `vaultwright lint` and `vaultwright catalog` now read `_meta/profile.yml` for profile-defined
   domains, note types, statuses, required properties, and canonical content folders, while
   `_meta/domain-map.yml` remains the legacy alias compatibility layer.
+- The installable `vaultwright catalog` command now runs package-owned catalog code from
+  `src/vaultwright/`, while the vault-local `tools/catalog_report.py` remains available as a
+  compatibility surface.
 - Added `tools/catalog_report.py` and `vaultwright catalog`, which writes a generated
   source-path-only `CATALOG.md` inventory gateway with domain, format, lifecycle, mirror, repo,
   unmanaged-source, and legacy-folder summaries.

@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Installable Vaultwright console entry point.
 
-The packaged command delegates operator commands to the target vault's local `tools/vaultwright.py`
-wrapper. That keeps the vault tools as the source of truth while allowing a single `vaultwright`
-command from editable or wheel installs.
+The packaged command owns profile commands and package-migrated runtime behavior directly. Legacy
+operator commands still delegate to the target vault's local `tools/vaultwright.py` wrapper until
+their behavior moves into the package.
 """
 from __future__ import annotations
 
@@ -15,6 +15,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+from vaultwright import catalog as catalog_module
 from vaultwright.profiles import ProfileContract, ProfileValidationError, load_profile
 
 
@@ -178,6 +179,22 @@ def command_delegate(args: argparse.Namespace) -> int:
         print(str(exc), file=sys.stderr)
         return 1
     return run([sys.executable, str(wrapper), args.command, *getattr(args, "delegate_args", [])], root)
+
+
+def catalog_args(args: argparse.Namespace) -> list[str]:
+    return (
+        (["--json"] if args.json else [])
+        + (["--html"] if args.html else [])
+        + (["--stdout"] if args.stdout else [])
+        + (["--check"] if args.check else [])
+        + (["--output", str(args.output)] if args.output != Path("CATALOG.md") else [])
+        + (["--max-items", str(args.max_items)] if args.max_items != 500 else [])
+    )
+
+
+def command_catalog(args: argparse.Namespace) -> int:
+    root = args.root.expanduser().resolve()
+    return catalog_module.main(catalog_args(args), root=root)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -400,17 +417,7 @@ def build_parser() -> argparse.ArgumentParser:
         default=500,
         help="Maximum source/repo records to list per catalog section; use 0 for no limit.",
     )
-    catalog.set_defaults(
-        func=command_delegate,
-        delegate_args=lambda args: (
-            (["--json"] if args.json else [])
-            + (["--html"] if args.html else [])
-            + (["--stdout"] if args.stdout else [])
-            + (["--check"] if args.check else [])
-            + (["--output", str(args.output)] if args.output != Path("CATALOG.md") else [])
-            + (["--max-items", str(args.max_items)] if args.max_items != 500 else [])
-        ),
-    )
+    catalog.set_defaults(func=command_catalog)
     sandbox = sub.add_parser("sandbox", help="Print a read-only copied-vault sandbox readiness report.")
     sandbox.add_argument(
         "--source-root",

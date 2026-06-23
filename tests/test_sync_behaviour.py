@@ -356,7 +356,7 @@ def test_vaultwright_cli_root_uses_target_vault_tools(tmp_path: Path) -> None:
     assert not (vault / "80_sources" / "repos" / "fixture.md").exists()
 
 
-def test_packaged_vaultwright_cli_delegates_to_target_vault(tmp_path: Path) -> None:
+def test_packaged_vaultwright_cli_runs_target_vault_commands(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     shutil.copytree(ROOT / "template", vault)
     env = {**os.environ, "PYTHONPATH": str(ROOT / "src")}
