@@ -2408,17 +2408,26 @@ def test_catalog_and_m365_surface_unconfigured_repo_mirror_before_resync(tmp_pat
     assert catalog_json.returncode == 0, catalog_json.stderr or catalog_json.stdout
     catalog_report = json.loads(catalog_json.stdout)["report"]
     assert catalog_report["repo_states"] == {"repo_unconfigured": 1}
+    assert catalog_report["lifecycle_contracts"]["repo_manifest"] == [
+        {"contract": "_meta/lifecycle-states.yml", "schema_version": "1", "records": 1}
+    ]
     repo_item = catalog_report["repo_items"][0]
     assert repo_item["state"] == "repo_unconfigured"
     assert repo_item["manifest_state"] == "clean"
+    assert repo_item["lifecycle_contract"] == "_meta/lifecycle-states.yml"
+    assert repo_item["lifecycle_contract_schema_version"] == "1"
     assert repo_item["warnings"] == 1
     assert catalog_md.returncode == 0, catalog_md.stderr or catalog_md.stdout
     assert "## Repo Lifecycle States" in catalog_md.stdout
+    assert "## Lifecycle Contract Provenance" in catalog_md.stdout
+    assert "| repo_manifest | _meta/lifecycle-states.yml | 1 | 1 |" in catalog_md.stdout
     assert "repo_unconfigured" in catalog_md.stdout
     assert "manifest_state=clean" in catalog_md.stdout
     assert "Synthetic repo docs" not in catalog_md.stdout
     assert catalog_html.returncode == 0, catalog_html.stderr or catalog_html.stdout
     assert "<h3>Repo Lifecycle States</h3>" in catalog_html.stdout
+    assert "<h2>Lifecycle Contract Provenance</h2>" in catalog_html.stdout
+    assert "_meta/lifecycle-states.yml" in catalog_html.stdout
     assert "repo_unconfigured" in catalog_html.stdout
     assert "manifest_state=clean" in catalog_html.stdout
     assert "Synthetic repo docs" not in catalog_html.stdout

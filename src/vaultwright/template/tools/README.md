@@ -87,8 +87,10 @@ top-level folders without copying document text. The HTML gateway also includes 
 charts for domain mix, source and repo lifecycle states, source formats, and top-level file
 distribution. Catalog generation compares `_meta/repo-manifest.json` with `tools/repos.yml` so
 retained repo mirrors whose config entry was removed appear as `repo_unconfigured` even before repo
-sync rewrites the manifest. Use `--stdout` to preview, `--json` for automation, and `--check` in CI
-or review scripts to fail when the selected catalog is stale.
+sync rewrites the manifest. When source/repo manifest records include lifecycle contract
+provenance, the catalog also reports which contract path and schema version govern those states.
+Use `--stdout` to preview, `--json` for automation, and `--check` in CI or review scripts to fail
+when the selected catalog is stale.
 
 `conversion` is read-only unless `--init-results` is supplied. It reads
 `_meta/source-manifest.json` and turns lifecycle states, format risks, warnings, errors, and

@@ -11,6 +11,8 @@ All notable changes to Vaultwright are documented here. Format loosely follows
   unmanaged-source, and legacy-folder summaries.
 - `vaultwright catalog --html` now writes the same path-and-metadata-only inventory as a static
   `CATALOG.html` gateway with aggregate charts for reviewers who prefer a browser surface.
+- `vaultwright catalog` now surfaces lifecycle contract provenance from source/repo manifests,
+  showing which contract path and schema version govern manifest lifecycle states.
 - CI and release smoke checks now compile and exercise `catalog`, including packaged-template
   installation coverage and Markdown/HTML `catalog --check` freshness validation.
 - Added `docs/MICROSOFT_365_HANDOFF.md` and `vaultwright m365`, a read-only handoff readiness

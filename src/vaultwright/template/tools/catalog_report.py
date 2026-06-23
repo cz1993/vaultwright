@@ -251,6 +251,30 @@ def load_manifest_records(root: Path, rel: Path, id_key: str) -> tuple[list[dict
     return out, warnings, errors
 
 
+def lifecycle_schema_version(value: object) -> str:
+    if isinstance(value, bool):
+        return "unknown"
+    if isinstance(value, int):
+        return str(value)
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    return "unknown"
+
+
+def lifecycle_contract_provenance(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    counts: Counter[tuple[str, str]] = Counter()
+    for record in records:
+        contract = safe_rel(record.get("lifecycle_contract"))
+        schema_version = lifecycle_schema_version(record.get("lifecycle_contract_schema_version"))
+        if not contract:
+            contract = "(not recorded)"
+        counts[(contract, schema_version)] += 1
+    return [
+        {"contract": contract, "schema_version": schema_version, "records": count}
+        for (contract, schema_version), count in sorted(counts.items())
+    ]
+
+
 def configured_repo_ids(root: Path) -> tuple[set[str] | None, list[str]]:
     config_path = root / REPO_CONFIG
     if not config_path.exists():
@@ -296,6 +320,10 @@ def source_catalog_items(records: list[dict[str, Any]], aliases: dict[str, str])
                 "mirror": mirror,
                 "format": fmt,
                 "state": str(record.get("lifecycle_state", "unknown") or "unknown"),
+                "lifecycle_contract": safe_rel(record.get("lifecycle_contract")),
+                "lifecycle_contract_schema_version": lifecycle_schema_version(
+                    record.get("lifecycle_contract_schema_version")
+                ),
                 "domain": domain_for_path(source, aliases),
                 "warnings": len(record.get("warnings", [])) if isinstance(record.get("warnings"), list) else 0,
                 "errors": len(record.get("errors", [])) if isinstance(record.get("errors"), list) else 0,
@@ -323,6 +351,10 @@ def repo_catalog_items(records: list[dict[str, Any]], configured_ids: set[str] |
                 "note": note,
                 "state": state,
                 "manifest_state": manifest_state,
+                "lifecycle_contract": safe_rel(record.get("lifecycle_contract")),
+                "lifecycle_contract_schema_version": lifecycle_schema_version(
+                    record.get("lifecycle_contract_schema_version")
+                ),
                 "warnings": len(warnings),
                 "errors": len(record.get("errors", [])) if isinstance(record.get("errors"), list) else 0,
             }
@@ -383,6 +415,10 @@ def build_report(root: Path) -> tuple[dict[str, Any], list[str], list[str]]:
         },
         "states": dict(sorted(states.items())),
         "repo_states": dict(sorted(repo_states.items())),
+        "lifecycle_contracts": {
+            "source_manifest": lifecycle_contract_provenance(source_records),
+            "repo_manifest": lifecycle_contract_provenance(repo_records),
+        },
         "formats": dict(sorted(formats.items())),
         "domains": domain_rows,
         "source_items": source_items,
@@ -518,6 +554,27 @@ def render_markdown(report: dict[str, Any], warnings: list[str], errors: list[st
     if formats:
         lines.extend(["## Source Formats", ""])
         lines.extend(table(["Format", "Count"], [[fmt, count] for fmt, count in formats.items()]))
+        lines.append("")
+
+    provenance_rows = []
+    lifecycle_contracts = report.get("lifecycle_contracts", {})
+    if isinstance(lifecycle_contracts, dict):
+        for manifest_label in ("source_manifest", "repo_manifest"):
+            entries = lifecycle_contracts.get(manifest_label, [])
+            if not isinstance(entries, list):
+                continue
+            for entry in entries:
+                if not isinstance(entry, dict):
+                    continue
+                provenance_rows.append([
+                    manifest_label,
+                    entry.get("contract", ""),
+                    entry.get("schema_version", "unknown"),
+                    entry.get("records", 0),
+                ])
+    if provenance_rows:
+        lines.extend(["## Lifecycle Contract Provenance", ""])
+        lines.extend(table(["Manifest", "Contract", "Schema Version", "Records"], provenance_rows))
         lines.append("")
 
     source_items, hidden_sources = limited(report["source_items"], max_items)
@@ -734,6 +791,27 @@ def render_html(report: dict[str, Any], warnings: list[str], errors: list[str], 
     if report["formats"]:
         lines.extend(['<section class="section">', "<h2>Source Formats</h2>"])
         lines.extend(html_table(["Format", "Count"], [[fmt, count] for fmt, count in report["formats"].items()]))
+        lines.append("</section>")
+
+    provenance_rows = []
+    lifecycle_contracts = report.get("lifecycle_contracts", {})
+    if isinstance(lifecycle_contracts, dict):
+        for manifest_label in ("source_manifest", "repo_manifest"):
+            entries = lifecycle_contracts.get(manifest_label, [])
+            if not isinstance(entries, list):
+                continue
+            for entry in entries:
+                if not isinstance(entry, dict):
+                    continue
+                provenance_rows.append([
+                    manifest_label,
+                    entry.get("contract", ""),
+                    entry.get("schema_version", "unknown"),
+                    entry.get("records", 0),
+                ])
+    if provenance_rows:
+        lines.extend(['<section class="section">', "<h2>Lifecycle Contract Provenance</h2>"])
+        lines.extend(html_table(["Manifest", "Contract", "Schema Version", "Records"], provenance_rows))
         lines.append("</section>")
 
     lines.extend(['<section class="section">', "<h2>Generated Source Mirrors</h2>"])
