@@ -3292,6 +3292,8 @@ def test_vaultwright_sandbox_report_checks_copied_boundary_without_content(tmp_p
     assert result.returncode == 0, result.stderr or result.stdout
     assert "sandbox: read-only copied-vault preflight; no source content or source paths were printed" in result.stdout
     assert "sandbox: source boundary status=distinct" in result.stdout
+    assert "sandbox: markdown" in result.stdout
+    assert "machine_owned=1" in result.stdout
     assert "sandbox: generated mirrors dedicated=1 raw_folder=1 repo=0" in result.stdout
     assert "raw source folders contain generated source mirrors" in result.stdout
     assert "copied private source bytes" not in result.stdout
@@ -3305,6 +3307,7 @@ def test_vaultwright_sandbox_report_checks_copied_boundary_without_content(tmp_p
     payload = json.loads(json_result.stdout)
     assert payload["report"]["source_boundary"]["status"] == "distinct"
     assert payload["report"]["inventory"]["source_candidates"] == 1
+    assert payload["report"]["inventory"]["machine_owned_markdown"] == 1
     assert payload["report"]["inventory"]["dedicated_generated_mirrors"] == 1
     assert payload["report"]["inventory"]["raw_folder_generated_mirrors"] == 1
     assert payload["report"]["source_manifest"]["records"] == 1
@@ -3378,6 +3381,7 @@ def test_packaged_vaultwright_sandbox_does_not_require_vault_wrapper_or_local_sa
 
     assert result.returncode == 0, result.stderr or result.stdout
     assert "sandbox: source boundary status=distinct" in result.stdout
+    assert "machine_owned=0" in result.stdout
     assert "sandbox: generated mirrors dedicated=1 raw_folder=0 repo=0" in result.stdout
     assert "missing tools/vaultwright.py" not in result.stdout
     assert "missing tools/vaultwright.py" not in result.stderr
@@ -3392,6 +3396,7 @@ def test_packaged_vaultwright_sandbox_does_not_require_vault_wrapper_or_local_sa
     assert json_result.returncode == 0, json_result.stderr or json_result.stdout
     payload = json.loads(json_result.stdout)
     assert payload["report"]["source_boundary"]["status"] == "distinct"
+    assert payload["report"]["inventory"]["machine_owned_markdown"] == 0
     assert payload["report"]["inventory"]["dedicated_generated_mirrors"] == 1
     assert "missing tools/vaultwright.py" not in json_result.stdout
     assert "missing tools/vaultwright.py" not in json_result.stderr

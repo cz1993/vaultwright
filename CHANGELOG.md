@@ -61,6 +61,8 @@ All notable changes to Vaultwright are documented here. Format loosely follows
   Markdown/domain counts, while surfacing them as their own inventory metric.
 - `vaultwright m365` now separates profile-defined machine-owned Markdown artifacts, including
   repo mirrors, from curated Markdown counts in handoff inventory.
+- `vaultwright sandbox` now reports profile-defined machine-owned Markdown separately from curated
+  Markdown in copied-vault preflight inventory.
 - Profiles now own generated mirror status defaults with `policy_defaults.mirror_status` and
   `policy_defaults.repo_stub_status`; Office/repo sync, lint, and annotation migration use those
   values instead of hard-coded `active`/`draft` checks for generated mirror metadata.

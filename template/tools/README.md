@@ -185,7 +185,8 @@ python3.11 tools/vaultwright.py sandbox --source-root /path/to/original-document
 
 It checks required Vaultwright files/tools, verifies the copied vault is not the same path as the
 original source collection, counts Office/PDF source candidates, reports whether generated mirrors
-are isolated under `_mirrors/`, summarizes manifests/audit/recovery readiness, and checks basic git
+are isolated under the active Office mirror root, separates profile-declared machine-owned Markdown
+from curated Markdown counts, summarizes manifests/audit/recovery readiness, and checks basic git
 backup posture. It does not print source paths, document text, mirror text, or repo document bodies.
 
 ```bash

@@ -12,7 +12,16 @@ from pathlib import Path
 from typing import Any
 
 from vaultwright import recovery as recovery_module
-from vaultwright.runtime_profile import configured_office_mirror_root, is_repo_notes_path
+from vaultwright.runtime_profile import (
+    configured_office_mirror_root,
+    is_repo_notes_path,
+    profile_machine_owned_note_types,
+)
+
+try:
+    import yaml
+except ImportError:  # pragma: no cover - installed environments should have PyYAML
+    yaml = None
 
 DEFAULT_ROOT = Path.cwd()
 SOURCE_MANIFEST = Path("_meta/source-manifest.json")
@@ -128,20 +137,25 @@ def manifest_summary(records: list[dict], id_key: str) -> dict[str, Any]:
     }
 
 
-def managed_source_mirror(path: Path) -> bool:
+def markdown_note_type(path: Path) -> str:
+    if yaml is None:
+        return ""
     try:
-        head = path.read_text(encoding="utf-8", errors="ignore")[:600]
+        text = path.read_text(encoding="utf-8", errors="ignore")
     except OSError:
-        return False
-    return "type: source-mirror" in head
-
-
-def managed_repo_mirror(path: Path) -> bool:
+        return ""
+    if not text.startswith("---"):
+        return ""
+    end = text.find("\n---", 3)
+    if end == -1:
+        return ""
     try:
-        head = path.read_text(encoding="utf-8", errors="ignore")[:600]
-    except OSError:
-        return False
-    return "type: repo-mirror" in head
+        data = yaml.safe_load(text[3:end].lstrip("\n")) or {}
+    except yaml.YAMLError:
+        return ""
+    if not isinstance(data, dict):
+        return ""
+    return str(data.get("type", "") or "")
 
 
 def workspace_inventory(root: Path) -> dict[str, Any]:
@@ -149,28 +163,37 @@ def workspace_inventory(root: Path) -> dict[str, Any]:
     source_candidates = 0
     bytes_total = 0
     extensions: Counter[str] = Counter()
+    curated_markdown = 0
+    machine_owned_markdown = 0
     raw_folder_generated_mirrors = 0
     dedicated_generated_mirrors = 0
     repo_mirrors = 0
     mirror_root = configured_office_mirror_root(root)
+    machine_owned_note_types = profile_machine_owned_note_types(root)
     for path in root.rglob("*"):
         if not path.is_file() or path.is_symlink():
             continue
         rel = path.relative_to(root)
         suffix = path.suffix.lower() or "[no extension]"
+        note_type = markdown_note_type(path) if suffix == ".md" else ""
         office_mirror = bool(mirror_root.parts) and rel.parts[: len(mirror_root.parts)] == mirror_root.parts
         excluded = office_mirror or any(part in EXCLUDED_PARTS for part in rel.parts)
-        if suffix == ".md" and managed_source_mirror(path):
+        if note_type == "source-mirror":
             if office_mirror:
                 dedicated_generated_mirrors += 1
             elif not excluded:
                 raw_folder_generated_mirrors += 1
-        if is_repo_notes_path(root, rel) and suffix == ".md" and managed_repo_mirror(path):
+        if is_repo_notes_path(root, rel) and note_type == "repo-mirror":
             repo_mirrors += 1
         if excluded:
             continue
         content_files += 1
         extensions[suffix] += 1
+        if suffix == ".md":
+            if note_type in machine_owned_note_types:
+                machine_owned_markdown += 1
+            else:
+                curated_markdown += 1
         if suffix in SOURCE_EXTS:
             source_candidates += 1
         try:
@@ -182,6 +205,8 @@ def workspace_inventory(root: Path) -> dict[str, Any]:
         "content_bytes": bytes_total,
         "source_candidates": source_candidates,
         "extensions": dict(sorted(extensions.items())),
+        "curated_markdown": curated_markdown,
+        "machine_owned_markdown": machine_owned_markdown,
         "dedicated_generated_mirrors": dedicated_generated_mirrors,
         "raw_folder_generated_mirrors": raw_folder_generated_mirrors,
         "repo_mirrors": repo_mirrors,
@@ -352,6 +377,11 @@ def print_human(report: dict[str, Any], warnings: list[str], errors: list[str]) 
         f"content_files={inventory['content_files']} "
         f"content_bytes={inventory['content_bytes']} "
         f"source_candidates={inventory['source_candidates']}"
+    )
+    print(
+        "sandbox: markdown "
+        f"curated={inventory['curated_markdown']} "
+        f"machine_owned={inventory['machine_owned_markdown']}"
     )
     print(
         "sandbox: generated mirrors "
