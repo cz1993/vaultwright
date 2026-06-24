@@ -48,10 +48,21 @@ NOTE_TYPE_DEFINITION_FIELDS = {"purpose", "machine_owned"}
 NOTE_TYPE_BOOLEAN_FIELDS = {"machine_owned"}
 STATUS_DEFINITION_FIELDS = {"purpose", "attention", "inactive"}
 STATUS_BOOLEAN_FIELDS = {"attention", "inactive"}
+FOLDER_PLAN_FIELDS = {"path", "domain"}
 POLICY_STATUS_DEFAULT_FIELDS = {"mirror_status", "repo_stub_status"}
 POLICY_BOOLEAN_DEFAULT_FIELDS = {"original_sources_authoritative", "real_data_in_repo"}
 POLICY_REQUIRED_TRUE_DEFAULT_FIELDS = {"original_sources_authoritative"}
 POLICY_REQUIRED_FALSE_DEFAULT_FIELDS = {"real_data_in_repo"}
+POLICY_DEFAULT_FIELDS = {
+    "context_aliases",
+    "mirror_mode",
+    "mirror_root",
+    "mirror_status",
+    "original_sources_authoritative",
+    "real_data_in_repo",
+    "repo_notes_dir",
+    "repo_stub_status",
+}
 MIRROR_MODES = {"dedicated", "sibling"}
 FORBIDDEN_MIRROR_ROOT_PARTS = {
     ".git",
@@ -253,6 +264,7 @@ def validate_folder_plan(folder_plan: Any, domain_folders: dict[str, PurePosixPa
         field = f"folder_plan[{index}]"
         if not isinstance(entry, dict):
             raise ProfileValidationError(f"{field} must be a mapping")
+        validate_known_mapping_fields(entry, FOLDER_PLAN_FIELDS, field)
         path = validate_profile_path(entry.get("path"), f"{field}.path")
         domain = entry.get("domain")
         domain_name = validate_profile_key(domain, f"{field}.domain")
@@ -397,6 +409,8 @@ def validate_profile_mapping(data: Any) -> None:
         for field in STATUS_BOOLEAN_FIELDS:
             if field in definition and not isinstance(definition[field], bool):
                 raise ProfileValidationError(f"statuses.{status_name}.{field} must be true or false")
+
+    validate_known_mapping_fields(data["policy_defaults"], POLICY_DEFAULT_FIELDS, "policy_defaults")
 
     for field in POLICY_STATUS_DEFAULT_FIELDS:
         if field not in data["policy_defaults"]:

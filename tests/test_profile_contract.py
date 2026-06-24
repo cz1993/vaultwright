@@ -224,6 +224,14 @@ def test_profile_contract_requires_folder_plan_mapping_entries() -> None:
         validate_profile_mapping(data)
 
 
+def test_profile_contract_rejects_unknown_folder_plan_fields() -> None:
+    data = minimal_profile()
+    data["folder_plan"] = [{"path": "00_inbox", "domain": "inbox", "hook": "python arbitrary.py"}]
+
+    with pytest.raises(ProfileValidationError, match=r"folder_plan\[0\] has unknown fields: hook"):
+        validate_profile_mapping(data)
+
+
 def test_profile_contract_rejects_non_boolean_status_roles() -> None:
     data = minimal_profile()
     data["statuses"] = {"queued": {"purpose": "pending", "attention": "yes"}}
@@ -246,6 +254,14 @@ def test_profile_contract_requires_policy_default_statuses_to_be_declared() -> N
     data["policy_defaults"] = {"mirror_status": "current"}
 
     with pytest.raises(ProfileValidationError, match=r"policy_defaults\.mirror_status must reference a declared status"):
+        validate_profile_mapping(data)
+
+
+def test_profile_contract_rejects_unknown_policy_default_fields() -> None:
+    data = minimal_profile()
+    data["policy_defaults"] = {"startup_hook": "python arbitrary.py"}
+
+    with pytest.raises(ProfileValidationError, match="policy_defaults has unknown fields: startup_hook"):
         validate_profile_mapping(data)
 
 

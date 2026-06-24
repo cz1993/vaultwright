@@ -87,8 +87,8 @@ vaultwright --root <vault> profile views --write
 
 `folder_plan`
 : Non-empty list of starter folder records. Each current record uses `path` and `domain`; the
-  `domain` must reference `domains`, and the `path` must stay inside that domain's declared
-  folder.
+  record may only contain those two fields. The `domain` must reference `domains`, and the `path`
+  must stay inside that domain's declared folder.
 
 `templates`
 : List of template file paths expected in the vault. Entries must be safe vault-relative artifact
@@ -108,14 +108,17 @@ vaultwright --root <vault> profile views --write
 
 `policy_defaults`
 : Mapping reserved for profile-level defaults such as retention, governance, and generated-output
-  locations. The current profile uses `repo_notes_dir` to set the default GitHub repository mirror
-  folder when `tools/repos.yml` does not declare `settings.notes_dir`, `mirror_mode` and
-  `mirror_root` for Office mirror placement when `_meta/mirror-config.yml` does not override them,
-  `mirror_status` for refreshed machine-owned source/repo mirrors, and `repo_stub_status` for
-  repository mirrors that have not been successfully fetched yet. The current profile also uses
-  `context_aliases` to declare compatibility aliases between optional frontmatter context fields;
-  for example, `client: account` means `client` is treated as an alias of canonical `account` in
-  repo-mirror frontmatter generation and lint checks. The current profile also declares
+  locations. The current schema accepts only `mirror_mode`, `mirror_root`, `mirror_status`,
+  `repo_stub_status`, `repo_notes_dir`, `context_aliases`, `original_sources_authoritative`, and
+  `real_data_in_repo`. The current profile uses `repo_notes_dir` to set the default GitHub
+  repository mirror folder when `tools/repos.yml` does not declare `settings.notes_dir`,
+  `mirror_mode` and `mirror_root` for Office mirror placement when `_meta/mirror-config.yml` does
+  not override them, `mirror_status` for refreshed machine-owned source/repo mirrors, and
+  `repo_stub_status` for repository mirrors that have not been successfully fetched yet. The
+  current profile also uses `context_aliases` to declare compatibility aliases between optional
+  frontmatter context fields; for example, `client: account` means `client` is treated as an alias
+  of canonical `account` in repo-mirror frontmatter generation and lint checks. The current profile
+  also declares
   `original_sources_authoritative: true` and `real_data_in_repo: false`, which preserve the
   Vaultwright policy that source systems remain authoritative and real/private data stays outside
   the repository. `repo_notes_dir`, when present, must be a safe vault-relative folder inside a
@@ -146,11 +149,13 @@ vaultwright --root <vault> profile views --write
 - domain folders are unique and non-overlapping;
 - `folder_plan` contains mapping entries with vault-relative POSIX `path` values and non-empty
   `domain` values;
+- `folder_plan` entries only use schema-declared fields;
 - every `folder_plan` domain references a declared profile domain;
 - every `folder_plan` path stays inside its declared domain folder;
 - duplicate `folder_plan` paths are rejected.
 - optional `note_types.<type>.machine_owned` values are booleans.
 - optional `statuses.<status>.attention` and `statuses.<status>.inactive` values are booleans.
+- `policy_defaults` only uses schema-declared fields.
 - optional `policy_defaults.mirror_mode` is either `dedicated` or `sibling`.
 - optional `policy_defaults.mirror_root` is a safe vault-relative generated-output folder.
 - optional `policy_defaults.repo_notes_dir` is a safe vault-relative folder inside a declared
