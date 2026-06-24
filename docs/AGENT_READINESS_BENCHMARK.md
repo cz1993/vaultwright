@@ -80,7 +80,7 @@ For each benchmark run, keep:
 
 Task packs define what to run. Result packs summarize what happened after an agent or operator runs
 those tasks in each comparison mode. Keep result packs in the private pilot vault or an anonymized
-review packet; do not commit confidential answers, client names, source text, mirror text, or
+review packet; do not commit confidential answers, protected names, source text, mirror text, or
 reviewer notes to this public repository.
 
 The public Vaultwright repository rejects committed private `_meta/agent-readiness-tasks.yml` and

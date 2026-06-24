@@ -268,7 +268,7 @@ def git_summary(root: Path) -> tuple[dict[str, Any], list[str], list[str]]:
     clean = bool(status and status.returncode == 0 and not status.stdout.strip())
     warnings: list[str] = []
     if not git_root_is_vault:
-        warnings.append("vault is inside a parent git work tree; confirm client/project boundary before pilot work.")
+        warnings.append("vault is inside a parent git work tree; confirm workspace boundary before pilot work.")
     if not clean:
         warnings.append("git working tree is not clean; commit or back up the copied vault before pilot sync.")
     return {

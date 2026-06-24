@@ -617,6 +617,9 @@ helpers now expose profile-derived sync/report defaults only from a validated pr
 GitHub repo sync uses those shared helpers instead of a duplicate parser, and catalog/migration
 domain routing now validates the whole profile contract before using profile-declared canonical
 folders.
+Generic doctor, sandbox, pilot, benchmark, and conversion report copy now uses workspace,
+protected-identifier, private-evidence, and source-backed language instead of client-specific
+wording on profile-neutral workflows.
 Benchmark/pilot task discovery now validates the whole profile contract before using
 profile-declared `benchmark_tasks`, and benchmark task/result validation plus task scaffolding also
 use the active Office mirror root for generated mirror evidence. Pilot workspace inventory now

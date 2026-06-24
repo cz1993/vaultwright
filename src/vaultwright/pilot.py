@@ -540,7 +540,7 @@ def print_worksheet_summary(report: dict[str, Any], warnings: list[str], errors:
     print()
     print(
         "Generated from aggregate Vaultwright manifests and reports only. It intentionally omits "
-        "source paths, document text, mirror text, answer text, reviewer notes, and client identifiers."
+        "source paths, document text, mirror text, answer text, reviewer notes, and protected identifiers."
     )
     print()
     print("## Corpus Shape")

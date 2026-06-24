@@ -19,7 +19,7 @@ and the owner has approved publication.
 - Current document-review workflow:
 - Main pain points:
 - Current tools:
-- Security or client-boundary constraints:
+- Security or workspace-boundary constraints:
 - Baseline time to answer the fixed question set:
 
 ## Corpus Shape
@@ -51,7 +51,7 @@ Record from `python3.11 tools/vaultwright.py pilot --json` after first sync:
 - benchmark result count:
 - benchmark missing task/mode scores:
 
-Do not paste source paths, document text, mirror text, secrets, personal data, or client identifiers
+Do not paste source paths, document text, mirror text, secrets, personal data, or protected identifiers
 into this worksheet.
 
 For a paste-ready aggregate summary, use:
@@ -61,7 +61,7 @@ python3.11 tools/vaultwright.py pilot --worksheet
 ```
 
 This prints a Markdown summary with counts, review queues, and private worksheet prompts. It omits
-source paths, source text, mirror text, answer text, reviewer notes, and client identifiers.
+source paths, source text, mirror text, answer text, reviewer notes, and protected identifiers.
 
 ## Run Log
 
@@ -120,7 +120,7 @@ python3.11 tools/vaultwright.py lint
 
 Use `docs/AGENT_READINESS_BENCHMARK.md` for scoring. Keep prompts, scores, and citations
 anonymized, and keep any private result pack outside this public repository unless it has been
-reviewed for source text, personal data, client names, answer text, and reviewer notes.
+reviewed for source text, personal data, protected names, answer text, and reviewer notes.
 
 | Task ID | Raw folder score | Document-chat score | Vaultwright markdown score | Prompt safety reviewed? | Notes |
 | --- | ---: | ---: | ---: | --- | --- |

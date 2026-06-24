@@ -300,7 +300,7 @@ def build_guide(report: dict) -> dict:
         {
             "title": "Priority handling",
             "items": [
-                f"Resolve all high-priority items before relying on mirrors for client-facing conclusions (current high={high}).",
+                f"Resolve all high-priority items before relying on mirrors for source-backed conclusions (current high={high}).",
                 f"Spot-check medium-priority items before use and record any manual corrections (current medium={medium}).",
                 f"Sample low-priority records for routine coverage by format (current low={low}).",
             ],

@@ -194,7 +194,7 @@ not broad industry expansion. Prove the narrow promise first:
   `sandbox`, and `recovery` must
   remain read-only operator reports. `review` may append metadata-only decisions to
   `_meta/review-ledger.jsonl`, but must not copy source text, mirror bodies, answer text, secrets,
-  or client identifiers. `catalog` writes generated path-and-metadata-only
+  or protected identifiers. `catalog` writes generated path-and-metadata-only
   `CATALOG.md` and `CATALOG.html` gateways; neither may copy source document text. HTML catalog
   charts must stay aggregate-only and deterministic.
   `overlap` must remain a read-only calibration report that prints paths and scores but not note

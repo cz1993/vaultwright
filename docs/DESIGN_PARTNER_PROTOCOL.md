@@ -21,7 +21,7 @@ Each pilot should use a copied, permission-cleared corpus:
 - mixed Office files, PDFs, markdown/text, spreadsheets, decks, and optional repositories;
 - no files the participant is unwilling to process locally;
 - no secrets committed to Git;
-- one engagement or client boundary per vault.
+- one engagement or protected boundary per vault.
 
 ## Evaluation Steps
 

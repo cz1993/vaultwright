@@ -142,6 +142,9 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 - Microsoft 365 handoff, sandbox preflight, recovery, and review-ledger reporting now resolve repo
   mirror folders from the active profile or `tools/repos.yml`, and the vault-local report scripts
   delegate to the package runtime to prevent implementation drift.
+- Generic doctor, sandbox, pilot, benchmark, and conversion report copy now uses workspace,
+  protected-identifier, private-evidence, and source-backed language instead of client-specific
+  wording on profile-neutral workflows.
 - Vault-local catalog, conversion, migration, overlap, benchmark, and pilot tools now also delegate
   to the package runtime, leaving copied vault scripts as compatibility shims for package-owned
   behavior.

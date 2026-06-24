@@ -570,7 +570,7 @@ def benchmark_worksheet_text(task_data: dict, summary: dict) -> str:
     lines = [
         "# Agent-Readiness Benchmark Worksheet",
         "",
-        "> Private pilot worksheet. Do not commit completed answers, reviewer notes, or client evidence.",
+        "> Private pilot worksheet. Do not commit completed answers, reviewer notes, or private evidence.",
         "",
         "## Scope",
         "",

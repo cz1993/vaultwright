@@ -244,6 +244,29 @@ def test_vaultwright_cli_doctor_reports_obsidian_and_backup_posture(tmp_path: Pa
     assert "warning: Vault root is not inside a git work tree; back up curated notes before production sync." in result.stdout
 
 
+def test_vaultwright_cli_doctor_reports_profile_neutral_nested_git_boundary(tmp_path: Path) -> None:
+    parent = tmp_path / "parent"
+    parent.mkdir()
+    init = subprocess.run(["git", "init"], cwd=parent, text=True, capture_output=True)
+    assert init.returncode == 0, init.stderr or init.stdout
+    vault = parent / "vault"
+    shutil.copytree(ROOT / "template", vault)
+
+    result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "vaultwright.py"), "doctor"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+    assert (
+        "warning: backup boundary: vault is inside a parent git work tree; confirm workspace boundary before pilots."
+        in result.stdout
+    )
+    assert "confirm client boundary" not in result.stdout
+
+
 def test_vaultwright_cli_doctor_reports_missing_profile_declared_view(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     shutil.copytree(ROOT / "template", vault)
@@ -2052,6 +2075,8 @@ def test_vaultwright_benchmark_worksheet_prints_private_run_sheet_without_paths(
 
     assert result.returncode == 0, result.stderr or result.stdout
     assert "# Agent-Readiness Benchmark Worksheet" in result.stdout
+    assert "private evidence" in result.stdout
+    assert "client evidence" not in result.stdout
     assert "## Run Checklist" in result.stdout
     assert "### answer-1" in result.stdout
     assert "What should the answer task prove?" in result.stdout
@@ -2269,6 +2294,8 @@ def test_packaged_vaultwright_cli_runs_benchmark_worksheet_without_local_runtime
 
     assert result.returncode == 0, result.stderr or result.stdout
     assert "# Agent-Readiness Benchmark Worksheet" in result.stdout
+    assert "private evidence" in result.stdout
+    assert "client evidence" not in result.stdout
     assert "40_delivery/client-plan.docx" not in result.stdout
     assert "missing tools/vaultwright.py" not in result.stderr
     assert "benchmark_tasks.py" not in result.stderr
@@ -2491,6 +2518,8 @@ def test_vaultwright_conversion_report_prioritizes_spot_checks(tmp_path: Path) -
     assert guide_result.returncode == 0, guide_result.stderr or guide_result.stdout
     assert "conversion guide: operator review checklist; no files were changed" in guide_result.stdout
     assert "Resolve all high-priority items before relying on mirrors" in guide_result.stdout
+    assert "source-backed conclusions" in guide_result.stdout
+    assert "client-facing conclusions" not in guide_result.stdout
     assert "doc (1): Treat legacy .doc files as inventory-only" in guide_result.stdout
     assert "pdf (1): Check scanned or image-only pages against the original PDF" in guide_result.stdout
     assert "xlsx (1): Check formulas, hidden sheets" in guide_result.stdout
@@ -2511,6 +2540,9 @@ def test_vaultwright_conversion_report_prioritizes_spot_checks(tmp_path: Path) -
         "Sign-off",
     ]
     format_section = next(section for section in guide_payload["guide"]["sections"] if section["title"] == "Format checks")
+    priority_section = next(section for section in guide_payload["guide"]["sections"] if section["title"] == "Priority handling")
+    assert any("source-backed conclusions" in item for item in priority_section["items"])
+    assert all("client-facing conclusions" not in item for item in priority_section["items"])
     assert any(item.startswith("pdf (1):") for item in format_section["items"])
     assert guide_payload["quality_schema"]["statuses"] == ["blocked", "needs-work", "not-reviewed", "pass"]
     assert "table_loss" in guide_payload["quality_schema"]["issue_codes"]
@@ -2777,6 +2809,8 @@ def test_vaultwright_pilot_report_summarizes_evidence_without_content(tmp_path: 
 
     assert worksheet_result.returncode == 0, worksheet_result.stderr or worksheet_result.stdout
     assert "# Vaultwright Pilot Evidence Summary" in worksheet_result.stdout
+    assert "protected identifiers" in worksheet_result.stdout
+    assert "client identifiers" not in worksheet_result.stdout
     assert "Source manifest records: 1" in worksheet_result.stdout
     assert "Conversion review queue: available=True high=0 medium=1 low=0" in worksheet_result.stdout
     assert "Recovery queue: available=True items=0" in worksheet_result.stdout
@@ -2937,6 +2971,8 @@ def test_packaged_pilot_does_not_require_vault_wrapper_or_local_reports(tmp_path
 
     assert worksheet.returncode == 0, worksheet.stderr or worksheet.stdout
     assert "# Vaultwright Pilot Evidence Summary" in worksheet.stdout
+    assert "protected identifiers" in worksheet.stdout
+    assert "client identifiers" not in worksheet.stdout
     assert "Benchmark tasks: available=True tasks=5" in worksheet.stdout
     assert "Review ledger: available=True reviewed=1 stale_or_missing=0 non_approved=1" in worksheet.stdout
     assert "40_delivery/client-plan.docx" not in worksheet.stdout
@@ -3420,6 +3456,34 @@ def test_vaultwright_sandbox_report_checks_copied_boundary_without_content(tmp_p
     assert mirror.read_text(encoding="utf-8") == before_mirror
     assert raw_folder_mirror.read_text(encoding="utf-8") == before_raw_folder_mirror
     assert archived_raw_folder_mirror.read_text(encoding="utf-8") == before_archived_raw_folder_mirror
+
+
+def test_vaultwright_sandbox_reports_profile_neutral_nested_git_boundary(tmp_path: Path) -> None:
+    source_root = tmp_path / "original-documents"
+    source_root.mkdir()
+    parent = tmp_path / "parent"
+    parent.mkdir()
+    init = subprocess.run(["git", "init"], cwd=parent, text=True, capture_output=True)
+    assert init.returncode == 0, init.stderr or init.stdout
+    vault = parent / "copied-vault"
+    shutil.copytree(ROOT / "template", vault)
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(vault / "tools" / "vaultwright.py"),
+            "sandbox",
+            "--source-root",
+            str(source_root),
+        ],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+    assert "warning: vault is inside a parent git work tree; confirm workspace boundary before pilot work." in result.stdout
+    assert "confirm client/project boundary" not in result.stdout
 
 
 def test_packaged_vaultwright_sandbox_does_not_require_vault_wrapper_or_local_sandbox_runtime(

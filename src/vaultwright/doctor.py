@@ -197,7 +197,7 @@ def backup_preflight(root: Path) -> tuple[list[str], list[str]]:
         if git_root == root.resolve():
             info.append("backup boundary: vault root is git root")
         else:
-            warnings.append("backup boundary: vault is inside a parent git work tree; confirm client boundary before pilots.")
+            warnings.append("backup boundary: vault is inside a parent git work tree; confirm workspace boundary before pilots.")
     commits = run_capture([git, "rev-list", "--count", "HEAD"], root)
     if not commits or commits.returncode != 0:
         warnings.append("backup history: no git commits found; create a backup baseline before pilot sync.")

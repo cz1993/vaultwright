@@ -213,6 +213,10 @@ as generated-output defaults while honoring `_meta/mirror-config.yml` as an oper
 Office mirror planning also keeps unsafe mirror-output diagnostics rooted in that active
 profile/configured mirror root, so error records do not drift back to the legacy `_mirrors/`
 layout.
+Generic doctor, sandbox, pilot, benchmark, and conversion report copy stays profile-neutral:
+workspace boundaries, protected identifiers, private evidence, and source-backed conclusions are
+the core terms. Business/client/account wording belongs to the `business-operations` profile data,
+its compatibility aliases, or product-positioning examples rather than the shared runtime.
 `vaultwright doctor` validates `_meta/profile.yml` first; when that profile contract is present and
 valid, missing `_meta/domain-map.yml` and `_meta/mirror-config.yml` are reported as legacy
 alias/override posture instead of required-file failures. `vaultwright sandbox` uses the same

@@ -52,7 +52,9 @@ profile, Office mirror planning reports unsafe output paths against the active p
 mirror root instead of a legacy `_mirrors/` fallback, sandbox preflight now treats legacy
 domain-map/mirror-config files as optional when a valid profile contract is present, and runtime
 helpers no longer infer business context aliases from the profile ID when
-`policy_defaults.context_aliases` is absent.
+`policy_defaults.context_aliases` is absent. Generic doctor, sandbox, pilot, benchmark, and
+conversion report copy now uses workspace, protected-identifier, private-evidence, and
+source-backed language instead of client-specific wording on profile-neutral workflows.
 
 ## Conditional V1 Explorer Finish Line
 

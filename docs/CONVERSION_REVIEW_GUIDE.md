@@ -2,7 +2,7 @@
 
 Vaultwright mirrors make source collections easier to inspect, search, link, and hand to agents.
 They do not replace the original source files. This guide defines the operator review loop for
-conversion quality before mirrors are used for client-facing conclusions or durable curated notes.
+conversion quality before mirrors are used for source-backed conclusions or durable curated notes.
 
 Run it from a copied, permission-cleared vault:
 
@@ -93,8 +93,8 @@ In `_meta/conversion-quality-results.yml`, record only these metadata fields:
 - `checked_source`, `checked_mirror`, and `checked_links`;
 - `issue_codes` from the controlled list printed by the guide, scaffold, and validator.
 
-Do not add notes, reviewer comments, source text, mirror text, prompts, answers, excerpts, client
-identifiers, secrets, or personal data. The validator rejects common free-text fields.
+Do not add notes, reviewer comments, source text, mirror text, prompts, answers, excerpts,
+protected identifiers, secrets, or personal data. The validator rejects common free-text fields.
 
 In `docs/PILOT_WORKSHEET.md` or a private engagement worksheet, record aggregate evidence only:
 
@@ -108,5 +108,5 @@ In `docs/PILOT_WORKSHEET.md` or a private engagement worksheet, record aggregate
 - current approval and stale-review counts from `vaultwright review --json`;
 - whether the second sync remained idempotent.
 
-Do not paste source text, mirror text, personal data, client identifiers, secrets, or private
+Do not paste source text, mirror text, personal data, protected identifiers, secrets, or private
 benchmark answers into the public Vaultwright repository.
