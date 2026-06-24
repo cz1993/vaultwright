@@ -17,6 +17,8 @@ try:
 except ImportError:
     sys.exit("pip install pyyaml")
 
+from vaultwright.runtime_profile import profile_context_keys as runtime_profile_context_keys
+
 ROOT = Path.cwd().resolve()
 DEFAULT_REQUIRED = ["title", "type", "status", "domain", "created", "updated"]
 META = {"CLAUDE.md", "AGENTS.md", "INDEX.md", "RETENTION.md", "CATALOG.md", "log.md"}  # structural, exempt
@@ -286,6 +288,22 @@ def default_repo_notes_dir() -> str:
         return f"{source_folder}/repos"
     return DEFAULT_REPO_NOTES_DIR
 
+def repo_context_values(entry: dict[str, object], context_keys: set[str]) -> dict[str, str]:
+    values: dict[str, str] = {}
+    if "account" in context_keys:
+        account = entry.get("account") or entry.get("client")
+        if isinstance(account, str) and account.strip():
+            values["account"] = account.strip()
+    if "client" in context_keys:
+        client = entry.get("client") or values.get("account") or entry.get("account")
+        if isinstance(client, str) and client.strip():
+            values["client"] = client.strip()
+    for key in sorted(context_keys - {"account", "client"}):
+        value = entry.get(key)
+        if isinstance(value, str) and value.strip():
+            values[key] = value.strip()
+    return values
+
 def repo_id_for(repo: str, note: str) -> str:
     digest = hashlib.sha256(f"{repo}\0{note}".encode("utf-8")).hexdigest()[:20]
     return f"repo_{digest}"
@@ -352,10 +370,7 @@ def repo_config() -> tuple[list[dict[str, object]], list[tuple[str, str]]]:
                 value = entry.get(key)
                 if isinstance(value, list):
                     item[key] = [str(part).strip() for part in value if str(part).strip()]
-            for key in ("account", "client", "program", "vendor"):
-                value = entry.get(key)
-                if isinstance(value, str) and value.strip():
-                    item[key] = value.strip()
+            item.update(repo_context_values(entry, PROFILE_CONTEXT_KEYS))
             configured.append(item)
     return configured, errors
 
@@ -467,7 +482,7 @@ def local_tree_sha(repodir: Path) -> str:
     return "local-" + h.hexdigest()[:40]
 
 def main(root: Path | None = None) -> int:
-    global ROOT, CONTENT_ROOTS, PROFILE_DOMAIN_FOLDERS, PROFILE_POLICY_DEFAULTS
+    global ROOT, CONTENT_ROOTS, PROFILE_DOMAIN_FOLDERS, PROFILE_POLICY_DEFAULTS, PROFILE_CONTEXT_KEYS
     ROOT = (root or Path.cwd()).resolve()
     # inventory
     all_files = sorted(
@@ -530,6 +545,7 @@ def main(root: Path | None = None) -> int:
         for domain, folder in dict(PROFILE_SETTINGS["domain_folders"]).items()
     }
     PROFILE_POLICY_DEFAULTS = dict(PROFILE_SETTINGS["policy_defaults"])
+    PROFILE_CONTEXT_KEYS = set(runtime_profile_context_keys(ROOT))
     DOMAIN_FOLDERS, DOMAIN_FOLDER_ALIASES, domain_map_errors = domain_folders(PROFILE_DOMAIN_FOLDERS)
     DOMAIN_BY_FOLDER = {folder: domain for domain, folder in DOMAIN_FOLDERS.items()}
     MIRROR_CONFIG, mirror_config_errors = mirror_config()
@@ -650,13 +666,7 @@ def main(root: Path | None = None) -> int:
         seed: dict[str, object] = {}
         seed["tags"] = entry.get("tags", ["repo"])
         seed["related"] = entry.get("related", [])
-        account = entry.get("account") or entry.get("client")
-        if account:
-            seed["account"] = str(account)
-            seed["client"] = str(account)
-        for key in ("program", "vendor"):
-            if entry.get(key):
-                seed[key] = str(entry[key])
+        seed.update(repo_context_values(entry, PROFILE_CONTEXT_KEYS))
         return seed
 
     def annotation_frontmatter_has_content(fm: dict, note_type: str, rel: Path | None = None) -> bool:
@@ -947,10 +957,11 @@ def main(root: Path | None = None) -> int:
                     bad_mirror_layout.append((rels, "repo-mirror requires generated sentinel and manifest metadata"))
                 else:
                     bad_mirror_layout.append((rels, "repo-mirror notes belong under configured tools/repos.yml notes_dir or profile policy_defaults.repo_notes_dir"))
-            if fm.get("client") and not fm.get("account"):
-                bad_account_client.append((rels, "client requires account"))
-            elif fm.get("account") and fm.get("client") and str(fm["account"]).strip() != str(fm["client"]).strip():
-                bad_account_client.append((rels, "client must match account"))
+            if {"account", "client"} <= PROFILE_CONTEXT_KEYS:
+                if fm.get("client") and not fm.get("account"):
+                    bad_account_client.append((rels, "client requires account"))
+                elif fm.get("account") and fm.get("client") and str(fm["account"]).strip() != str(fm["client"]).strip():
+                    bad_account_client.append((rels, "client must match account"))
             if (
                 not managed_generated_mirror
                 and fm.get("status") not in {"archived", "superseded"}
@@ -971,7 +982,7 @@ def main(root: Path | None = None) -> int:
         # collect links from body (minus inline-code examples) + frontmatter
         body_clean = re.sub(r"`+[^`]*`+", "", body)
         targets = list(LINK_RE.findall(body_clean))
-        for key in ("related", "account", "client", "program", "vendor"):
+        for key in ("related", *sorted(PROFILE_CONTEXT_KEYS)):
             v = fm.get(key)
             if isinstance(v, str):
                 targets += LINK_RE.findall(v)

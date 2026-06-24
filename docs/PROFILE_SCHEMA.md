@@ -65,7 +65,10 @@ vaultwright --root <vault> profile views --write
 : List of frontmatter keys required on curated notes and managed notes where applicable.
 
 `optional_properties`
-: List of frontmatter keys accepted by the profile but not required.
+: List of frontmatter keys accepted by the profile but not required. GitHub repo mirror sync,
+  lint, and annotation migration treat optional properties other than universal fields such as
+  `owner`, `tags`, and `related` as profile-specific repo context fields when they appear in
+  `tools/repos.yml`.
 
 `folder_plan`
 : Non-empty list of starter folder records. Each current record uses `path` and `domain`; the
@@ -118,9 +121,12 @@ domain folders. Lint also reads allowed note types, statuses, and required prope
 `_meta/agent-readiness-tasks.yml` path remains a compatibility fallback. GitHub repo mirror sync
 and lint read
 `policy_defaults.repo_notes_dir` for the default repository-mirror folder and derive repo-mirror
-frontmatter domains from the profile's domain/folder mapping. Microsoft 365 handoff, sandbox
-preflight, recovery, and review-ledger reporting also resolve repo mirror folders from the active
-profile, while honoring an explicit `tools/repos.yml` `settings.notes_dir` override. The
+frontmatter domains from the profile's domain/folder mapping. Repo mirror context frontmatter also
+comes from the active profile's optional properties, so the `business-operations` profile keeps
+`account`/`client` compatibility while other profiles can declare fields such as `research_project`
+or `component`. Microsoft 365 handoff, sandbox preflight, recovery, and review-ledger reporting
+also resolve repo mirror folders from the active profile, while honoring an explicit
+`tools/repos.yml` `settings.notes_dir` override. The
 `vaultwright migration` command uses `_meta/profile.yml` for canonical domain folders and
 `_meta/domain-map.yml` for legacy aliases. `_meta/domain-map.yml` remains a legacy alias and
 operator guidance layer; it must not contradict the profile's canonical domain folders.

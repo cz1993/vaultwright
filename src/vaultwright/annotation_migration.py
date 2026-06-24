@@ -12,9 +12,15 @@ from typing import Any
 
 import yaml
 
+from vaultwright.runtime_profile import (
+    profile_context_keys as runtime_profile_context_keys,
+    profile_repo_notes_dir,
+)
+
 
 SENTINEL = "%% AUTO-GENERATED BELOW \u2014 DO NOT EDIT %%"
 ANNOTATION_ROOT = Path("_meta/mirror-annotations")
+REPO_CONFIG = Path("tools/repos.yml")
 SOURCE_MANAGED_KEYS = {
     "type",
     "source_id",
@@ -42,7 +48,7 @@ REPO_MANAGED_KEYS = {
     "updated",
 }
 DEFAULT_FRONTMATTER_KEYS = {"title", "domain", "owner", "created", "updated"}
-PROFILE_CONTEXT_KEYS = {"account", "client", "program", "vendor"}
+LEGACY_PROFILE_CONTEXT_KEYS = {"account", "client", "program", "vendor"}
 RESERVED_PARTS = {
     ".git",
     ".githooks",
@@ -171,19 +177,102 @@ def preserved_frontmatter(fm: dict[str, Any], kind: str) -> dict[str, Any]:
     return {str(key): value for key, value in fm.items() if str(key) not in owned}
 
 
-def frontmatter_has_annotation(fm: dict[str, Any], kind: str) -> bool:
+def active_profile_context_keys(root: Path) -> set[str]:
+    try:
+        return set(runtime_profile_context_keys(root))
+    except Exception:
+        return set(LEGACY_PROFILE_CONTEXT_KEYS)
+
+
+def repo_context_values(entry: dict[str, Any], context_keys: set[str]) -> dict[str, str]:
+    values: dict[str, str] = {}
+    if "account" in context_keys:
+        account = entry.get("account") or entry.get("client")
+        if isinstance(account, str) and account.strip():
+            values["account"] = account.strip()
+    if "client" in context_keys:
+        client = entry.get("client") or values.get("account") or entry.get("account")
+        if isinstance(client, str) and client.strip():
+            values["client"] = client.strip()
+    for key in sorted(context_keys - {"account", "client"}):
+        value = entry.get(key)
+        if isinstance(value, str) and value.strip():
+            values[key] = value.strip()
+    return values
+
+
+def configured_repo_seed(root: Path, mirror_rel: str, context_keys: set[str]) -> dict[str, Any]:
+    path = root / REPO_CONFIG
+    if not path.exists():
+        return {}
+    try:
+        data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    except (OSError, yaml.YAMLError):
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    settings = data.get("settings", {})
+    if settings is None:
+        settings = {}
+    if not isinstance(settings, dict):
+        settings = {}
+    notes_dir = settings.get("notes_dir")
+    if not isinstance(notes_dir, str) or not notes_dir.strip():
+        notes_dir = profile_repo_notes_dir(root)
+    repos = data.get("repos", [])
+    if not isinstance(repos, list):
+        return {}
+    for entry in repos:
+        if not isinstance(entry, dict):
+            continue
+        note = entry.get("note")
+        if not isinstance(note, str) or not note.strip():
+            continue
+        rel = Path(notes_dir) / note.strip()
+        if rel.as_posix() != mirror_rel:
+            continue
+        seed: dict[str, Any] = {
+            "tags": entry.get("tags", ["repo"]),
+            "related": entry.get("related", []),
+        }
+        seed.update(repo_context_values(entry, context_keys))
+        return seed
+    return {}
+
+
+def frontmatter_has_annotation(fm: dict[str, Any], kind: str, root: Path, mirror_rel: str) -> bool:
     preserved = preserved_frontmatter(fm, kind)
+    context_keys = active_profile_context_keys(root)
+    repo_seed = configured_repo_seed(root, mirror_rel, context_keys) if kind == "repo-mirror" else {}
     for key, value in preserved.items():
         if key in DEFAULT_FRONTMATTER_KEYS:
             continue
         if key == "status" and str(value or "").strip() in {"", "active", "draft"}:
             continue
-        if key in {"tags", "related"} and value in (None, "", []):
+        if key == "tags":
+            tags = value if isinstance(value, list) else []
+            clean_tags = {str(item).strip() for item in tags if str(item).strip()}
+            seed_tags = repo_seed.get("tags", ["repo"] if kind == "repo-mirror" else [])
+            expected = seed_tags if isinstance(seed_tags, list) else []
+            expected_tags = {str(item).strip() for item in expected if str(item).strip()}
+            if not clean_tags or (kind == "repo-mirror" and clean_tags <= expected_tags):
+                continue
+            return True
+        if key == "related":
+            related = value if isinstance(value, list) else []
+            clean_related = {str(item).strip() for item in related if str(item).strip()}
+            seed_related = repo_seed.get("related", [])
+            expected = seed_related if isinstance(seed_related, list) else []
+            expected_related = {str(item).strip() for item in expected if str(item).strip()}
+            if not clean_related or (kind == "repo-mirror" and clean_related <= expected_related):
+                continue
+            return True
+        if key in context_keys and value in (None, "", []):
             continue
-        if key in PROFILE_CONTEXT_KEYS and value in (None, "", []):
+        if kind == "repo-mirror" and key in context_keys and repo_seed.get(key) == str(value or "").strip():
             continue
         return True
-    return any(key in PROFILE_CONTEXT_KEYS and value not in (None, "", []) for key, value in preserved.items())
+    return False
 
 
 def annotation_identity(fm: dict[str, Any], kind: str) -> str:
@@ -259,7 +348,7 @@ def migration_action(
             False,
         )
 
-    has_annotation = preserved_body_has_annotation(body) or frontmatter_has_annotation(fm, kind)
+    has_annotation = preserved_body_has_annotation(body) or frontmatter_has_annotation(fm, kind, root, mirror_rel)
     if not has_annotation:
         return None, None, False
 

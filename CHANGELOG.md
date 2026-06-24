@@ -43,6 +43,10 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 - GitHub repo mirror sync and lint now read the profile's `policy_defaults.repo_notes_dir` as the
   default repo-mirror location, and generated repo-mirror frontmatter derives its domain from the
   profile's domain/folder mapping.
+- GitHub repo mirror sync, lint, and annotation migration now derive repo-context frontmatter keys
+  from the active profile's optional properties, preserving the business profile's
+  `account`/`client` compatibility while allowing non-business profiles to use their own context
+  fields.
 - Microsoft 365 handoff, sandbox preflight, recovery, and review-ledger reporting now resolve repo
   mirror folders from the active profile or `tools/repos.yml`, and the vault-local report scripts
   delegate to the package runtime to prevent implementation drift.

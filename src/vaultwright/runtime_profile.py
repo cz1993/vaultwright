@@ -11,6 +11,18 @@ import yaml
 PROFILE_REL = Path("_meta/profile.yml")
 REPO_CONFIG_REL = Path("tools/repos.yml")
 LEGACY_REPO_NOTES_DIR = "80_sources/repos"
+LEGACY_CONTEXT_KEYS = {"account", "client", "program", "vendor"}
+NON_CONTEXT_PROPERTIES = {
+    "title",
+    "type",
+    "status",
+    "domain",
+    "created",
+    "updated",
+    "owner",
+    "tags",
+    "related",
+}
 
 
 def _safe_relative_path(value: object) -> Path | None:
@@ -53,6 +65,35 @@ def profile_domain_folders(root: Path) -> dict[str, str]:
 def profile_policy_defaults(root: Path) -> dict[str, Any]:
     defaults = load_profile_mapping(root).get("policy_defaults", {})
     return dict(defaults) if isinstance(defaults, dict) else {}
+
+
+def profile_optional_properties(root: Path) -> list[str]:
+    profile = load_profile_mapping(root)
+    raw_properties = profile.get("optional_properties")
+    if not isinstance(raw_properties, list):
+        return []
+    out: list[str] = []
+    seen: set[str] = set()
+    for value in raw_properties:
+        if not isinstance(value, str):
+            continue
+        name = value.strip()
+        if not name or name in seen:
+            continue
+        seen.add(name)
+        out.append(name)
+    return out
+
+
+def profile_context_keys(root: Path) -> set[str]:
+    profile = load_profile_mapping(root)
+    if not profile:
+        return set(LEGACY_CONTEXT_KEYS)
+    return {
+        key
+        for key in profile_optional_properties(root)
+        if key not in NON_CONTEXT_PROPERTIES
+    }
 
 
 def profile_repo_notes_dir(root: Path) -> str:

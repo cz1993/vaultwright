@@ -40,6 +40,18 @@ def add_research_repo_profile(vault: Path) -> None:
     profile_path.write_text(yaml.safe_dump(profile, sort_keys=False), encoding="utf-8")
 
 
+def add_research_context_profile(vault: Path) -> None:
+    add_research_repo_profile(vault)
+    profile_path = vault / "_meta" / "profile.yml"
+    profile = yaml.safe_load(profile_path.read_text(encoding="utf-8"))
+    optional = list(profile.get("optional_properties", []))
+    for value in ("research_project", "literature_collection"):
+        if value not in optional:
+            optional.append(value)
+    profile["optional_properties"] = optional
+    profile_path.write_text(yaml.safe_dump(profile, sort_keys=False), encoding="utf-8")
+
+
 def write_profile_benchmark_task_pack(vault: Path) -> Path:
     add_research_repo_profile(vault)
     profile_path = vault / "_meta" / "profile.yml"
@@ -284,6 +296,66 @@ def test_package_cli_repo_sync_uses_profile_repo_notes_dir(tmp_path: Path) -> No
     assert "domain: research\n" in note_text
     manifest = json.loads((vault / "_meta" / "repo-manifest.json").read_text(encoding="utf-8"))
     assert manifest["records"][0]["note_path"] == "25_research/repos/research-fixture.md"
+
+
+def test_package_cli_repo_sync_uses_profile_context_fields(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    add_research_context_profile(vault)
+    fixture = vault / "_fixtures" / "repo"
+    fixture.mkdir(parents=True)
+    (fixture / "README.md").write_text("# Research Context Fixture\n", encoding="utf-8")
+    (vault / "tools" / "repos.yml").write_text(
+        "repos:\n"
+        "  - repo: local/research-context-fixture\n"
+        "    local_path: _fixtures/repo\n"
+        "    note: research-context-fixture.md\n"
+        "    research_project: \"[[Concept Retrieval Study]]\"\n"
+        "    literature_collection: \"[[Source-Backed Notes]]\"\n",
+        encoding="utf-8",
+    )
+
+    sync = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "sync"],
+        cwd=ROOT,
+        env=package_cli_env(),
+        text=True,
+        capture_output=True,
+    )
+    lint = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "lint"],
+        cwd=ROOT,
+        env=package_cli_env(),
+        text=True,
+        capture_output=True,
+    )
+    annotations = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "migrate", "annotations", "--plan", "--json"],
+        cwd=ROOT,
+        env=package_cli_env(),
+        text=True,
+        capture_output=True,
+    )
+
+    repo_note = vault / "25_research" / "repos" / "research-context-fixture.md"
+    assert sync.returncode == 0, sync.stderr or sync.stdout
+    fm = yaml.safe_load(repo_note.read_text(encoding="utf-8").split("---", 2)[1])
+    assert fm["domain"] == "research"
+    assert fm["research_project"] == "[[Concept Retrieval Study]]"
+    assert fm["literature_collection"] == "[[Source-Backed Notes]]"
+    assert "account" not in fm
+    assert "client" not in fm
+    assert lint.returncode == 0, lint.stderr or lint.stdout
+    assert "Mirror annotations needing migration: 0" in lint.stdout
+    assert "Unresolved wikilinks: 2" in lint.stdout
+    assert "Concept Retrieval Study" in lint.stdout
+    assert "Source-Backed Notes" in lint.stdout
+    assert annotations.returncode == 0, annotations.stderr or annotations.stdout
+    payload = json.loads(annotations.stdout)
+    assert payload["summary"]["actions"] == 0
+    assert payload["summary"]["without_annotations"] >= 1
+    assert "Concept Retrieval Study" not in annotations.stdout
+    assert "Source-Backed Notes" not in annotations.stdout
 
 
 def test_package_cli_overlap_reads_profile_content_roots(tmp_path: Path) -> None:

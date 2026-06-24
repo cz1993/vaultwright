@@ -36,6 +36,8 @@ try:
 except ImportError:
     sys.exit("Missing dependency: pip install pyyaml")
 
+from vaultwright.runtime_profile import profile_context_keys as runtime_profile_context_keys
+
 ROOT = Path(__file__).resolve().parent.parent
 CONFIG = Path(__file__).resolve().parent / "repos.yml"
 SENTINEL = "%% AUTO-GENERATED BELOW — DO NOT EDIT %%"
@@ -51,7 +53,7 @@ ANNOTATION_MIGRATION_REQUIRED_WARNING = (
     "run `vaultwright migrate annotations --write` before syncing."
 )
 DEFAULT_ANNOTATION_FRONTMATTER_KEYS = {"title", "domain", "owner", "created", "updated"}
-PROFILE_CONTEXT_KEYS = {"account", "client", "program", "vendor"}
+LEGACY_PROFILE_CONTEXT_KEYS = {"account", "client", "program", "vendor"}
 LIFECYCLE_CONTRACT_REL = Path("_meta/lifecycle-states.yml")
 MANAGED = {"type", "repo_id", "repo_manifest", "repo", "repo_url", "default_branch", "last_commit",
            "last_commit_date", "open_issues", "synced", "updated"}
@@ -304,6 +306,31 @@ def profile_domain_folders(root: Path | None = None) -> dict[str, str]:
 def active_content_roots(root: Path | None = None) -> set[str]:
     folders = set(profile_domain_folders(root).values())
     return folders or set(CONTENT_ROOTS)
+
+
+def active_profile_context_keys(root: Path | None = None) -> set[str]:
+    try:
+        return set(runtime_profile_context_keys(root or ROOT))
+    except Exception:
+        return set(LEGACY_PROFILE_CONTEXT_KEYS)
+
+
+def repo_context_values(entry: dict, context_keys: set[str] | None = None) -> dict[str, str]:
+    keys = set(context_keys) if context_keys is not None else active_profile_context_keys()
+    values: dict[str, str] = {}
+    if "account" in keys:
+        account = entry.get("account") or entry.get("client")
+        if account:
+            values["account"] = str(account)
+    if "client" in keys:
+        client = entry.get("client") or values.get("account") or entry.get("account")
+        if client:
+            values["client"] = str(client)
+    for key in sorted(keys - {"account", "client"}):
+        value = entry.get(key)
+        if isinstance(value, str) and value.strip():
+            values[key] = value.strip()
+    return values
 
 
 def default_repo_notes_dir(root: Path | None = None) -> str:
@@ -586,13 +613,7 @@ def repo_seed_frontmatter(entry: dict) -> dict[str, object]:
         "tags": entry.get("tags", ["repo"]),
         "related": entry.get("related", []),
     }
-    account = entry.get("account") or entry.get("client")
-    if account:
-        seed["account"] = str(account)
-        seed["client"] = str(account)
-    for key in ("program", "vendor"):
-        if entry.get(key):
-            seed[key] = str(entry[key])
+    seed.update(repo_context_values(entry))
     return seed
 
 
@@ -622,9 +643,10 @@ def frontmatter_has_annotation(existing_fm: dict | None, entry: dict) -> bool:
             if not clean_related or clean_related <= expected_related:
                 continue
             return True
-        if key in PROFILE_CONTEXT_KEYS and value in (None, "", []):
+        context_keys = active_profile_context_keys()
+        if key in context_keys and value in (None, "", []):
             continue
-        if key in PROFILE_CONTEXT_KEYS and seed.get(key) == str(value or "").strip():
+        if key in context_keys and seed.get(key) == str(value or "").strip():
             continue
         if value in (None, "", []):
             continue
@@ -835,7 +857,9 @@ def sync_audit_event(plan: dict, manifest: dict, status: str, entry: dict) -> di
 
 
 def dump_fm(data):
-    ordered = {k: data[k] for k in KEY_ORDER if k in data}
+    context_keys = [key for key in sorted(active_profile_context_keys()) if key not in KEY_ORDER]
+    key_order = [*KEY_ORDER[:9], *context_keys, *KEY_ORDER[9:]]
+    ordered = {k: data[k] for k in key_order if k in data}
     for k, v in data.items():
         ordered.setdefault(k, v)
     return "---\n" + yaml.safe_dump(ordered, sort_keys=False, allow_unicode=True, default_flow_style=False) + "---\n"
@@ -869,15 +893,14 @@ def base_fm(existing, entry, slug, domain="sources"):
         fm["tags"] = entry.get("tags", ["repo"])
     if not fm.get("related"):
         fm["related"] = entry.get("related", [])
-    if entry.get("account") and not fm.get("account"):
-        fm["account"] = entry["account"]
-    if entry.get("client"):
-        if not fm.get("account"):
-            fm["account"] = entry["client"]
-    if fm.get("account"):
+    context_keys = active_profile_context_keys()
+    for key, value in repo_context_values(entry, context_keys).items():
+        if key == "client" and {"account", "client"} <= context_keys and fm.get("account"):
+            fm[key] = fm["account"]
+        elif not fm.get(key):
+            fm[key] = value
+    if {"account", "client"} <= context_keys and fm.get("account"):
         fm["client"] = fm["account"]
-    if entry.get("program") and not fm.get("program"):
-        fm["program"] = entry["program"]
     fm["type"] = "repo-mirror"
     fm["repo_id"] = repo_id
     fm["repo_manifest"] = REPO_MANIFEST_REL.as_posix()
