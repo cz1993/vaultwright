@@ -15,6 +15,8 @@ try:
 except ImportError:
     sys.exit("pip install pyyaml")
 
+from vaultwright.runtime_profile import configured_office_mirror_root
+
 
 DEFAULT_ROOT = Path.cwd()
 ROOT = DEFAULT_ROOT
@@ -59,6 +61,14 @@ RESULT_ALLOWED_FIELDS = {
     "prompt_safety_violation",
 }
 RESULT_PACK_ALLOWED_FIELDS = {"schema_version", "corpus", "results"}
+
+
+def active_mirror_root() -> Path:
+    return configured_office_mirror_root(ROOT)
+
+
+def under_path_root(rel: Path, root: Path) -> bool:
+    return bool(root.parts) and rel.parts[: len(root.parts)] == root.parts
 
 
 def configure_root(root: Path | None = None) -> Path:
@@ -238,6 +248,8 @@ def validate_task_pack(path: Path, *, require_generated: bool = False) -> tuple[
     source_count = 0
     generated_count = 0
     curated_count = 0
+    mirror_root = active_mirror_root()
+    mirror_label = mirror_root.as_posix()
 
     for index, task in enumerate(tasks):
         label = f"tasks[{index}]"
@@ -278,8 +290,8 @@ def validate_task_pack(path: Path, *, require_generated: bool = False) -> tuple[
                 exists = (ROOT / rel).exists()
                 if field == "source_paths":
                     source_count += 1
-                    if "_mirrors" in rel.parts:
-                        errors.append(f"{task_id or label}: source_paths must not point into _mirrors: {value}")
+                    if under_path_root(rel, mirror_root):
+                        errors.append(f"{task_id or label}: source_paths must not point into {mirror_label}: {value}")
                     if not exists:
                         errors.append(f"{task_id or label}: missing source path {value}")
                 elif field == "curated_paths":
@@ -290,8 +302,8 @@ def validate_task_pack(path: Path, *, require_generated: bool = False) -> tuple[
                         errors.append(f"{task_id or label}: missing curated path {value}")
                 else:
                     generated_count += 1
-                    if "_mirrors" not in rel.parts:
-                        errors.append(f"{task_id or label}: generated_mirror_paths must point into _mirrors: {value}")
+                    if not under_path_root(rel, mirror_root):
+                        errors.append(f"{task_id or label}: generated_mirror_paths must point into {mirror_label}: {value}")
                     if not exists:
                         message = f"{task_id or label}: generated mirror not present yet: {value}"
                         if require_generated:
@@ -346,6 +358,7 @@ def source_manifest_pairs(limit: int) -> tuple[list[dict[str, str]], int, list[s
 
     pairs: list[dict[str, str]] = []
     seen: set[tuple[str, str]] = set()
+    mirror_root = active_mirror_root()
     for index, record in enumerate(records):
         if not isinstance(record, dict):
             warnings.append(f"{SOURCE_MANIFEST.as_posix()}: skipped non-object record {index}")
@@ -355,7 +368,7 @@ def source_manifest_pairs(limit: int) -> tuple[list[dict[str, str]], int, list[s
         if source_rel is None or mirror_rel is None:
             warnings.append(f"{SOURCE_MANIFEST.as_posix()}: skipped record {index} with invalid source or mirror path")
             continue
-        if "_mirrors" in source_rel.parts or "_mirrors" not in mirror_rel.parts:
+        if under_path_root(source_rel, mirror_root) or not under_path_root(mirror_rel, mirror_root):
             warnings.append(f"{SOURCE_MANIFEST.as_posix()}: skipped record {index} with incompatible source or mirror path")
             continue
         source_path = ROOT / source_rel
@@ -382,10 +395,13 @@ def curated_path_candidates(limit: int) -> list[str]:
     if limit <= 0:
         return []
     candidates: list[Path] = []
+    mirror_root = active_mirror_root()
     for path in ROOT.rglob("*.md"):
         if not path.is_file() or path.is_symlink():
             continue
         rel = path.relative_to(ROOT)
+        if under_path_root(rel, mirror_root):
+            continue
         if RESERVED_CURATED_PARTS.intersection(rel.parts):
             continue
         if path.name in CURATED_EXCLUDED_NAMES:
@@ -688,16 +704,18 @@ def validate_result_paths(
         errors.append(f"{label}: {field} must be a list")
         return 0
     valid = 0
+    mirror_root = active_mirror_root()
+    mirror_label = mirror_root.as_posix()
     for value in paths:
         rel = rel_path(value)
         if rel is None:
             errors.append(f"{label}: invalid {field} path {value}")
             continue
-        if field == "cited_source_paths" and "_mirrors" in rel.parts:
-            errors.append(f"{label}: cited_source_paths must not point into _mirrors: {value}")
+        if field == "cited_source_paths" and under_path_root(rel, mirror_root):
+            errors.append(f"{label}: cited_source_paths must not point into {mirror_label}: {value}")
             continue
-        if field == "cited_generated_mirror_paths" and "_mirrors" not in rel.parts:
-            errors.append(f"{label}: cited_generated_mirror_paths must point into _mirrors: {value}")
+        if field == "cited_generated_mirror_paths" and not under_path_root(rel, mirror_root):
+            errors.append(f"{label}: cited_generated_mirror_paths must point into {mirror_label}: {value}")
             continue
         if not (ROOT / rel).exists():
             errors.append(f"{label}: cited path does not exist: {value}")

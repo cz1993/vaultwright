@@ -52,6 +52,8 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 - Catalog, Microsoft 365 handoff, sandbox, doctor, review-ledger classification, and migration
   guidance now classify generated source mirrors from the active Office mirror root instead of
   assuming `_mirrors/`.
+- Benchmark task-pack validation, result citation validation, and `benchmark --init-tasks`
+  scaffolding now use the active Office mirror root for generated mirror evidence paths.
 - `vaultwright benchmark` and the aggregate `vaultwright pilot` report now read profile-declared
   `benchmark_tasks` paths, while explicit `--tasks` and the legacy `_meta/agent-readiness-tasks.yml`
   path remain supported.

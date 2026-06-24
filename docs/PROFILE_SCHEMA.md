@@ -134,8 +134,10 @@ profile-defined inactive statuses and machine-owned note types. Lint also reads 
 statuses, required properties, and inactive status roles.
 `vaultwright benchmark` and the aggregate `vaultwright pilot` evidence report read profile-declared
 `benchmark_tasks`, while an explicit `--tasks` argument still takes precedence and the legacy
-`_meta/agent-readiness-tasks.yml` path remains a compatibility fallback. GitHub repo mirror sync
-and lint read
+`_meta/agent-readiness-tasks.yml` path remains a compatibility fallback. Benchmark task-pack
+validation, result citation validation, and `benchmark --init-tasks` scaffolding also resolve
+generated source-mirror evidence against the active Office mirror root. GitHub repo mirror sync and
+lint read
 `policy_defaults.repo_notes_dir` for the default repository-mirror folder and derive repo-mirror
 frontmatter domains from the profile's domain/folder mapping. Office mirror sync, lint, catalog,
 Microsoft 365 handoff, sandbox preflight, doctor, migration guidance, and review-ledger

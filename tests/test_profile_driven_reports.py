@@ -768,6 +768,150 @@ def test_package_cli_pilot_reads_profile_benchmark_task_pack(tmp_path: Path) -> 
     assert "_mirrors/25_research/research-plan.md" not in result.stdout
 
 
+def test_package_cli_benchmark_uses_configured_office_mirror_root(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    set_office_mirror_root(vault)
+    source = vault / "40_delivery" / "brief.docx"
+    mirror = vault / "_generated" / "40_delivery" / "brief.md"
+    source.write_bytes(b"synthetic configured-root source bytes")
+    mirror.parent.mkdir(parents=True)
+    mirror.write_text(
+        "---\nsource_path: 40_delivery/brief.docx\n---\nSynthetic configured-root mirror body\n",
+        encoding="utf-8",
+    )
+    profile_path = vault / "_meta" / "profile.yml"
+    profile = yaml.safe_load(profile_path.read_text(encoding="utf-8"))
+    task_pack = Path("_meta/configured-root-agent-readiness-tasks.yml")
+    profile["benchmark_tasks"] = [task_pack.as_posix()]
+    profile_path.write_text(yaml.safe_dump(profile, sort_keys=False), encoding="utf-8")
+    tasks = [
+        {
+            "id": f"configured-root-{family}",
+            "family": family,
+            "prompt": f"What should the configured-root {family} task prove?",
+            "source_paths": ["40_delivery/brief.docx"],
+            "generated_mirror_paths": ["_generated/40_delivery/brief.md"],
+            "curated_paths": [],
+            "success_criteria": ["Uses configured mirror-root evidence only"],
+        }
+        for family in ("answer", "reconcile", "update", "audit", "consolidate")
+    ]
+    (vault / task_pack).write_text(
+        yaml.safe_dump(
+            {
+                "schema_version": 1,
+                "corpus": "configured-root-fixture",
+                "comparison_modes": [
+                    "raw_source_folder",
+                    "document_chat_transcript",
+                    "vaultwright_markdown",
+                ],
+                "scoring": {"scale": "0-2"},
+                "tasks": tasks,
+            },
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
+    (vault / "_meta" / "configured-root-results.yml").write_text(
+        yaml.safe_dump(
+            {
+                "schema_version": 1,
+                "corpus": "configured-root-fixture",
+                "results": [
+                    {
+                        "task_id": "configured-root-answer",
+                        "mode": "vaultwright_markdown",
+                        "score": 2,
+                        "reviewer_corrections": 0,
+                        "cited_source_paths": ["40_delivery/brief.docx"],
+                        "cited_generated_mirror_paths": ["_generated/40_delivery/brief.md"],
+                        "prompt_safety_reviewed": True,
+                    }
+                ],
+            },
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
+    (vault / "_meta" / "source-manifest.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "records": [
+                    {
+                        "source_id": "src_brief",
+                        "current_source_path": "40_delivery/brief.docx",
+                        "mirror_path": "_generated/40_delivery/brief.md",
+                        "lifecycle_state": "clean",
+                    }
+                ],
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+    benchmark = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "vaultwright.cli",
+            "--root",
+            str(vault),
+            "benchmark",
+            "--json",
+            "--require-generated",
+            "--results",
+            "_meta/configured-root-results.yml",
+        ],
+        cwd=ROOT,
+        env=package_cli_env(),
+        text=True,
+        capture_output=True,
+    )
+    scaffold = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "vaultwright.cli",
+            "--root",
+            str(vault),
+            "benchmark",
+            "--init-tasks",
+            "--tasks",
+            "_meta/scaffolded-configured-root-tasks.yml",
+            "--scaffold-sources",
+            "1",
+            "--scaffold-curated",
+            "0",
+        ],
+        cwd=ROOT,
+        env=package_cli_env(),
+        text=True,
+        capture_output=True,
+    )
+
+    assert benchmark.returncode == 0, benchmark.stderr or benchmark.stdout
+    payload = json.loads(benchmark.stdout)
+    assert payload["summary"]["path"] == task_pack.as_posix()
+    assert payload["summary"]["generated_mirror_paths"] == 5
+    assert payload["result_summary"]["modes"]["vaultwright_markdown"]["generated_mirror_citations"] == 1
+    assert payload["errors"] == []
+    assert "must point into _mirrors" not in benchmark.stdout
+    assert "must point into _mirrors" not in benchmark.stderr
+    assert "synthetic configured-root source bytes" not in benchmark.stdout
+    assert "Synthetic configured-root mirror body" not in benchmark.stdout
+
+    assert scaffold.returncode == 0, scaffold.stderr or scaffold.stdout
+    scaffold_tasks = yaml.safe_load((vault / "_meta" / "scaffolded-configured-root-tasks.yml").read_text(encoding="utf-8"))
+    assert all(
+        task["generated_mirror_paths"] == ["_generated/40_delivery/brief.md"]
+        for task in scaffold_tasks["tasks"]
+    )
+
+
 def test_package_cli_reports_use_profile_repo_notes_dir(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     source_root = tmp_path / "source-root"
