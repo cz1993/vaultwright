@@ -101,6 +101,10 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 - `vaultwright lint` now loads `_meta/profile.yml` through the package profile validator before
   deriving allowed domains, note types, statuses, policy defaults, and content roots, so invalid
   profile contracts block lint before unsafe profile data can drive checks.
+- Shared runtime profile helpers now load `_meta/profile.yml` through the package profile
+  validator before exposing domains, status roles, mirror defaults, repo context fields, or repo
+  mirror folders to sync/report code; invalid contracts fall back to legacy defaults instead of
+  partially trusted profile data, and GitHub repo sync reuses the shared helper path.
 - `vaultwright benchmark` and the aggregate `vaultwright pilot` report now read profile-declared
   `benchmark_tasks` paths, while explicit `--tasks` and the legacy `_meta/agent-readiness-tasks.yml`
   path remain supported.

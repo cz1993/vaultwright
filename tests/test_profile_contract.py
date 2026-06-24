@@ -7,10 +7,18 @@ import sys
 from pathlib import Path
 
 import pytest
+import yaml
 
 from vaultwright.profile_migration import target_dir_paths
 from vaultwright.profiles import ProfileContract, ProfileValidationError, load_profile, validate_profile_mapping
+from vaultwright.runtime_profile import (
+    configured_office_mirror_root,
+    profile_domain_folders,
+    profile_mirror_status,
+    profile_repo_notes_dir,
+)
 from vaultwright.views import render_documents_base
+from vaultwright.mirrors import github_repos
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -82,6 +90,42 @@ def test_packaged_and_example_profiles_match_template() -> None:
     for path in profile_paths:
         assert path.read_bytes() == template_profile
         assert load_profile(path).id == "business-operations"
+
+
+def write_profile_with_invalid_runtime_defaults(vault: Path) -> None:
+    profile = load_profile(vault / "_meta" / "profile.yml").as_dict()
+    profile["domains"]["research"] = {
+        "folder": "25_research",
+        "purpose": "Profile-defined research material.",
+    }
+    profile["folder_plan"].append({"path": "25_research", "domain": "research"})
+    profile["statuses"]["current"] = {"purpose": "Profile-defined current generated mirror state."}
+    profile["policy_defaults"]["mirror_root"] = "_generated"
+    profile["policy_defaults"]["mirror_status"] = "current"
+    profile["policy_defaults"]["repo_notes_dir"] = "90_repos"
+    (vault / "_meta" / "profile.yml").write_text(yaml.safe_dump(profile, sort_keys=False), encoding="utf-8")
+
+
+def test_runtime_profile_helpers_ignore_invalid_profile_contract(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    (vault / "_meta" / "mirror-config.yml").unlink(missing_ok=True)
+    write_profile_with_invalid_runtime_defaults(vault)
+
+    assert profile_domain_folders(vault) == {}
+    assert profile_repo_notes_dir(vault) == "80_sources/repos"
+    assert profile_mirror_status(vault) == "active"
+    assert configured_office_mirror_root(vault) == Path("_mirrors")
+
+
+def test_github_repo_sync_uses_validated_runtime_profile_helpers(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    write_profile_with_invalid_runtime_defaults(vault)
+
+    assert github_repos.profile_domain_folders(vault) == {}
+    assert github_repos.default_repo_notes_dir(vault) == "80_sources/repos"
+    assert "25_research" not in github_repos.active_content_roots(vault)
 
 
 def test_profile_contract_rejects_unknown_fields() -> None:

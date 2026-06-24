@@ -838,6 +838,7 @@ def test_package_cli_overlap_reads_profile_context_links(tmp_path: Path) -> None
         for value in profile["optional_properties"]
         if value not in {"account", "client", "program", "vendor"}
     ]
+    profile["policy_defaults"].pop("context_aliases", None)
     profile_path.write_text(yaml.safe_dump(profile, sort_keys=False), encoding="utf-8")
 
     research = vault / "25_research"
@@ -911,6 +912,7 @@ def test_package_cli_overlap_uses_profile_inactive_status_flags(tmp_path: Path) 
     profile_path = vault / "_meta" / "profile.yml"
     profile = yaml.safe_load(profile_path.read_text(encoding="utf-8"))
     profile["statuses"] = {
+        "draft": {"purpose": "Generated repo stubs."},
         "active": {"purpose": "current"},
         "archived": {"purpose": "archive name without inactive role"},
         "retired": {"purpose": "profile-defined inactive status", "inactive": True},

@@ -41,7 +41,9 @@ doctor, migration, and Office sync. A valid `_meta/profile.yml` provides canonic
 missing `_meta/domain-map.yml` is a non-blocking legacy-alias warning; malformed or contradictory
 domain-map content and profile-less legacy vaults still fail. Lint now loads `_meta/profile.yml`
 through the package profile validator before deriving domains, note types, statuses, policy
-defaults, and content roots.
+defaults, and content roots. Shared runtime profile helpers now expose profile-derived sync/report
+settings only from a validated profile contract, and GitHub repo sync reuses those helpers instead
+of maintaining a separate profile parser.
 
 ## Conditional V1 Explorer Finish Line
 

@@ -39,8 +39,10 @@ except ImportError:
 from vaultwright.runtime_profile import (
     profile_context_aliases as runtime_profile_context_aliases,
     profile_context_keys as runtime_profile_context_keys,
+    profile_domain_folders as runtime_profile_domain_folders,
     profile_generated_mirror_statuses,
     profile_mirror_status,
+    profile_repo_notes_dir as runtime_profile_repo_notes_dir,
     profile_repo_stub_status,
 )
 
@@ -50,7 +52,6 @@ SENTINEL = "%% AUTO-GENERATED BELOW — DO NOT EDIT %%"
 REPO_MANIFEST_REL = Path("_meta/repo-manifest.json")
 AUDIT_REL = Path("_meta/sync-audit.jsonl")
 ANNOTATION_ROOT = Path("_meta/mirror-annotations")
-PROFILE_REL = Path("_meta/profile.yml")
 MANIFEST_SCHEMA_VERSION = 1
 CONFIG_VERSION = "repo-mirrors:v1"
 LEGACY_REPO_NOTES_DIR = "80_sources/repos"
@@ -285,29 +286,8 @@ def local_source_path(entry):
     return resolved
 
 
-def load_profile_mapping(root: Path | None = None) -> dict:
-    path = (root or ROOT) / PROFILE_REL
-    if not path.exists():
-        return {}
-    try:
-        data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-    except (OSError, yaml.YAMLError):
-        return {}
-    return data if isinstance(data, dict) else {}
-
-
 def profile_domain_folders(root: Path | None = None) -> dict[str, str]:
-    domains = load_profile_mapping(root).get("domains", {})
-    if not isinstance(domains, dict):
-        return {}
-    out: dict[str, str] = {}
-    for domain, definition in domains.items():
-        if not isinstance(definition, dict):
-            continue
-        folder = definition.get("folder")
-        if isinstance(folder, str) and folder.strip():
-            out[str(domain)] = folder.strip()
-    return out
+    return dict(runtime_profile_domain_folders(root or ROOT))
 
 
 def active_content_roots(root: Path | None = None) -> set[str]:
@@ -357,16 +337,7 @@ def repo_context_values(
 
 
 def default_repo_notes_dir(root: Path | None = None) -> str:
-    profile = load_profile_mapping(root)
-    policy_defaults = profile.get("policy_defaults", {})
-    if isinstance(policy_defaults, dict):
-        configured = policy_defaults.get("repo_notes_dir")
-        if isinstance(configured, str) and configured.strip():
-            return configured.strip()
-    source_folder = profile_domain_folders(root).get("sources")
-    if source_folder:
-        return f"{source_folder}/repos"
-    return LEGACY_REPO_NOTES_DIR
+    return runtime_profile_repo_notes_dir(root or ROOT)
 
 
 def fallback_note_output_path(note: str) -> Path:

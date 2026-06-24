@@ -181,6 +181,12 @@ notes in profile-defined inactive statuses and machine-owned note types. Lint lo
 profile contract validator before applying allowed note types, statuses, required properties,
 inactive status roles, policy defaults, and content roots, so invalid profile contracts are
 blocking profile errors before lint uses profile data.
+Shared runtime profile helpers used by sync and report modules also load the package profile
+validator before exposing profile-derived domains, status roles, generated-mirror defaults, Office
+mirror defaults, repo context fields, or repo mirror folders. In tolerant runtime contexts, a
+missing or invalid profile yields legacy defaults instead of partially trusting malformed profile
+data; explicit validation surfaces such as `profile validate`, `doctor`, and `lint` still report or
+block invalid profile contracts.
 The review ledger accepts profile-defined machine-owned Markdown note types as generated artifacts
 eligible for metadata-only review decisions; it records hashes and frontmatter metadata, not
 artifact bodies.
@@ -192,10 +198,10 @@ generated source-mirror evidence against the active Office mirror root. The aggr
 workspace inventory also excludes the active Office mirror root from operator-content and source
 candidate counts, and recovery excludes the active Office mirror root when checking whether a
 missing source manifest still has source evidence in the vault. GitHub repo mirror sync and
-lint read
-`policy_defaults.repo_notes_dir` for the default repository-mirror folder, derive repo-mirror
-frontmatter domains from the profile's domain/folder mapping, and normalize repo context aliases
-from `policy_defaults.context_aliases`. Annotation migration uses the same context aliases when
+lint read `policy_defaults.repo_notes_dir` for the default repository-mirror folder, derive
+repo-mirror frontmatter domains from the profile's domain/folder mapping, and normalize repo
+context aliases from `policy_defaults.context_aliases` through the shared runtime profile helper.
+Annotation migration uses the same context aliases when
 deciding whether repo-mirror frontmatter is generated metadata or human annotation. Office mirror
 sync derives canonical source domains and canonical mirror paths from the active profile's domain
 folders, while

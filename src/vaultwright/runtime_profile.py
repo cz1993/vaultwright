@@ -7,6 +7,8 @@ from typing import Any
 
 import yaml
 
+from vaultwright.profiles import ProfileValidationError, load_profile
+
 
 PROFILE_REL = Path("_meta/profile.yml")
 REPO_CONFIG_REL = Path("tools/repos.yml")
@@ -72,10 +74,9 @@ def load_profile_mapping(root: Path) -> dict[str, Any]:
     if not path.exists():
         return {}
     try:
-        data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-    except (OSError, yaml.YAMLError):
+        return load_profile(path).as_dict()
+    except ProfileValidationError:
         return {}
-    return data if isinstance(data, dict) else {}
 
 
 def profile_domain_folders(root: Path) -> dict[str, str]:

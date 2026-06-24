@@ -7426,9 +7426,22 @@ def test_repo_frontmatter_does_not_infer_context_aliases_for_other_profiles(tmp_
         "id: research-learning\n"
         "name: Research Learning\n"
         "profile_version: 0.1.0\n"
+        "domains:\n"
+        "  research:\n"
+        "    folder: 25_research\n"
+        "note_types: {}\n"
+        "statuses: {}\n"
+        "required_properties: []\n"
         "optional_properties:\n"
         "  - account\n"
         "  - client\n"
+        "folder_plan:\n"
+        "  - path: 25_research\n"
+        "    domain: research\n"
+        "templates: []\n"
+        "views: []\n"
+        "skills: []\n"
+        "benchmark_tasks: []\n"
         "policy_defaults: {}\n",
         encoding="utf-8",
     )
