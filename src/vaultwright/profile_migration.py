@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from vaultwright.profiles import ProfileContract, profile_folder_paths
+from vaultwright.runtime_profile import LEGACY_MIRROR_ROOT
 
 
 SHARED_TEMPLATE_FILES = (
@@ -29,7 +30,6 @@ SHARED_TEMPLATE_FILES = (
 SHARED_TEMPLATE_DIRS = (
     "_archive",
     "_meta",
-    "_mirrors",
     "_templates",
 )
 
@@ -131,8 +131,16 @@ def target_file_paths(target: ProfileContract) -> list[Path]:
     return sorted(rels, key=lambda path: path.as_posix())
 
 
+def target_mirror_root_path(target: ProfileContract) -> Path:
+    value = target.policy_defaults.get("mirror_root")
+    if isinstance(value, str) and value.strip():
+        return Path(value.strip())
+    return Path(LEGACY_MIRROR_ROOT)
+
+
 def target_dir_paths(target: ProfileContract) -> list[Path]:
     rels = {Path(rel) for rel in SHARED_TEMPLATE_DIRS}
+    rels.add(target_mirror_root_path(target))
     rels.update(profile_folder_paths(target))
     return sorted(rels, key=lambda path: path.as_posix())
 

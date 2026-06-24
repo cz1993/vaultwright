@@ -522,6 +522,17 @@ def test_profile_migration_directory_plan_uses_folder_plan_paths() -> None:
     assert "_meta" in paths
 
 
+def test_profile_migration_directory_plan_uses_profile_mirror_root_default() -> None:
+    data = minimal_profile()
+    data["policy_defaults"] = {"mirror_root": "_generated"}
+    profile = ProfileContract.from_mapping(data)
+
+    paths = {path.as_posix() for path in target_dir_paths(profile)}
+
+    assert "_generated" in paths
+    assert "_mirrors" not in paths
+
+
 def test_profile_cli_lists_built_in_profile() -> None:
     result = run_cli("profile", "list")
 

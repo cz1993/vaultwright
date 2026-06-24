@@ -238,7 +238,8 @@ notes.
 `vaultwright profile migrate --plan` is read-only. It reports:
 
 - missing profile contract files;
-- missing shared and `folder_plan` directories;
+- missing shared directories, the target profile's Office mirror root, and `folder_plan`
+  directories;
 - missing packaged template/view files;
 - profile version or vocabulary drift;
 - existing template/view files that differ from the packaged target;
@@ -246,7 +247,8 @@ notes.
 
 `vaultwright profile migrate --write` is intentionally conservative. It may:
 
-- create missing shared and `folder_plan` directories;
+- create missing shared directories, the target profile's Office mirror root, and `folder_plan`
+  directories;
 - copy missing packaged template/view files;
 - copy `_meta/profile.yml` into older vaults that do not yet have a profile contract.
 

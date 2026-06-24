@@ -69,6 +69,8 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 - Profiles now own Office mirror placement defaults with `policy_defaults.mirror_mode` and
   `policy_defaults.mirror_root`; Office sync and lint use those values when
   `_meta/mirror-config.yml` does not override them.
+- Profile migration now creates the target profile's `policy_defaults.mirror_root` directory
+  instead of assuming `_mirrors/`, while preserving the legacy fallback for older profiles.
 - Office mirror domain routing now uses active profile domain folders as canonical, with
   `_meta/domain-map.yml` retained only for legacy aliases and compatibility guidance.
 - Catalog, Microsoft 365 handoff, sandbox, doctor, review-ledger classification, and migration
