@@ -98,6 +98,9 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 - `vaultwright lint` now treats a missing `_meta/domain-map.yml` as a non-blocking legacy-alias
   warning when a valid profile contract provides canonical domains, while profile-less legacy
   vaults still fail when the domain map is missing.
+- `vaultwright lint` now loads `_meta/profile.yml` through the package profile validator before
+  deriving allowed domains, note types, statuses, policy defaults, and content roots, so invalid
+  profile contracts block lint before unsafe profile data can drive checks.
 - `vaultwright benchmark` and the aggregate `vaultwright pilot` report now read profile-declared
   `benchmark_tasks` paths, while explicit `--tasks` and the legacy `_meta/agent-readiness-tasks.yml`
   path remain supported.

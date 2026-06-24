@@ -17,6 +17,7 @@ try:
 except ImportError:
     sys.exit("pip install pyyaml")
 
+from vaultwright.profiles import ProfileValidationError, load_profile
 from vaultwright.runtime_profile import (
     profile_context_aliases as runtime_profile_context_aliases,
     profile_context_keys as runtime_profile_context_keys,
@@ -84,14 +85,8 @@ STOPWORDS = {
     "under", "using", "where", "which", "while", "with", "within", "without", "would",
 }
 
-def non_empty_string_list(value: object) -> list[str] | None:
-    if not isinstance(value, list):
-        return None
-    out = [str(item).strip() for item in value if isinstance(item, str) and item.strip()]
-    return out if len(out) == len(value) else None
-
-def profile_contract() -> tuple[dict[str, object], list[tuple[str, str]]]:
-    settings: dict[str, object] = {
+def default_profile_settings() -> dict[str, object]:
+    return {
         "required": list(DEFAULT_REQUIRED),
         "types": set(DEFAULT_TYPES),
         "statuses": set(DEFAULT_STATUSES),
@@ -100,61 +95,45 @@ def profile_contract() -> tuple[dict[str, object], list[tuple[str, str]]]:
         "domain_folders": {},
         "policy_defaults": {},
     }
+
+def profile_contract() -> tuple[dict[str, object], list[tuple[str, str]]]:
+    settings = default_profile_settings()
     path = ROOT / PROFILE_REL
     if not path.exists():
         return settings, [(PROFILE_REL, "missing")]
     try:
-        data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-    except yaml.YAMLError:
-        return settings, [(PROFILE_REL, "invalid YAML")]
-    if not isinstance(data, dict):
-        return settings, [(PROFILE_REL, "must be a mapping")]
+        profile = load_profile(path)
+    except ProfileValidationError as exc:
+        message = str(exc).replace(str(path), PROFILE_REL)
+        return settings, [(PROFILE_REL, message)]
 
-    errors: list[tuple[str, str]] = []
-    required = non_empty_string_list(data.get("required_properties"))
-    if required:
-        settings["required"] = required
+    statuses = {str(key) for key in profile.statuses}
+    settings["required"] = list(profile.required_properties)
+    settings["types"] = {str(key) for key in profile.note_types}
+    settings["statuses"] = statuses
+    saw_inactive = any(
+        isinstance(definition, dict) and "inactive" in definition
+        for definition in profile.statuses.values()
+    )
+    if saw_inactive:
+        settings["inactive_statuses"] = [
+            str(status)
+            for status, definition in profile.statuses.items()
+            if isinstance(definition, dict) and definition.get("inactive") is True
+        ]
     else:
-        errors.append((f"{PROFILE_REL}:required_properties", "must be a non-empty string list"))
-
-    for field, setting in (("note_types", "types"), ("statuses", "statuses")):
-        values = data.get(field)
-        if isinstance(values, dict) and values:
-            settings[setting] = {str(key) for key in values}
-            if field == "statuses":
-                saw_inactive = any(isinstance(definition, dict) and "inactive" in definition for definition in values.values())
-                if saw_inactive:
-                    settings["inactive_statuses"] = [
-                        str(status)
-                        for status, definition in values.items()
-                        if isinstance(definition, dict) and definition.get("inactive") is True
-                    ]
-                else:
-                    settings["inactive_statuses"] = [
-                        status for status in DEFAULT_INACTIVE_STATUSES if status in {str(key) for key in values}
-                    ]
-        else:
-            errors.append((f"{PROFILE_REL}:{field}", "must be a non-empty mapping"))
-
-    domains = data.get("domains")
-    domain_folders: dict[str, str] = {}
-    if isinstance(domains, dict) and domains:
-        for domain, definition in domains.items():
-            if isinstance(definition, dict) and definition.get("folder"):
-                domain_folders[str(domain)] = str(definition["folder"])
-            else:
-                errors.append((f"{PROFILE_REL}:domains.{domain}", "missing folder"))
-    else:
-        errors.append((f"{PROFILE_REL}:domains", "must be a non-empty mapping"))
-    if domain_folders:
-        settings["domain_folders"] = domain_folders
-        settings["content_roots"] = set(domain_folders.values())
-    policy_defaults = data.get("policy_defaults")
-    if isinstance(policy_defaults, dict):
-        settings["policy_defaults"] = dict(policy_defaults)
-    else:
-        errors.append((f"{PROFILE_REL}:policy_defaults", "must be a mapping"))
-    return settings, errors
+        settings["inactive_statuses"] = [
+            status for status in DEFAULT_INACTIVE_STATUSES if status in statuses
+        ]
+    domain_folders = {
+        str(domain): str(definition["folder"])
+        for domain, definition in profile.domains.items()
+        if isinstance(definition, dict) and isinstance(definition.get("folder"), str)
+    }
+    settings["domain_folders"] = domain_folders
+    settings["content_roots"] = set(domain_folders.values())
+    settings["policy_defaults"] = dict(profile.policy_defaults)
+    return settings, []
 
 def domain_folders(
     profile_domain_folders: dict[str, str],

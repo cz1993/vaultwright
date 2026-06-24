@@ -177,8 +177,10 @@ domain folders. Catalog, Microsoft 365 handoff, and sandbox inventory also read 
 machine-owned note types so generated Markdown artifacts are reported separately from curated
 Markdown/domain note counts. Overlap calibration also reads `related` plus the active profile's
 context frontmatter fields when counting inbound wikilinks for candidate ranking, and it excludes
-notes in profile-defined inactive statuses and machine-owned note types. Lint also reads allowed
-note types, statuses, required properties, and inactive status roles.
+notes in profile-defined inactive statuses and machine-owned note types. Lint loads the same
+profile contract validator before applying allowed note types, statuses, required properties,
+inactive status roles, policy defaults, and content roots, so invalid profile contracts are
+blocking profile errors before lint uses profile data.
 The review ledger accepts profile-defined machine-owned Markdown note types as generated artifacts
 eligible for metadata-only review decisions; it records hashes and frontmatter metadata, not
 artifact bodies.

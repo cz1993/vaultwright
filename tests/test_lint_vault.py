@@ -272,6 +272,28 @@ def test_template_linter_reads_profile_contract_for_allowed_values(tmp_path: Pat
     assert "Domain/folder mismatch: 0" in result.stdout
 
 
+def test_template_linter_blocks_full_profile_validator_errors(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    profile = load_profile(vault)
+    profile["policy_defaults"]["repo_notes_dir"] = "90_repos"
+    write_profile(vault, profile)
+
+    result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "lint_vault.py")],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 1
+    assert "Profile errors: 1" in result.stdout
+    assert (
+        "_meta/profile.yml  [policy_defaults.repo_notes_dir must be inside a declared domain folder]"
+        in result.stdout
+    )
+
+
 def test_template_linter_blocks_missing_profile_contract(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     shutil.copytree(ROOT / "template", vault)

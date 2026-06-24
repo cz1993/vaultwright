@@ -39,7 +39,9 @@ required migration. New ideas that do not map here move to the post-v1 backlog.
 Stage 1 V1-C2 note: `vaultwright lint` now matches the profile-contract-first posture used by
 doctor, migration, and Office sync. A valid `_meta/profile.yml` provides canonical domains, so a
 missing `_meta/domain-map.yml` is a non-blocking legacy-alias warning; malformed or contradictory
-domain-map content and profile-less legacy vaults still fail.
+domain-map content and profile-less legacy vaults still fail. Lint now loads `_meta/profile.yml`
+through the package profile validator before deriving domains, note types, statuses, policy
+defaults, and content roots.
 
 ## Conditional V1 Explorer Finish Line
 
