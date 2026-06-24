@@ -289,7 +289,7 @@ def test_template_linter_blocks_missing_profile_contract(tmp_path: Path) -> None
     assert "_meta/profile.yml  [missing]" in result.stdout
 
 
-def test_template_linter_blocks_missing_domain_map(tmp_path: Path) -> None:
+def test_template_linter_warns_missing_domain_map_when_profile_valid(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     shutil.copytree(ROOT / "template", vault)
     (vault / "_meta" / "domain-map.yml").unlink()
@@ -301,7 +301,29 @@ def test_template_linter_blocks_missing_domain_map(tmp_path: Path) -> None:
         capture_output=True,
     )
 
+    assert result.returncode == 0, result.stdout
+    assert "Domain map warnings: 1" in result.stdout
+    assert "_meta/domain-map.yml  [missing; legacy aliases unavailable]" in result.stdout
+    assert "Domain map errors: 0" in result.stdout
+    assert "\nOK" in result.stdout
+
+
+def test_template_linter_blocks_missing_domain_map_without_profile(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    (vault / "_meta" / "profile.yml").unlink()
+    (vault / "_meta" / "domain-map.yml").unlink()
+
+    result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "lint_vault.py")],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
     assert result.returncode == 1
+    assert "Profile errors: 1" in result.stdout
+    assert "_meta/profile.yml  [missing]" in result.stdout
     assert "Domain map errors: 1" in result.stdout
     assert "_meta/domain-map.yml  [missing]" in result.stdout
 

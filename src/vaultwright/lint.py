@@ -156,7 +156,9 @@ def profile_contract() -> tuple[dict[str, object], list[tuple[str, str]]]:
         errors.append((f"{PROFILE_REL}:policy_defaults", "must be a mapping"))
     return settings, errors
 
-def domain_folders(profile_domain_folders: dict[str, str]) -> tuple[dict[str, str], dict[str, str], list[tuple[str, str]]]:
+def domain_folders(
+    profile_domain_folders: dict[str, str],
+) -> tuple[dict[str, str], dict[str, str], list[tuple[str, str]], list[tuple[str, str]]]:
     domain_map = ROOT / "_meta" / "domain-map.yml"
     out = dict(profile_domain_folders)
     aliases: dict[str, str] = {}
@@ -164,14 +166,16 @@ def domain_folders(profile_domain_folders: dict[str, str]) -> tuple[dict[str, st
         aliases[folder] = folder
         aliases[domain_name] = folder
     if not domain_map.exists():
-        return out, aliases, [("_meta/domain-map.yml", "missing")]
+        if profile_domain_folders:
+            return out, aliases, [("_meta/domain-map.yml", "missing; legacy aliases unavailable")], []
+        return out, aliases, [], [("_meta/domain-map.yml", "missing")]
     try:
         data = yaml.safe_load(domain_map.read_text(encoding="utf-8")) or {}
     except yaml.YAMLError:
-        return out, aliases, [("_meta/domain-map.yml", "invalid YAML")]
+        return out, aliases, [], [("_meta/domain-map.yml", "invalid YAML")]
     domains = data.get("domains", {})
     if not isinstance(domains, dict):
-        return out, aliases, [("_meta/domain-map.yml", "missing domains map")]
+        return out, aliases, [], [("_meta/domain-map.yml", "missing domains map")]
     errors: list[tuple[str, str]] = []
     for domain, info in domains.items():
         if isinstance(info, dict) and info.get("folder"):
@@ -194,7 +198,7 @@ def domain_folders(profile_domain_folders: dict[str, str]) -> tuple[dict[str, st
             errors.append((f"_meta/domain-map.yml:{domain}", "missing folder"))
     if not out:
         errors.append(("_meta/domain-map.yml", "empty domains map"))
-    return out, aliases, errors
+    return out, aliases, [], errors
 
 def safe_mirror_root(value: str) -> Path:
     path = Path(str(value))
@@ -590,7 +594,9 @@ def main(root: Path | None = None) -> int:
     PROFILE_CONTEXT_KEYS = set(runtime_profile_context_keys(ROOT))
     PROFILE_CONTEXT_ALIASES = dict(runtime_profile_context_aliases(ROOT))
     GENERATED_MIRROR_STATUSES = profile_generated_mirror_statuses(ROOT)
-    DOMAIN_FOLDERS, DOMAIN_FOLDER_ALIASES, domain_map_errors = domain_folders(PROFILE_DOMAIN_FOLDERS)
+    DOMAIN_FOLDERS, DOMAIN_FOLDER_ALIASES, domain_map_warnings, domain_map_errors = domain_folders(
+        PROFILE_DOMAIN_FOLDERS
+    )
     DOMAIN_BY_FOLDER = {folder: domain for domain, folder in DOMAIN_FOLDERS.items()}
     MIRROR_CONFIG, mirror_config_errors = mirror_config()
     LINT_CONFIG, lint_config_errors = lint_config()
@@ -1137,6 +1143,7 @@ def main(root: Path | None = None) -> int:
     section("Invalid status", bad_status)
     section("Invalid domain", bad_domain)
     section("Profile errors", profile_errors)
+    section("Domain map warnings", domain_map_warnings)
     section("Domain map errors", domain_map_errors)
     section("Mirror config errors", mirror_config_errors)
     section("Lint config errors", lint_config_errors)

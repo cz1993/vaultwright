@@ -203,8 +203,10 @@ review-ledger classification read `policy_defaults.mirror_mode` and `policy_defa
 as generated-output defaults while honoring `_meta/mirror-config.yml` as an operator override.
 `vaultwright doctor` validates `_meta/profile.yml` first; when that profile contract is present and
 valid, missing `_meta/domain-map.yml` and `_meta/mirror-config.yml` are reported as legacy
-alias/override posture instead of required-file failures. Profile-less legacy vaults keep the older
-required-file checks for those files.
+alias/override posture instead of required-file failures. `vaultwright lint` uses the same
+profile-first domain posture: missing `_meta/domain-map.yml` is a non-blocking warning when the
+active profile provides canonical domain folders, while malformed or contradictory domain-map
+content remains blocking and profile-less legacy vaults keep the older required-file check.
 Review-ledger classification also reads profile-defined `machine_owned` note type roles when
 deciding whether a Markdown artifact is generated and reviewable.
 Source/repo mirror sync and annotation migration read `policy_defaults.mirror_status` and

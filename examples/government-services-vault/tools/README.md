@@ -22,12 +22,15 @@ These keep your knowledge base current and healthy. See `../CLAUDE.md` §6 for t
 
 `lint_vault.py` reads `_meta/profile.yml` for allowed domains, note types, statuses, required
 frontmatter, and canonical content folders. `_meta/domain-map.yml` remains a compatibility layer
-for legacy folder/domain aliases. `lint_vault.py` also reads `_meta/lint-config.yml` for
-warning-level overlap thresholds. Overlap warnings include human-gated consolidation suggestions
-and prefer the note with more inbound links when that signal is available. Use `vaultwright
-overlap` in copied pilot vaults to see candidate counts across threshold bands before changing
-defaults. Keep the template defaults until real corpora show too many false positives or false
-negatives, then record any threshold changes in the private pilot worksheet.
+for legacy folder/domain aliases; if the active profile is valid, a missing domain map is a
+non-blocking warning rather than a lint failure. Malformed or contradictory domain-map content
+still blocks lint because it is unsafe migration guidance, and profile-less legacy vaults still
+require the domain map. `lint_vault.py` also reads `_meta/lint-config.yml` for warning-level
+overlap thresholds. Overlap warnings include human-gated consolidation suggestions and prefer the
+note with more inbound links when that signal is available. Use `vaultwright overlap` in copied
+pilot vaults to see candidate counts across threshold bands before changing defaults. Keep the
+template defaults until real corpora show too many false positives or false negatives, then record
+any threshold changes in the private pilot worksheet.
 `tools/lint_vault.py` is a compatibility shim for the package-owned `vaultwright.lint` runtime.
 Run it from an environment where Vaultwright is installed, or from a source checkout with
 `PYTHONPATH=src`.

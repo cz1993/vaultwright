@@ -95,6 +95,9 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 - `vaultwright doctor` now validates the active profile contract first and treats
   `_meta/domain-map.yml` and `_meta/mirror-config.yml` as legacy alias/override files for
   profile-driven vaults, while preserving legacy required-file checks for profile-less vaults.
+- `vaultwright lint` now treats a missing `_meta/domain-map.yml` as a non-blocking legacy-alias
+  warning when a valid profile contract provides canonical domains, while profile-less legacy
+  vaults still fail when the domain map is missing.
 - `vaultwright benchmark` and the aggregate `vaultwright pilot` report now read profile-declared
   `benchmark_tasks` paths, while explicit `--tasks` and the legacy `_meta/agent-readiness-tasks.yml`
   path remain supported.
