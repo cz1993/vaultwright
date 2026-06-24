@@ -16,6 +16,7 @@ except ImportError:
 
 
 ROOT = Path(__file__).resolve().parent.parent
+PROFILE_REL = Path("_meta/profile.yml")
 DOMAIN_MAP_REL = Path("_meta/domain-map.yml")
 SOURCE_EXTS = {".docx", ".pptx", ".xlsx", ".doc", ".pdf"}
 STRUCTURAL_MD = {"AGENTS.md", "CLAUDE.md", "INDEX.md", "RETENTION.md", "CATALOG.md", "log.md"}
@@ -37,17 +38,21 @@ RESERVED_TOP_LEVEL = {
 }
 
 
-def load_domain_routing(root: Path) -> tuple[dict[str, str], dict[str, dict[str, str]], set[str], list[str]]:
-    path = root / DOMAIN_MAP_REL
+def load_profile_routing(
+    root: Path,
+) -> tuple[dict[str, str], dict[str, dict[str, str]], set[str], list[str]]:
+    path = root / PROFILE_REL
     if not path.exists():
-        return {}, {}, set(), [f"{DOMAIN_MAP_REL.as_posix()}: missing"]
+        return {}, {}, set(), [f"{PROFILE_REL.as_posix()}: missing"]
     try:
         data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     except yaml.YAMLError as exc:
-        return {}, {}, set(), [f"{DOMAIN_MAP_REL.as_posix()}: invalid YAML ({exc.__class__.__name__})"]
+        return {}, {}, set(), [f"{PROFILE_REL.as_posix()}: invalid YAML ({exc.__class__.__name__})"]
+    if not isinstance(data, dict):
+        return {}, {}, set(), [f"{PROFILE_REL.as_posix()}: must be a mapping"]
     domains = data.get("domains")
     if not isinstance(domains, dict) or not domains:
-        return {}, {}, set(), [f"{DOMAIN_MAP_REL.as_posix()}: missing domains map"]
+        return {}, {}, set(), [f"{PROFILE_REL.as_posix()}: missing domains map"]
 
     canonical: dict[str, str] = {}
     aliases: dict[str, dict[str, str]] = {}
@@ -55,7 +60,7 @@ def load_domain_routing(root: Path) -> tuple[dict[str, str], dict[str, dict[str,
     errors: list[str] = []
     for domain, info in domains.items():
         if not isinstance(info, dict) or not info.get("folder"):
-            errors.append(f"{DOMAIN_MAP_REL.as_posix()}:{domain}: missing folder")
+            errors.append(f"{PROFILE_REL.as_posix()}:domains.{domain}: missing folder")
             continue
         domain_name = str(domain)
         folder = str(info["folder"])
@@ -63,12 +68,60 @@ def load_domain_routing(root: Path) -> tuple[dict[str, str], dict[str, dict[str,
         canonical[folder] = domain_name
         for key in (domain_name, folder):
             aliases[key] = {"domain": domain_name, "folder": folder}
+    if not canonical:
+        errors.append(f"{PROFILE_REL.as_posix()}: no valid domains")
+    return canonical, aliases, canonical_domains, errors
+
+
+def load_domain_routing(
+    root: Path,
+) -> tuple[dict[str, str], dict[str, dict[str, str]], set[str], list[str], list[str]]:
+    canonical, aliases, canonical_domains, profile_errors = load_profile_routing(root)
+    if profile_errors:
+        return canonical, aliases, canonical_domains, [], profile_errors
+
+    path = root / DOMAIN_MAP_REL
+    if not path.exists():
+        return (
+            canonical,
+            aliases,
+            canonical_domains,
+            [f"{DOMAIN_MAP_REL.as_posix()}: missing; legacy aliases unavailable"],
+            [],
+        )
+    try:
+        data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    except yaml.YAMLError as exc:
+        return canonical, aliases, canonical_domains, [], [
+            f"{DOMAIN_MAP_REL.as_posix()}: invalid YAML ({exc.__class__.__name__})"
+        ]
+    domains = data.get("domains")
+    if not isinstance(domains, dict) or not domains:
+        return canonical, aliases, canonical_domains, [], [f"{DOMAIN_MAP_REL.as_posix()}: missing domains map"]
+
+    errors: list[str] = []
+    profile_folders = {domain: folder for folder, domain in canonical.items()}
+    for domain, info in domains.items():
+        if not isinstance(info, dict) or not info.get("folder"):
+            errors.append(f"{DOMAIN_MAP_REL.as_posix()}:{domain}: missing folder")
+            continue
+        domain_name = str(domain)
+        folder = str(info["folder"])
+        expected_folder = profile_folders.get(domain_name, "")
+        if domain_name not in canonical_domains:
+            errors.append(f"{DOMAIN_MAP_REL.as_posix()}:{domain_name}: domain not declared in {PROFILE_REL.as_posix()}")
+            continue
+        if expected_folder and expected_folder != folder:
+            errors.append(f"{DOMAIN_MAP_REL.as_posix()}:{domain_name}: folder differs from {PROFILE_REL.as_posix()}")
+            folder = expected_folder
+        for key in (domain_name, folder):
+            aliases[key] = {"domain": domain_name, "folder": folder}
         raw_aliases = info.get("aliases", [])
         if isinstance(raw_aliases, list):
             for alias in raw_aliases:
                 if isinstance(alias, str) and alias.strip():
                     aliases[alias.strip()] = {"domain": domain_name, "folder": folder}
-    return canonical, aliases, canonical_domains, errors
+    return canonical, aliases, canonical_domains, [], errors
 
 
 def folder_counts(path: Path) -> dict[str, int]:
@@ -178,12 +231,12 @@ def frontmatter_domain_items(root: Path, aliases: dict[str, dict[str, str]], can
 
 
 def build_report(root: Path) -> tuple[list[dict], list[dict], list[str], list[str]]:
-    canonical, aliases, canonical_domains, errors = load_domain_routing(root)
+    canonical, aliases, canonical_domains, routing_warnings, errors = load_domain_routing(root)
     if errors:
-        return [], [], [], errors
+        return [], [], routing_warnings, errors
 
     items: list[dict] = []
-    warnings: list[str] = []
+    warnings: list[str] = list(routing_warnings)
     canonical_folders = set(canonical)
     for path in sorted(root.iterdir(), key=lambda p: p.name.lower()):
         if not path.is_dir() or path.is_symlink():

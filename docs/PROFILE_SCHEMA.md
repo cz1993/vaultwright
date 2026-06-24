@@ -102,8 +102,10 @@ valid.
 - every domain definition includes a non-empty `folder`.
 
 `vaultwright lint` and `vaultwright catalog` read `_meta/profile.yml` for domain folders, allowed
-note types, statuses, and required properties. `_meta/domain-map.yml` remains a legacy alias and
-operator guidance layer; it must not contradict the profile's canonical domain folders.
+note types, statuses, and required properties. `vaultwright migration` uses `_meta/profile.yml` for
+canonical domain folders and `_meta/domain-map.yml` for legacy aliases. `_meta/domain-map.yml`
+remains a legacy alias and operator guidance layer; it must not contradict the profile's canonical
+domain folders.
 
 ## Profile-Generated Views
 
