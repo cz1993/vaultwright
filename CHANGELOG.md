@@ -129,6 +129,8 @@ All notable changes to Vaultwright are documented here. Format loosely follows
   from the active profile's optional properties, preserving the business profile's
   `account`/`client` compatibility while allowing non-business profiles to use their own context
   fields.
+- Office source-mirror frontmatter ordering now uses the active profile's context fields before
+  managed source metadata, instead of privileging business-only context keys in every profile.
 - Annotation migration now also reads `policy_defaults.context_aliases` when comparing generated
   repo-mirror frontmatter with `tools/repos.yml`, so profile-defined aliases are not mistaken for
   human mirror annotations.

@@ -5546,6 +5546,42 @@ def test_office_sync_uses_profile_domains_when_domain_map_missing(tmp_path: Path
     assert fm["source"] == "library/paper.docx"
 
 
+def test_office_sync_frontmatter_order_uses_profile_context_fields(tmp_path: Path) -> None:
+    sync = load_office_sync_module()
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    profile_path = vault / "_meta" / "profile.yml"
+    profile = yaml.safe_load(profile_path.read_text(encoding="utf-8"))
+    profile["optional_properties"] = [
+        value
+        for value in profile["optional_properties"]
+        if value not in {"account", "client", "program", "vendor"}
+    ]
+    profile["optional_properties"].append("research_project")
+    profile["policy_defaults"].pop("context_aliases", None)
+    profile_path.write_text(yaml.safe_dump(profile, sort_keys=False), encoding="utf-8")
+    source = vault / "40_delivery" / "brief.docx"
+    source.write_bytes(b"fixture")
+
+    fm = sync.managed_frontmatter(
+        {
+            "research_project": "[[Concept Retrieval Study]]",
+            "account": "[[Legacy Business Context]]",
+        },
+        source,
+        vault,
+        "abc123",
+        source_id="src-brief",
+        converter_version="test",
+    )
+    rendered = sync.dump_frontmatter(fm, root=vault)
+    lines = rendered.splitlines()
+    line_index = {line.split(":", 1)[0]: index for index, line in enumerate(lines) if ":" in line}
+
+    assert line_index["research_project"] < line_index["source_id"]
+    assert line_index["account"] > line_index["converter_version"]
+
+
 def test_office_sync_alias_to_canonical_mirror_is_idempotent(tmp_path: Path) -> None:
     sync = load_office_sync_module()
     vault = tmp_path / "vault"
