@@ -137,12 +137,14 @@ statuses, required properties, and inactive status roles.
 `_meta/agent-readiness-tasks.yml` path remains a compatibility fallback. GitHub repo mirror sync
 and lint read
 `policy_defaults.repo_notes_dir` for the default repository-mirror folder and derive repo-mirror
-frontmatter domains from the profile's domain/folder mapping. Office mirror sync and lint read
-`policy_defaults.mirror_mode` and `policy_defaults.mirror_root` as generated-output defaults while
-honoring `_meta/mirror-config.yml` as an operator override. Source/repo mirror sync and annotation
-migration read `policy_defaults.mirror_status` and `policy_defaults.repo_stub_status` when
-generating mirrors and deciding which mirror statuses are machine metadata rather than human
-annotations. Repo mirror context frontmatter also comes from the active profile's optional
+frontmatter domains from the profile's domain/folder mapping. Office mirror sync, lint, catalog,
+Microsoft 365 handoff, sandbox preflight, doctor, migration guidance, and review-ledger
+classification read `policy_defaults.mirror_mode` and `policy_defaults.mirror_root` as
+generated-output defaults while honoring `_meta/mirror-config.yml` as an operator override.
+Source/repo mirror sync and annotation migration read `policy_defaults.mirror_status` and
+`policy_defaults.repo_stub_status` when generating mirrors and deciding which mirror statuses are
+machine metadata rather than human annotations. Repo mirror context frontmatter also comes from the
+active profile's optional
 properties, so the `business-operations` profile keeps `account`/`client` compatibility while other
 profiles can declare fields such as `research_project` or `component`. Microsoft 365 handoff,
 sandbox preflight, recovery, and review-ledger reporting also resolve repo mirror folders from the

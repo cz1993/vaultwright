@@ -62,6 +62,20 @@ def set_profile_mirror_status_defaults(vault: Path, *, mirror_status: str = "cur
     profile_path.write_text(yaml.safe_dump(profile, sort_keys=False), encoding="utf-8")
 
 
+def set_office_mirror_root(vault: Path, mirror_root: str = "_generated") -> None:
+    profile_path = vault / "_meta" / "profile.yml"
+    profile = yaml.safe_load(profile_path.read_text(encoding="utf-8"))
+    profile["policy_defaults"]["mirror_root"] = mirror_root
+    profile_path.write_text(yaml.safe_dump(profile, sort_keys=False), encoding="utf-8")
+    (vault / "_meta" / "mirror-config.yml").write_text(
+        "office_mirrors:\n"
+        "  mode: dedicated\n"
+        f"  root: {mirror_root}\n"
+        "  include_pdf: false\n",
+        encoding="utf-8",
+    )
+
+
 def write_profile_benchmark_task_pack(vault: Path) -> Path:
     add_research_repo_profile(vault)
     profile_path = vault / "_meta" / "profile.yml"
@@ -873,6 +887,142 @@ def test_package_cli_reports_use_profile_repo_notes_dir(tmp_path: Path) -> None:
     review_event = json.loads(review.stdout)["recorded"]
     assert review_event["artifact_kind"] == "repo-mirror"
     assert review_event["artifact_path"] == "25_research/repos/untyped-review-target.md"
+
+
+def test_package_cli_reports_use_configured_office_mirror_root(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    source_root = tmp_path / "source-root"
+    shutil.copytree(ROOT / "template", vault)
+    source_root.mkdir()
+    set_office_mirror_root(vault)
+    source = vault / "40_delivery" / "brief.docx"
+    mirror = vault / "_generated" / "40_delivery" / "brief.md"
+    source.write_bytes(b"synthetic source bytes")
+    mirror.parent.mkdir(parents=True)
+    mirror.write_text(
+        "---\n"
+        "type: source-mirror\n"
+        "source_id: src-brief\n"
+        "source: 40_delivery/brief.docx\n"
+        "---\n"
+        "Synthetic generated mirror body.\n",
+        encoding="utf-8",
+    )
+    (vault / "CATALOG.md").write_text("# Documentation Catalog\n", encoding="utf-8")
+    (vault / "CATALOG.html").write_text("<!doctype html><title>Documentation Catalog</title>\n", encoding="utf-8")
+    (vault / "_meta" / "source-manifest.json").write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "records": [
+                    {
+                        "source_id": "src-brief",
+                        "current_source_path": "40_delivery/brief.docx",
+                        "mirror_path": "_generated/40_delivery/brief.md",
+                        "source_format": "docx",
+                        "lifecycle_state": "clean",
+                        "warnings": [],
+                        "errors": [],
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (vault / "_meta" / "repo-manifest.json").write_text(
+        json.dumps({"version": 1, "records": []}),
+        encoding="utf-8",
+    )
+    (vault / "_meta" / "sync-audit.jsonl").write_text(
+        json.dumps({"tool": "sync_office_md", "status": "unchanged", "lifecycle_state": "clean"}) + "\n",
+        encoding="utf-8",
+    )
+
+    catalog = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "catalog", "--json"],
+        cwd=ROOT,
+        env=package_cli_env(),
+        text=True,
+        capture_output=True,
+    )
+    m365 = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "m365", "--json"],
+        cwd=ROOT,
+        env=package_cli_env(),
+        text=True,
+        capture_output=True,
+    )
+    sandbox = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "vaultwright.cli",
+            "--root",
+            str(vault),
+            "sandbox",
+            "--source-root",
+            str(source_root),
+            "--json",
+        ],
+        cwd=ROOT,
+        env=package_cli_env(),
+        text=True,
+        capture_output=True,
+    )
+    doctor = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "doctor"],
+        cwd=ROOT,
+        env=package_cli_env(),
+        text=True,
+        capture_output=True,
+    )
+    review_target = vault / "_generated" / "review-target.md"
+    review_target.write_text("# Review Target\n\nSynthetic generated metadata fixture.\n", encoding="utf-8")
+    review = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "vaultwright.cli",
+            "--root",
+            str(vault),
+            "review",
+            "--artifact",
+            "_generated/review-target.md",
+            "--status",
+            "approved",
+            "--reviewer",
+            "CodeX",
+            "--json",
+        ],
+        cwd=ROOT,
+        env=package_cli_env(),
+        text=True,
+        capture_output=True,
+    )
+
+    assert catalog.returncode == 0, catalog.stderr or catalog.stdout
+    catalog_report = json.loads(catalog.stdout)["report"]
+    assert catalog_report["summary"]["generated_mirrors"] == 1
+    assert {"folder": "_generated"} not in catalog_report["legacy_folders"]
+
+    assert m365.returncode == 0, m365.stderr or m365.stdout
+    m365_report = json.loads(m365.stdout)["report"]
+    assert m365_report["inventory"]["source_mirrors"] == 1
+    assert "_generated/" in m365_report["handoff_bundle"]
+    assert "_mirrors/" not in m365_report["handoff_bundle"]
+
+    assert sandbox.returncode == 0, sandbox.stderr or sandbox.stdout
+    sandbox_report = json.loads(sandbox.stdout)["report"]
+    assert sandbox_report["inventory"]["dedicated_generated_mirrors"] == 1
+    assert sandbox_report["inventory"]["raw_folder_generated_mirrors"] == 0
+
+    assert doctor.returncode == 0, doctor.stderr or doctor.stdout
+    assert "info: Office mirror root: _generated" in doctor.stdout
+
+    assert review.returncode == 0, review.stderr or review.stdout
+    review_event = json.loads(review.stdout)["recorded"]
+    assert review_event["artifact_kind"] == "generated-source-mirror"
+    assert review_event["artifact_path"] == "_generated/review-target.md"
 
 
 def test_recovery_warns_for_profile_repo_notes_dir_without_manifest(tmp_path: Path) -> None:

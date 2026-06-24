@@ -14,7 +14,7 @@ try:
 except ImportError:
     sys.exit("Missing dependency: pip install pyyaml")
 
-from vaultwright.runtime_profile import profile_machine_owned_note_types
+from vaultwright.runtime_profile import configured_office_mirror_root, profile_machine_owned_note_types
 
 
 DEFAULT_ROOT = Path.cwd()
@@ -396,8 +396,9 @@ def print_runbook(root: Path, items: list[dict], frontmatter_items: list[dict], 
         print()
     print("## Preconditions")
     print()
+    mirror_root = configured_office_mirror_root(root).as_posix()
     print("- Work only in a permission-cleared copied vault, never the original source collection.")
-    print("- Confirm `_mirrors/` is the generated mirror root before moving source folders.")
+    print(f"- Confirm `{mirror_root}/` is the generated mirror root before moving source folders.")
     print("- Confirm the copied vault is backed up or committed before each migration batch.")
     print("- Resolve `vaultwright recovery --worksheet` items before trusting generated mirrors.")
     print("- Treat unknown folders/domains as classification decisions, not automatic moves.")
@@ -417,7 +418,7 @@ def print_runbook(root: Path, items: list[dict], frontmatter_items: list[dict], 
     print("## Folder Move Rules")
     print()
     print("- Prefer manual review or `git mv` over broad shell moves.")
-    print("- Move source files and curated notes; do not move generated mirrors out of `_mirrors/`.")
+    print(f"- Move source files and curated notes; do not move generated mirrors out of `{mirror_root}/`.")
     print("- Preserve mixed-content folders as subfolders until ownership is clear.")
     print("- Do not merge unrelated customer, finance, people, or governance records only because paths match.")
     print("- Keep old folders until the post-move verification checklist passes.")

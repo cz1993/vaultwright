@@ -18,6 +18,8 @@ try:
 except ImportError:
     sys.exit("Missing dependency: pip install pyyaml")
 
+from vaultwright.runtime_profile import configured_office_mirror_root, is_office_mirror_path
+
 
 DEFAULT_ROOT = Path.cwd()
 PROFILE = Path("_meta/profile.yml")
@@ -226,13 +228,21 @@ def domain_for_path(rel: str, aliases: dict[str, str]) -> str:
     return aliases.get(path.parts[0], "unclassified")
 
 
-def excluded(path: Path) -> bool:
+def excluded(path: Path, mirror_root: Path) -> bool:
     if path.as_posix() in GENERATED_CATALOGS:
+        return True
+    if path.parts[: len(mirror_root.parts)] == mirror_root.parts:
         return True
     return any(part in EXCLUDED_PARTS or part.startswith(".") for part in path.parts)
 
 
+def under_path_root(rel: Path, root: Path) -> bool:
+    return bool(root.parts) and rel.parts[: len(root.parts)] == root.parts
+
+
 def workspace_inventory(root: Path, aliases: dict[str, str], content_roots: set[str]) -> dict[str, Any]:
+    mirror_root = configured_office_mirror_root(root)
+    mirror_top = mirror_root.parts[0] if mirror_root.parts else ""
     extensions: Counter[str] = Counter()
     source_candidates: list[str] = []
     markdown_files: list[str] = []
@@ -247,15 +257,20 @@ def workspace_inventory(root: Path, aliases: dict[str, str], content_roots: set[
             continue
         rel = path.relative_to(root)
         if path.is_dir():
-            if len(rel.parts) == 1 and rel.parts[0] not in RESERVED_TOP_LEVEL and rel.parts[0] not in content_roots:
+            if (
+                len(rel.parts) == 1
+                and rel.parts[0] not in RESERVED_TOP_LEVEL
+                and rel.parts[0] not in content_roots
+                and rel.parts[0] != mirror_top
+            ):
                 legacy_folders.append({"folder": rel.as_posix()})
             continue
         if not path.is_file():
             continue
         suffix = path.suffix.lower() or "[no extension]"
-        if suffix == ".md" and rel.parts[:1] == ("_mirrors",):
+        if suffix == ".md" and under_path_root(rel, mirror_root):
             generated_mirrors += 1
-        if excluded(rel):
+        if excluded(rel, mirror_root):
             continue
         extensions[suffix] += 1
         top_level_counts[rel.parts[0] if rel.parts else "."] += 1
@@ -960,6 +975,8 @@ def safe_output_path(root: Path, value: Path, *, suffix: str) -> Path:
     if value.suffix.lower() != suffix:
         raise ValueError(f"output must be a {suffix} file")
     if any(part in {".git", ".github", ".githooks", "_meta", "_mirrors", "_tmp", "tools", "node_modules"} for part in value.parts):
+        raise ValueError("output cannot live under a reserved folder")
+    if is_office_mirror_path(root, value):
         raise ValueError("output cannot live under a reserved folder")
     return root / value
 

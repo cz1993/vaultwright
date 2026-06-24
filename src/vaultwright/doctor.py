@@ -14,6 +14,7 @@ from pathlib import Path
 
 from vaultwright import recovery as recovery_module
 from vaultwright import review_ledger as review_ledger_module
+from vaultwright.runtime_profile import configured_office_mirror_root
 
 LIFECYCLE_CONTRACT = Path("_meta/lifecycle-states.yml")
 LIFECYCLE_REQUIRED_FIELDS = {
@@ -429,10 +430,12 @@ def main(root: Path | None = None) -> int:
     for rel in REQUIRED_VAULT_FILES:
         if not (root / rel).exists():
             errors.append(f"Missing required vault file: {rel}")
-    if (root / "_mirrors").exists():
-        info.append("Office mirror root: _mirrors")
+    mirror_root = configured_office_mirror_root(root)
+    mirror_root_text = mirror_root.as_posix()
+    if (root / mirror_root).exists():
+        info.append(f"Office mirror root: {mirror_root_text}")
     else:
-        info.append("Office mirror root: _mirrors (will be created on first sync)")
+        info.append(f"Office mirror root: {mirror_root_text} (will be created on first sync)")
     for script in REQUIRED_TOOL_FILES:
         if not (root / "tools" / script).exists():
             errors.append(f"Missing tool: tools/{script}")

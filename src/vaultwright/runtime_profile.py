@@ -10,6 +10,7 @@ import yaml
 
 PROFILE_REL = Path("_meta/profile.yml")
 REPO_CONFIG_REL = Path("tools/repos.yml")
+MIRROR_CONFIG_REL = Path("_meta/mirror-config.yml")
 LEGACY_REPO_NOTES_DIR = "80_sources/repos"
 LEGACY_CONTEXT_KEYS = {"account", "client", "program", "vendor"}
 LEGACY_INACTIVE_STATUSES = {"archived", "superseded"}
@@ -18,6 +19,19 @@ LEGACY_MIRROR_MODE = "dedicated"
 LEGACY_MIRROR_ROOT = "_mirrors"
 LEGACY_MIRROR_STATUS = "active"
 LEGACY_REPO_STUB_STATUS = "draft"
+FORBIDDEN_MIRROR_ROOT_PARTS = {
+    ".git",
+    ".githooks",
+    ".github",
+    ".obsidian",
+    "_archive",
+    "_fixtures",
+    "_meta",
+    "_templates",
+    "_tmp",
+    "node_modules",
+    "tools",
+}
 NON_CONTEXT_PROPERTIES = {
     "title",
     "type",
@@ -39,6 +53,15 @@ def _safe_relative_path(value: object) -> Path | None:
         return None
     path = Path(text)
     if path.is_absolute() or ".." in path.parts or not path.parts:
+        return None
+    return path
+
+
+def _safe_mirror_root_path(value: object) -> Path | None:
+    path = _safe_relative_path(value)
+    if path is None:
+        return None
+    if any(part.startswith(".") or part in FORBIDDEN_MIRROR_ROOT_PARTS for part in path.parts):
         return None
     return path
 
@@ -187,6 +210,28 @@ def profile_mirror_root(root: Path) -> str:
     if isinstance(value, str) and value.strip():
         return value.strip()
     return LEGACY_MIRROR_ROOT
+
+
+def configured_office_mirror_root(root: Path) -> Path:
+    profile_root = _safe_mirror_root_path(profile_mirror_root(root)) or Path(LEGACY_MIRROR_ROOT)
+    path = root / MIRROR_CONFIG_REL
+    if not path.exists():
+        return profile_root
+    try:
+        data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    except (OSError, yaml.YAMLError):
+        return profile_root
+    if not isinstance(data, dict):
+        return profile_root
+    office = data.get("office_mirrors", data)
+    if not isinstance(office, dict) or "root" not in office:
+        return profile_root
+    return _safe_mirror_root_path(office.get("root")) or profile_root
+
+
+def is_office_mirror_path(root: Path, rel: Path) -> bool:
+    mirror_root = configured_office_mirror_root(root)
+    return bool(mirror_root.parts) and rel.parts[: len(mirror_root.parts)] == mirror_root.parts
 
 
 def profile_repo_notes_dir(root: Path) -> str:

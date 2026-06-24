@@ -16,7 +16,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
-from vaultwright.runtime_profile import is_repo_notes_path
+from vaultwright.runtime_profile import is_office_mirror_path, is_repo_notes_path
 
 try:
     import yaml
@@ -128,7 +128,7 @@ def classify_artifact(root: Path, rel: Path, fm: dict[str, Any] | None) -> str:
         return "catalog-markdown"
     if rel.as_posix() == "CATALOG.html":
         return "catalog-html"
-    if rel.parts[:1] == ("_mirrors",):
+    if is_office_mirror_path(root, rel):
         return "generated-source-mirror"
     if is_repo_notes_path(root, rel) and rel.suffix.lower() == ".md":
         return "repo-mirror"

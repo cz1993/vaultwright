@@ -10,7 +10,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
-from vaultwright.runtime_profile import is_repo_notes_path, repo_notes_dirs
+from vaultwright.runtime_profile import configured_office_mirror_root, is_repo_notes_path, repo_notes_dirs
 
 try:
     import yaml
@@ -195,16 +195,18 @@ def workspace_inventory(root: Path) -> dict[str, Any]:
     markdown_files = 0
     html_files = 0
     extensions: Counter[str] = Counter()
+    mirror_root = configured_office_mirror_root(root)
     for path in root.rglob("*"):
         if not path.is_file() or path.is_symlink():
             continue
         rel = path.relative_to(root)
         suffix = path.suffix.lower() or "[no extension]"
-        if rel.parts[:1] == ("_mirrors",) and suffix == ".md" and managed_mirror(path, "type: source-mirror"):
+        office_mirror = bool(mirror_root.parts) and rel.parts[: len(mirror_root.parts)] == mirror_root.parts
+        if office_mirror and suffix == ".md" and managed_mirror(path, "type: source-mirror"):
             source_mirrors += 1
         if is_repo_notes_path(root, rel) and suffix == ".md" and managed_mirror(path, "type: repo-mirror"):
             repo_mirrors += 1
-        if any(part in EXCLUDED_PARTS for part in rel.parts):
+        if office_mirror or any(part in EXCLUDED_PARTS for part in rel.parts):
             continue
         extensions[suffix] += 1
         if suffix in SOURCE_EXTS:
@@ -286,7 +288,8 @@ def build_report(root: Path) -> tuple[dict[str, Any], list[str], list[str]]:
     if not catalogs["html"]["present"]:
         readiness.append({"level": "review", "message": "Run `vaultwright catalog --html` before handoff so reviewers have a browser gateway."})
     if inventory["source_mirrors"] == 0:
-        readiness.append({"level": "review", "message": "No generated source mirrors were detected under `_mirrors/`."})
+        mirror_root = configured_office_mirror_root(root).as_posix()
+        readiness.append({"level": "review", "message": f"No generated source mirrors were detected under `{mirror_root}/`."})
     source_review = state_review_count(source_states)
     repo_review = state_review_count(repo_states)
     if source_review:
@@ -296,6 +299,7 @@ def build_report(root: Path) -> tuple[dict[str, Any], list[str], list[str]]:
     if not readiness:
         readiness.append({"level": "ok", "message": "Core Vaultwright handoff artifacts are present; review Microsoft 365 permissions and tenant settings next."})
 
+    mirror_bundle_dir = f"{configured_office_mirror_root(root).as_posix()}/"
     repo_bundle_dirs = [f"{path}/" for path in repo_notes_dirs(root)]
     report = {
         "catalogs": catalogs,
@@ -318,7 +322,7 @@ def build_report(root: Path) -> tuple[dict[str, Any], list[str], list[str]]:
         "handoff_bundle": [
             "CATALOG.html",
             "CATALOG.md",
-            "_mirrors/",
+            mirror_bundle_dir,
             *repo_bundle_dirs,
             "_meta/source-manifest.json",
             "_meta/repo-manifest.json",

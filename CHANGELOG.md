@@ -49,6 +49,9 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 - Profiles now own Office mirror placement defaults with `policy_defaults.mirror_mode` and
   `policy_defaults.mirror_root`; Office sync and lint use those values when
   `_meta/mirror-config.yml` does not override them.
+- Catalog, Microsoft 365 handoff, sandbox, doctor, review-ledger classification, and migration
+  guidance now classify generated source mirrors from the active Office mirror root instead of
+  assuming `_mirrors/`.
 - `vaultwright benchmark` and the aggregate `vaultwright pilot` report now read profile-declared
   `benchmark_tasks` paths, while explicit `--tasks` and the legacy `_meta/agent-readiness-tasks.yml`
   path remain supported.

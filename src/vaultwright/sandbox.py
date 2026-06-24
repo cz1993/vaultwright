@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from vaultwright import recovery as recovery_module
-from vaultwright.runtime_profile import is_repo_notes_path
+from vaultwright.runtime_profile import configured_office_mirror_root, is_repo_notes_path
 
 DEFAULT_ROOT = Path.cwd()
 SOURCE_MANIFEST = Path("_meta/source-manifest.json")
@@ -152,14 +152,16 @@ def workspace_inventory(root: Path) -> dict[str, Any]:
     raw_folder_generated_mirrors = 0
     dedicated_generated_mirrors = 0
     repo_mirrors = 0
+    mirror_root = configured_office_mirror_root(root)
     for path in root.rglob("*"):
         if not path.is_file() or path.is_symlink():
             continue
         rel = path.relative_to(root)
         suffix = path.suffix.lower() or "[no extension]"
-        excluded = any(part in EXCLUDED_PARTS for part in rel.parts)
+        office_mirror = bool(mirror_root.parts) and rel.parts[: len(mirror_root.parts)] == mirror_root.parts
+        excluded = office_mirror or any(part in EXCLUDED_PARTS for part in rel.parts)
         if suffix == ".md" and managed_source_mirror(path):
-            if rel.parts[:1] == ("_mirrors",):
+            if office_mirror:
                 dedicated_generated_mirrors += 1
             elif not excluded:
                 raw_folder_generated_mirrors += 1
@@ -293,8 +295,9 @@ def build_report(root: Path, source_root: Path | None = None) -> tuple[dict[str,
     recovery, recovery_warnings, recovery_errors = recovery_summary(root)
     inventory = workspace_inventory(root)
     if inventory["raw_folder_generated_mirrors"]:
+        mirror_root = configured_office_mirror_root(root).as_posix()
         warnings.append(
-            "raw source folders contain generated source mirrors; use dedicated _mirrors/ output before pilot review."
+            f"raw source folders contain generated source mirrors; use dedicated {mirror_root}/ output before pilot review."
         )
     if recovery.get("items", 0):
         warnings.append("recovery has operator-action items; run `vaultwright recovery` before relying on mirrors.")
