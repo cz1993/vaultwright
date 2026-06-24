@@ -615,9 +615,10 @@ files, and lint now treats a missing `_meta/domain-map.yml` as a non-blocking le
 when the active profile provides canonical domains and loads `_meta/profile.yml` through the
 package profile validator before applying profile-derived lint settings. Shared runtime profile
 helpers now expose profile-derived sync/report defaults only from a validated profile contract,
-lint, GitHub repo sync, and annotation migration use those shared helpers instead of duplicate
-local parsers/defaults, and catalog/migration domain routing now validates the whole profile
-contract before using profile-declared canonical folders.
+lint repo-mirror path checks use the shared configured/profile repo-notes directory helper, lint,
+GitHub repo sync, and annotation migration use shared context helpers instead of duplicate local
+parsers/defaults, and catalog/migration domain routing now validates the whole profile contract
+before using profile-declared canonical folders.
 Generic doctor, sandbox, pilot, benchmark, and conversion report copy now uses workspace,
 protected-identifier, private-evidence, and source-backed language instead of client-specific
 wording on profile-neutral workflows.

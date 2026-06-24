@@ -60,8 +60,10 @@ helpers no longer infer business context aliases from the profile ID when
 `policy_defaults.context_aliases` is absent. Generic doctor, sandbox, pilot, benchmark, and
 conversion report copy now uses workspace, protected-identifier, private-evidence, and
 source-backed language instead of client-specific wording on profile-neutral workflows.
-Annotation migration now uses the shared runtime context helper path for repo context keys and
-aliases, preserving profile-less legacy fallback without duplicating those defaults locally.
+Lint repo-mirror path checks now use the shared runtime repo-notes directory helper for configured
+`tools/repos.yml` notes directories and profile defaults. Annotation migration now uses the shared
+runtime context helper path for repo context keys and aliases, preserving profile-less legacy
+fallback without duplicating those defaults locally.
 
 ## Conditional V1 Explorer Finish Line
 

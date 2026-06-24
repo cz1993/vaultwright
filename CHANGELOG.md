@@ -110,6 +110,9 @@ All notable changes to Vaultwright are documented here. Format loosely follows
   profile contracts block lint before unsafe profile data can drive checks.
 - `vaultwright lint` now reuses the shared runtime profile context helpers directly for context
   fields and aliases, preserving profile-less legacy fallback without local duplicate defaults.
+- `vaultwright lint` now reuses the shared runtime repo-notes directory helpers for repo-mirror
+  path checks, so configured `tools/repos.yml` notes directories and profile defaults share one
+  fallback path.
 - Shared runtime profile helpers now load `_meta/profile.yml` through the package profile
   validator before exposing domains, status roles, mirror defaults, repo context fields, or repo
   mirror folders to sync/report code; invalid contracts fall back to legacy defaults instead of

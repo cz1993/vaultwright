@@ -19,12 +19,14 @@ except ImportError:
 
 from vaultwright.profiles import ProfileValidationError, load_profile
 from vaultwright.runtime_profile import (
+    profile_repo_notes_dir as runtime_profile_repo_notes_dir,
     profile_content_roots,
     profile_context_aliases,
     profile_context_keys,
     profile_generated_mirror_statuses,
     profile_mirror_mode,
     profile_mirror_root,
+    repo_notes_dirs as runtime_repo_notes_dirs,
 )
 
 ROOT = Path.cwd().resolve()
@@ -47,8 +49,6 @@ REPO_MANIFEST_REL = "_meta/repo-manifest.json"
 PROFILE_REL = "_meta/profile.yml"
 LINT_CONFIG_REL = "_meta/lint-config.yml"
 REPO_CONFIG_REL = "tools/repos.yml"
-DEFAULT_REPO_NOTES_DIR = "80_sources/repos"
-PROFILE_POLICY_DEFAULTS: dict[str, object] = {}
 PROFILE_DOMAIN_FOLDERS: dict[str, str] = {}
 SENTINEL = "%% AUTO-GENERATED BELOW — DO NOT EDIT %%"
 ANNOTATION_ROOT = Path("_meta/mirror-annotations")
@@ -289,13 +289,7 @@ def repo_note_path(notes_dir: str, note: str) -> Path:
     return output_path
 
 def default_repo_notes_dir() -> str:
-    configured = PROFILE_POLICY_DEFAULTS.get("repo_notes_dir")
-    if isinstance(configured, str) and configured.strip():
-        return configured.strip()
-    source_folder = PROFILE_DOMAIN_FOLDERS.get("sources")
-    if source_folder:
-        return f"{source_folder}/repos"
-    return DEFAULT_REPO_NOTES_DIR
+    return runtime_profile_repo_notes_dir(ROOT)
 
 def normalize_context_alias_values(values: dict[str, str], aliases: dict[str, str]) -> dict[str, str]:
     out = dict(values)
@@ -503,7 +497,7 @@ def local_tree_sha(repodir: Path) -> str:
     return "local-" + h.hexdigest()[:40]
 
 def main(root: Path | None = None) -> int:
-    global ROOT, CONTENT_ROOTS, PROFILE_DOMAIN_FOLDERS, PROFILE_POLICY_DEFAULTS, PROFILE_CONTEXT_KEYS, PROFILE_CONTEXT_ALIASES, INACTIVE_STATUSES, GENERATED_MIRROR_STATUSES
+    global ROOT, CONTENT_ROOTS, PROFILE_DOMAIN_FOLDERS, PROFILE_CONTEXT_KEYS, PROFILE_CONTEXT_ALIASES, INACTIVE_STATUSES, GENERATED_MIRROR_STATUSES
     ROOT = (root or Path.cwd()).resolve()
     # inventory
     all_files = sorted(
@@ -566,7 +560,6 @@ def main(root: Path | None = None) -> int:
         str(domain): str(folder)
         for domain, folder in dict(PROFILE_SETTINGS["domain_folders"]).items()
     }
-    PROFILE_POLICY_DEFAULTS = dict(PROFILE_SETTINGS["policy_defaults"])
     PROFILE_CONTEXT_KEYS = profile_context_keys(ROOT)
     PROFILE_CONTEXT_ALIASES = profile_context_aliases(ROOT)
     GENERATED_MIRROR_STATUSES = profile_generated_mirror_statuses(ROOT)
@@ -617,18 +610,18 @@ def main(root: Path | None = None) -> int:
     def is_repo_mirror_path(rel: Path) -> bool:
         if (ROOT / rel) in CONFIGURED_REPO_NOTE_PATHS:
             return True
-        try:
-            default_root = repo_note_path(default_repo_notes_dir(), "__vaultwright_repo_probe__.md").parent
-        except ValueError:
-            return False
-        try:
-            rel_default_root = default_root.relative_to(ROOT)
-        except ValueError:
-            return False
-        return (
-            len(rel.parts) > len(rel_default_root.parts)
-            and rel.parts[:len(rel_default_root.parts)] == rel_default_root.parts
-        )
+        for notes_dir in runtime_repo_notes_dirs(ROOT):
+            try:
+                repo_root = repo_note_path(notes_dir, "__vaultwright_repo_probe__.md").parent
+                rel_repo_root = repo_root.relative_to(ROOT)
+            except ValueError:
+                continue
+            if (
+                len(rel.parts) > len(rel_repo_root.parts)
+                and rel.parts[:len(rel_repo_root.parts)] == rel_repo_root.parts
+            ):
+                return True
+        return False
 
     def source_mirror_paths(source_rel: str) -> list[Path]:
         if not source_rel:

@@ -1432,6 +1432,48 @@ def test_template_linter_uses_profile_default_repo_notes_dir(tmp_path: Path) -> 
     assert "25_research/repos/fixture.md  (configured repo mirror missing or unmanaged)" in result.stdout
 
 
+def test_template_linter_uses_configured_repo_notes_dir_for_layout_checks(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    (vault / "tools" / "repos.yml").write_text(
+        "settings:\n"
+        "  notes_dir: 80_sources/custom-repos\n"
+        "repos: []\n",
+        encoding="utf-8",
+    )
+    note = vault / "80_sources" / "custom-repos" / "fixture.md"
+    note.parent.mkdir(parents=True, exist_ok=True)
+    note.write_text(
+        "---\n"
+        "title: Fixture Repo\n"
+        "type: repo-mirror\n"
+        "status: active\n"
+        "domain: sources\n"
+        "repo: local/fixture\n"
+        "created: 2026-01-01\n"
+        "updated: 2026-01-01\n"
+        "---\n"
+        "# Fixture Repo\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "lint_vault.py")],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 1
+    assert "Repo config errors: 0" in result.stdout
+    assert "Mirror layout errors: 1" in result.stdout
+    assert "repo-mirror requires generated sentinel and manifest metadata" in result.stdout
+    assert (
+        "repo-mirror notes belong under configured tools/repos.yml notes_dir or profile policy_defaults.repo_notes_dir"
+        not in result.stdout
+    )
+
+
 def test_template_linter_accepts_configured_repo_with_generated_mirror(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     shutil.copytree(ROOT / "template", vault)
