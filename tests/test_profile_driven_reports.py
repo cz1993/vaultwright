@@ -1302,6 +1302,7 @@ def test_package_cli_reports_use_configured_office_mirror_root(tmp_path: Path) -
     set_office_mirror_root(vault)
     source = vault / "40_delivery" / "brief.docx"
     mirror = vault / "_generated" / "40_delivery" / "brief.md"
+    generated_probe = vault / "_generated" / "40_delivery" / "generated-output.docx"
     source.write_bytes(b"synthetic source bytes")
     mirror.parent.mkdir(parents=True)
     mirror.write_text(
@@ -1313,6 +1314,7 @@ def test_package_cli_reports_use_configured_office_mirror_root(tmp_path: Path) -
         "Synthetic generated mirror body.\n",
         encoding="utf-8",
     )
+    generated_probe.write_bytes(b"synthetic generated-root bytes")
     (vault / "CATALOG.md").write_text("# Documentation Catalog\n", encoding="utf-8")
     (vault / "CATALOG.html").write_text("<!doctype html><title>Documentation Catalog</title>\n", encoding="utf-8")
     (vault / "_meta" / "source-manifest.json").write_text(
@@ -1381,6 +1383,13 @@ def test_package_cli_reports_use_configured_office_mirror_root(tmp_path: Path) -
         text=True,
         capture_output=True,
     )
+    pilot = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "pilot", "--json"],
+        cwd=ROOT,
+        env=package_cli_env(),
+        text=True,
+        capture_output=True,
+    )
     review_target = vault / "_generated" / "review-target.md"
     review_target.write_text("# Review Target\n\nSynthetic generated metadata fixture.\n", encoding="utf-8")
     review = subprocess.run(
@@ -1423,6 +1432,11 @@ def test_package_cli_reports_use_configured_office_mirror_root(tmp_path: Path) -
 
     assert doctor.returncode == 0, doctor.stderr or doctor.stdout
     assert "info: Office mirror root: _generated" in doctor.stdout
+
+    assert pilot.returncode == 0, pilot.stderr or pilot.stdout
+    pilot_report = json.loads(pilot.stdout)["report"]
+    assert pilot_report["inventory"]["office_source_candidates"] == 1
+    assert pilot_report["inventory"]["extensions"].get(".docx") == 1
 
     assert review.returncode == 0, review.stderr or review.stdout
     review_event = json.loads(review.stdout)["recorded"]

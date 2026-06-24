@@ -15,6 +15,7 @@ from vaultwright import conversion as conversion_module
 from vaultwright import overlap as overlap_module
 from vaultwright import recovery as recovery_module
 from vaultwright import review_ledger as review_ledger_module
+from vaultwright.runtime_profile import configured_office_mirror_root
 
 DEFAULT_ROOT = Path.cwd()
 SOURCE_MANIFEST = Path("_meta/source-manifest.json")
@@ -37,6 +38,10 @@ EXCLUDED_PARTS = {
     "tools",
 }
 OFFICE_SOURCE_EXTS = {".doc", ".docx", ".pdf", ".pptx", ".xlsx"}
+
+
+def under_path_root(rel: Path, root: Path) -> bool:
+    return bool(root.parts) and rel.parts[: len(root.parts)] == root.parts
 
 
 def load_json_records(root: Path, rel: Path) -> tuple[list[dict], list[str], list[str]]:
@@ -95,10 +100,13 @@ def workspace_inventory(root: Path) -> dict[str, Any]:
     bytes_total = 0
     extensions: Counter[str] = Counter()
     office_candidates = 0
+    mirror_root = configured_office_mirror_root(root)
     for path in root.rglob("*"):
         if not path.is_file() or path.is_symlink():
             continue
         rel = path.relative_to(root)
+        if under_path_root(rel, mirror_root):
+            continue
         if any(part in EXCLUDED_PARTS for part in rel.parts):
             continue
         files += 1

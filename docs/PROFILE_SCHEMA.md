@@ -185,7 +185,9 @@ artifact bodies.
 `benchmark_tasks`, while an explicit `--tasks` argument still takes precedence and the legacy
 `_meta/agent-readiness-tasks.yml` path remains a compatibility fallback. Benchmark task-pack
 validation, result citation validation, and `benchmark --init-tasks` scaffolding also resolve
-generated source-mirror evidence against the active Office mirror root. GitHub repo mirror sync and
+generated source-mirror evidence against the active Office mirror root. The aggregate pilot
+workspace inventory also excludes the active Office mirror root from operator-content and source
+candidate counts. GitHub repo mirror sync and
 lint read
 `policy_defaults.repo_notes_dir` for the default repository-mirror folder, derive repo-mirror
 frontmatter domains from the profile's domain/folder mapping, and normalize repo context aliases

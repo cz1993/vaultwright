@@ -78,6 +78,8 @@ All notable changes to Vaultwright are documented here. Format loosely follows
   assuming `_mirrors/`.
 - Benchmark task-pack validation, result citation validation, and `benchmark --init-tasks`
   scaffolding now use the active Office mirror root for generated mirror evidence paths.
+- `vaultwright pilot` now excludes the active Office mirror root from workspace inventory, so
+  custom generated roots are not counted as operator content or source candidates.
 - `vaultwright benchmark` and the aggregate `vaultwright pilot` report now read profile-declared
   `benchmark_tasks` paths, while explicit `--tasks` and the legacy `_meta/agent-readiness-tasks.yml`
   path remain supported.
