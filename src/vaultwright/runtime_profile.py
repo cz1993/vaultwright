@@ -18,6 +18,17 @@ LEGACY_CONTEXT_KEYS = {"account", "client", "program", "vendor"}
 LEGACY_CONTEXT_ALIASES = {"client": "account"}
 LEGACY_INACTIVE_STATUSES = {"archived", "superseded"}
 LEGACY_MACHINE_OWNED_NOTE_TYPES = {"source-mirror", "repo-mirror"}
+LEGACY_CONTENT_ROOTS = {
+    "00_inbox",
+    "10_governance",
+    "20_market",
+    "30_customers",
+    "40_delivery",
+    "50_operations",
+    "60_finance",
+    "70_people",
+    "80_sources",
+}
 LEGACY_MIRROR_MODE = "dedicated"
 LEGACY_MIRROR_ROOT = "_mirrors"
 LEGACY_MIRROR_STATUS = "active"
@@ -91,6 +102,11 @@ def profile_domain_folders(root: Path) -> dict[str, str]:
         if folder:
             out[str(domain)] = folder.as_posix()
     return out
+
+
+def profile_content_roots(root: Path) -> set[str]:
+    folders = set(profile_domain_folders(root).values())
+    return folders or set(LEGACY_CONTENT_ROOTS)
 
 
 def profile_policy_defaults(root: Path) -> dict[str, Any]:

@@ -19,6 +19,7 @@ except ImportError:
 
 from vaultwright.profiles import ProfileValidationError, load_profile
 from vaultwright.runtime_profile import (
+    profile_content_roots,
     profile_context_aliases as runtime_profile_context_aliases,
     profile_context_keys as runtime_profile_context_keys,
     profile_generated_mirror_statuses,
@@ -52,10 +53,6 @@ PROFILE_DOMAIN_FOLDERS: dict[str, str] = {}
 SENTINEL = "%% AUTO-GENERATED BELOW — DO NOT EDIT %%"
 ANNOTATION_ROOT = Path("_meta/mirror-annotations")
 MIRROR_MODES = {"dedicated", "sibling"}
-DEFAULT_CONTENT_ROOTS = {
-    "00_inbox", "10_governance", "20_market", "30_customers", "40_delivery",
-    "50_operations", "60_finance", "70_people", "80_sources",
-}
 FORBIDDEN_OUTPUT_PARTS = {
     ".git", ".githooks", ".github", ".obsidian", "_archive", "_fixtures",
     "_meta", "_templates", "_tmp", "node_modules", "tools",
@@ -91,7 +88,7 @@ def default_profile_settings() -> dict[str, object]:
         "types": set(DEFAULT_TYPES),
         "statuses": set(DEFAULT_STATUSES),
         "inactive_statuses": list(DEFAULT_INACTIVE_STATUSES),
-        "content_roots": set(DEFAULT_CONTENT_ROOTS),
+        "content_roots": profile_content_roots(ROOT),
         "domain_folders": {},
         "policy_defaults": {},
     }

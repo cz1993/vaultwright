@@ -38,6 +38,7 @@ except ImportError:
 
 from vaultwright.runtime_profile import (
     profile_context_aliases as runtime_profile_context_aliases,
+    profile_content_roots as runtime_profile_content_roots,
     profile_context_keys as runtime_profile_context_keys,
     profile_domain_folders as runtime_profile_domain_folders,
     profile_generated_mirror_statuses,
@@ -73,10 +74,6 @@ MANAGED_KEY_ORDER = [
 ]
 KEY_ORDER = [*BASE_KEY_ORDER, *LEGACY_CONTEXT_KEY_ORDER, *MANAGED_KEY_ORDER]
 GIT_ENV = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
-CONTENT_ROOTS = {
-    "00_inbox", "10_governance", "20_market", "30_customers", "40_delivery",
-    "50_operations", "60_finance", "70_people", "80_sources",
-}
 FORBIDDEN_OUTPUT_PARTS = {
     ".git", ".githooks", ".github", ".obsidian", "_archive", "_fixtures",
     "_meta", "_templates", "_tmp", "node_modules", "tools",
@@ -294,8 +291,7 @@ def profile_domain_folders(root: Path | None = None) -> dict[str, str]:
 
 
 def active_content_roots(root: Path | None = None) -> set[str]:
-    folders = set(profile_domain_folders(root).values())
-    return folders or set(CONTENT_ROOTS)
+    return set(runtime_profile_content_roots(root or ROOT))
 
 
 def active_profile_context_keys(root: Path | None = None) -> set[str]:

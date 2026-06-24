@@ -42,8 +42,10 @@ missing `_meta/domain-map.yml` is a non-blocking legacy-alias warning; malformed
 domain-map content and profile-less legacy vaults still fail. Lint now loads `_meta/profile.yml`
 through the package profile validator before deriving domains, note types, statuses, policy
 defaults, and content roots. Shared runtime profile helpers now expose profile-derived sync/report
-settings only from a validated profile contract, and GitHub repo sync reuses those helpers instead
-of maintaining a separate profile parser. Catalog and migration reporting also load profile domain
+settings and active content roots only from a validated profile contract, and GitHub repo sync
+reuses those helpers instead of maintaining a separate profile parser. Lint, catalog, overlap
+calibration, and repo mirror output validation now share the same profile-owned content-root
+fallback. Catalog and migration reporting also load profile domain
 routing through the package validator before treating profile-declared folders as canonical, and
 benchmark/pilot task discovery validates the active profile before using profile-declared
 `benchmark_tasks`. Office source-mirror and GitHub repo-mirror frontmatter ordering now read the

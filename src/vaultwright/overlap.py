@@ -17,7 +17,7 @@ except ImportError:
     sys.exit("pip install pyyaml")
 
 from vaultwright.runtime_profile import (
-    profile_domain_folders,
+    profile_content_roots,
     profile_frontmatter_link_keys,
     profile_inactive_statuses,
     profile_machine_owned_note_types,
@@ -26,17 +26,6 @@ from vaultwright.runtime_profile import (
 
 DEFAULT_ROOT = Path.cwd()
 LINT_CONFIG_REL = "_meta/lint-config.yml"
-CONTENT_ROOTS = {
-    "00_inbox",
-    "10_governance",
-    "20_market",
-    "30_customers",
-    "40_delivery",
-    "50_operations",
-    "60_finance",
-    "70_people",
-    "80_sources",
-}
 EXCLUDE_PREFIX = ("_archive", "_backup", "_deprecated")
 EXCLUDE_EXACT = {"_fixtures", "_meta", "_templates", "_tmp", "tools", "node_modules"}
 WORD_RE = re.compile(r"[a-z0-9][a-z0-9-]{2,}")
@@ -107,8 +96,7 @@ def markdown_files(root: Path) -> list[Path]:
 
 
 def active_content_roots(root: Path) -> set[str]:
-    folders = set(profile_domain_folders(root).values())
-    return folders or set(CONTENT_ROOTS)
+    return set(profile_content_roots(root))
 
 
 def split_fm(text: str) -> tuple[dict[str, Any], str]:

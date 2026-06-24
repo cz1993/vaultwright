@@ -14,6 +14,8 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 - Added package-owned v1 profile contracts for `research-learning`, `software-project`, and
   `blank`; `vaultwright profile list/show` now exposes all four official profile contracts while
   `init` and profile migration remain limited to scaffolded `business-operations`.
+- Added a shared runtime profile helper for active content roots so lint, catalog, overlap
+  calibration, and repo mirror output validation use the same profile-owned folder fallback.
 - The installable `vaultwright` CLI now supports `init --profile business-operations`,
   `profile list`, `profile show`, and `profile validate` against the package-owned profile
   contract.

@@ -22,6 +22,7 @@ from vaultwright.profiles import ProfileValidationError, load_profile
 from vaultwright.runtime_profile import (
     configured_office_mirror_root,
     is_office_mirror_path,
+    profile_content_roots,
     profile_machine_owned_note_types,
 )
 
@@ -35,17 +36,6 @@ REPO_CONFIG = Path("tools/repos.yml")
 DEFAULT_OUTPUT = Path("CATALOG.md")
 DEFAULT_HTML_OUTPUT = Path("CATALOG.html")
 SOURCE_EXTS = {".docx", ".pptx", ".xlsx", ".doc", ".pdf"}
-DEFAULT_CONTENT_ROOTS = {
-    "00_inbox",
-    "10_governance",
-    "20_market",
-    "30_customers",
-    "40_delivery",
-    "50_operations",
-    "60_finance",
-    "70_people",
-    "80_sources",
-}
 RESERVED_TOP_LEVEL = {
     ".git",
     ".githooks",
@@ -133,12 +123,12 @@ def repo_id_for(repo: str, note: str) -> str:
 def load_profile_domains(root: Path) -> tuple[list[dict[str, str]], dict[str, str], set[str], list[str], list[str]]:
     path = root / PROFILE
     if not path.exists():
-        return [], {}, set(DEFAULT_CONTENT_ROOTS), [], [f"{PROFILE.as_posix()}: missing"]
+        return [], {}, profile_content_roots(root), [], [f"{PROFILE.as_posix()}: missing"]
     try:
         profile = load_profile(path)
     except ProfileValidationError as exc:
         message = str(exc).replace(str(path), PROFILE.as_posix())
-        return [], {}, set(DEFAULT_CONTENT_ROOTS), [], [
+        return [], {}, profile_content_roots(root), [], [
             f"{PROFILE.as_posix()}: invalid profile contract ({message})"
         ]
 
@@ -160,7 +150,7 @@ def load_profile_domains(root: Path) -> tuple[list[dict[str, str]], dict[str, st
     items.sort(key=lambda item: item["folder"])
     if not items:
         errors.append(f"{PROFILE.as_posix()}: no valid domains")
-        content_roots = set(DEFAULT_CONTENT_ROOTS)
+        content_roots = profile_content_roots(root)
     return items, aliases, content_roots, [], errors
 
 

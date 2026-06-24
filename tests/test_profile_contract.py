@@ -14,6 +14,7 @@ from vaultwright.profiles import ProfileContract, ProfileValidationError, load_p
 from vaultwright.runtime_profile import (
     configured_office_mirror_root,
     profile_context_aliases,
+    profile_content_roots,
     profile_domain_folders,
     profile_mirror_status,
     profile_repo_notes_dir,
@@ -117,6 +118,31 @@ def test_runtime_profile_helpers_ignore_invalid_profile_contract(tmp_path: Path)
     assert profile_repo_notes_dir(vault) == "80_sources/repos"
     assert profile_mirror_status(vault) == "active"
     assert configured_office_mirror_root(vault) == Path("_mirrors")
+
+
+def test_runtime_profile_content_roots_fall_back_for_invalid_profile_contract(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    write_profile_with_invalid_runtime_defaults(vault)
+
+    assert "25_research" not in profile_content_roots(vault)
+    assert "30_customers" in profile_content_roots(vault)
+
+
+def test_runtime_profile_content_roots_are_contract_owned(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    profile_path = vault / "_meta" / "profile.yml"
+    profile = yaml.safe_load(profile_path.read_text(encoding="utf-8"))
+    profile["domains"]["research"] = {
+        "folder": "25_research",
+        "purpose": "Profile-defined research material.",
+    }
+    profile["folder_plan"].append({"path": "25_research", "domain": "research"})
+    profile_path.write_text(yaml.safe_dump(profile, sort_keys=False), encoding="utf-8")
+
+    assert "25_research" in profile_content_roots(vault)
+    assert "30_customers" in profile_content_roots(vault)
 
 
 def test_runtime_profile_context_aliases_are_contract_owned(tmp_path: Path) -> None:
