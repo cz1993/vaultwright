@@ -16,7 +16,11 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
-from vaultwright.runtime_profile import is_office_mirror_path, is_repo_notes_path
+from vaultwright.runtime_profile import (
+    is_office_mirror_path,
+    is_repo_notes_path,
+    profile_machine_owned_note_types,
+)
 
 try:
     import yaml
@@ -123,6 +127,8 @@ def metadata_from_frontmatter(fm: dict[str, Any] | None) -> dict[str, str]:
 def classify_artifact(root: Path, rel: Path, fm: dict[str, Any] | None) -> str:
     type_value = str((fm or {}).get("type", "") or "")
     if type_value in {"source-mirror", "repo-mirror"}:
+        return type_value
+    if rel.suffix.lower() == ".md" and type_value in profile_machine_owned_note_types(root):
         return type_value
     if rel.as_posix() == "CATALOG.md":
         return "catalog-markdown"

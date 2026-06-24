@@ -1033,6 +1033,62 @@ def test_package_cli_reports_use_profile_repo_notes_dir(tmp_path: Path) -> None:
     assert review_event["artifact_path"] == "25_research/repos/untyped-review-target.md"
 
 
+def test_package_cli_review_accepts_profile_machine_owned_note_type(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    add_research_repo_profile(vault)
+    profile_path = vault / "_meta" / "profile.yml"
+    profile = yaml.safe_load(profile_path.read_text(encoding="utf-8"))
+    profile["note_types"]["research-synthesis"] = {
+        "purpose": "Generated research synthesis artifact.",
+        "machine_owned": True,
+    }
+    profile_path.write_text(yaml.safe_dump(profile, sort_keys=False), encoding="utf-8")
+    target = vault / "25_research" / "generated-synthesis.md"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(
+        "---\n"
+        "title: Generated Synthesis\n"
+        "type: research-synthesis\n"
+        "status: active\n"
+        "domain: research\n"
+        "---\n"
+        "Generated research synthesis body that must not be copied into the ledger.\n",
+        encoding="utf-8",
+    )
+
+    review = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "vaultwright.cli",
+            "--root",
+            str(vault),
+            "review",
+            "--artifact",
+            "25_research/generated-synthesis.md",
+            "--status",
+            "approved",
+            "--reviewer",
+            "CodeX",
+            "--json",
+        ],
+        cwd=ROOT,
+        env=package_cli_env(),
+        text=True,
+        capture_output=True,
+    )
+
+    assert review.returncode == 0, review.stderr or review.stdout
+    event = json.loads(review.stdout)["recorded"]
+    assert event["artifact_kind"] == "research-synthesis"
+    assert event["artifact_path"] == "25_research/generated-synthesis.md"
+    assert event["metadata"]["type"] == "research-synthesis"
+    assert "Generated research synthesis body" not in json.dumps(event)
+    ledger_text = (vault / "_meta" / "review-ledger.jsonl").read_text(encoding="utf-8")
+    assert "Generated research synthesis body" not in ledger_text
+
+
 def test_package_cli_reports_use_configured_office_mirror_root(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     source_root = tmp_path / "source-root"

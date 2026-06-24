@@ -175,6 +175,9 @@ domain folders. Overlap calibration also reads `related` plus the active profile
 frontmatter fields when counting inbound wikilinks for candidate ranking, and it excludes notes in
 profile-defined inactive statuses and machine-owned note types. Lint also reads allowed note types,
 statuses, required properties, and inactive status roles.
+The review ledger accepts profile-defined machine-owned Markdown note types as generated artifacts
+eligible for metadata-only review decisions; it records hashes and frontmatter metadata, not
+artifact bodies.
 `vaultwright benchmark` and the aggregate `vaultwright pilot` evidence report read profile-declared
 `benchmark_tasks`, while an explicit `--tasks` argument still takes precedence and the legacy
 `_meta/agent-readiness-tasks.yml` path remains a compatibility fallback. Benchmark task-pack
@@ -191,6 +194,8 @@ folders, while
 lint, catalog, Microsoft 365 handoff, sandbox preflight, doctor, migration guidance, and
 review-ledger classification read `policy_defaults.mirror_mode` and `policy_defaults.mirror_root`
 as generated-output defaults while honoring `_meta/mirror-config.yml` as an operator override.
+Review-ledger classification also reads profile-defined `machine_owned` note type roles when
+deciding whether a Markdown artifact is generated and reviewable.
 Source/repo mirror sync and annotation migration read `policy_defaults.mirror_status` and
 `policy_defaults.repo_stub_status` when generating mirrors and deciding which mirror statuses are
 machine metadata rather than human annotations. Repo mirror context frontmatter also comes from the
