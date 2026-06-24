@@ -76,6 +76,10 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 - Catalog, Microsoft 365 handoff, sandbox, doctor, review-ledger classification, and migration
   guidance now classify generated source mirrors from the active Office mirror root instead of
   assuming `_mirrors/`.
+- `vaultwright migration --worksheet`, `--runbook`, and frontmatter-normalization worksheets now
+  print the active profile identity plus canonical domain folders, and direct unknown folder/domain
+  decisions back to `_meta/profile.yml` while keeping `_meta/domain-map.yml` as the legacy alias
+  layer.
 - Benchmark task-pack validation, result citation validation, and `benchmark --init-tasks`
   scaffolding now use the active Office mirror root for generated mirror evidence paths.
 - `vaultwright pilot` now excludes the active Office mirror root from workspace inventory, so

@@ -52,6 +52,63 @@ def add_research_context_profile(vault: Path) -> None:
     profile_path.write_text(yaml.safe_dump(profile, sort_keys=False), encoding="utf-8")
 
 
+def write_minimal_research_learning_profile(vault: Path) -> None:
+    (vault / "_meta").mkdir(parents=True, exist_ok=True)
+    profile = {
+        "schema_version": 1,
+        "id": "research-learning",
+        "name": "Research and Learning",
+        "profile_version": "1.0.0",
+        "description": "Minimal test profile for profile-aware migration guidance.",
+        "domains": {
+            "research": {
+                "folder": "25_research",
+                "purpose": "Research notes and synthesized source evidence.",
+            }
+        },
+        "note_types": {
+            "note": {"purpose": "Curated human note."},
+            "source-mirror": {
+                "purpose": "Generated source mirror.",
+                "machine_owned": True,
+            },
+        },
+        "statuses": {
+            "draft": {"purpose": "Draft material."},
+            "current": {"purpose": "Current material."},
+            "retired": {"purpose": "Retired material.", "inactive": True},
+        },
+        "required_properties": ["title", "type", "status", "domain", "created", "updated"],
+        "optional_properties": ["related", "research_project"],
+        "folder_plan": [{"path": "25_research", "domain": "research"}],
+        "templates": [],
+        "views": [],
+        "skills": [],
+        "benchmark_tasks": [],
+        "policy_defaults": {
+            "mirror_mode": "dedicated",
+            "mirror_root": "_mirrors",
+            "mirror_status": "current",
+            "repo_stub_status": "draft",
+            "original_sources_authoritative": True,
+            "real_data_in_repo": False,
+        },
+    }
+    (vault / "_meta" / "profile.yml").write_text(yaml.safe_dump(profile, sort_keys=False), encoding="utf-8")
+    domain_map = {
+        "domains": {
+            "research": {
+                "folder": "25_research",
+                "aliases": ["papers", "literature"],
+            }
+        }
+    }
+    (vault / "_meta" / "domain-map.yml").write_text(
+        yaml.safe_dump(domain_map, sort_keys=False),
+        encoding="utf-8",
+    )
+
+
 def set_profile_mirror_status_defaults(vault: Path, *, mirror_status: str = "current", repo_stub_status: str = "queued") -> None:
     profile_path = vault / "_meta" / "profile.yml"
     profile = yaml.safe_load(profile_path.read_text(encoding="utf-8"))
@@ -476,6 +533,91 @@ def test_migration_blocks_domain_map_folder_drift_from_profile(tmp_path: Path) -
     assert result.returncode == 1
     payload = json.loads(result.stdout)
     assert payload["errors"] == ["_meta/domain-map.yml:market: folder differs from _meta/profile.yml"]
+
+
+def test_package_cli_migration_guidance_uses_active_profile_vocabulary(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    write_minimal_research_learning_profile(vault)
+    papers = vault / "papers"
+    field_notes = vault / "field_notes"
+    papers.mkdir()
+    field_notes.mkdir()
+    (papers / "legacy-literature.md").write_text(
+        "---\n"
+        "title: Legacy Literature Note\n"
+        "type: note\n"
+        "status: current\n"
+        "domain: literature\n"
+        "created: 2026-06-24\n"
+        "updated: 2026-06-24\n"
+        "---\n"
+        "# Legacy Literature Note\n",
+        encoding="utf-8",
+    )
+    (field_notes / "unknown-domain.md").write_text(
+        "---\n"
+        "title: Unknown Domain Note\n"
+        "type: note\n"
+        "status: current\n"
+        "domain: lab\n"
+        "created: 2026-06-24\n"
+        "updated: 2026-06-24\n"
+        "---\n"
+        "# Unknown Domain Note\n",
+        encoding="utf-8",
+    )
+
+    runbook = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "migration", "--runbook"],
+        cwd=ROOT,
+        env=package_cli_env(),
+        text=True,
+        capture_output=True,
+    )
+    worksheet = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "migration", "--worksheet"],
+        cwd=ROOT,
+        env=package_cli_env(),
+        text=True,
+        capture_output=True,
+    )
+    normalize_worksheet = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "vaultwright.cli",
+            "--root",
+            str(vault),
+            "migration",
+            "--normalize-frontmatter-domains",
+            "--worksheet",
+        ],
+        cwd=ROOT,
+        env=package_cli_env(),
+        text=True,
+        capture_output=True,
+    )
+
+    assert runbook.returncode == 0, runbook.stderr or runbook.stdout
+    assert "Profile: `research-learning 1.0.0`" in runbook.stdout
+    assert "Canonical domain folders: `research -> 25_research`" in runbook.stdout
+    assert "_meta/profile.yml` is authoritative" in runbook.stdout
+    assert "_meta/domain-map.yml` is only the legacy alias" in runbook.stdout
+    assert "- [ ] `papers/` -> `25_research/` (domain=`research`" in runbook.stdout
+    assert "- [ ] Folder `field_notes/`: classify before moving" in runbook.stdout
+    assert "customer, finance, people, or governance" not in runbook.stdout
+    assert "business functions" not in runbook.stdout
+
+    assert worksheet.returncode == 0, worksheet.stderr or worksheet.stdout
+    assert "Profile: `research-learning 1.0.0`" in worksheet.stdout
+    assert "active profile domain in _meta/profile.yml" in worksheet.stdout
+    assert "requires a profile contract change" in worksheet.stdout
+    assert "documented in _meta/domain-map.yml before ingestion" not in worksheet.stdout
+
+    assert normalize_worksheet.returncode == 0, normalize_worksheet.stderr or normalize_worksheet.stdout
+    assert "Profile: `research-learning 1.0.0`" in normalize_worksheet.stdout
+    assert "Classify unknown domains against `_meta/profile.yml`" in normalize_worksheet.stdout
 
 
 def test_package_cli_repo_sync_uses_profile_repo_notes_dir(tmp_path: Path) -> None:

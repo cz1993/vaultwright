@@ -219,8 +219,11 @@ handoff, sandbox preflight, recovery, and review-ledger
 reporting also resolve repo mirror folders from the active profile, while honoring an explicit
 `tools/repos.yml` `settings.notes_dir` override. The `vaultwright migration` command uses
 `_meta/profile.yml` for canonical domain folders and `_meta/domain-map.yml` for legacy aliases.
-`_meta/domain-map.yml` remains a legacy alias and operator guidance layer; it must not contradict
-the profile's canonical domain folders.
+Migration worksheets, runbooks, and frontmatter-normalization worksheets print the active profile
+identity plus canonical domain folders, and they direct unknown folder/domain classification back to
+`_meta/profile.yml` before operators record any legacy alias guidance. `_meta/domain-map.yml`
+remains a legacy alias and operator guidance layer; it must not contradict the profile's canonical
+domain folders.
 
 ## Profile-Generated Views
 

@@ -144,17 +144,20 @@ pairs, but does not print note bodies, shared terms, source text, or reviewer no
 
 `migration` is read-only by default. It scans top-level folders, reports old aliases from
 `_meta/domain-map.yml` such as `marketing/`, `legal/`, `clients/`, or `hr/`, and flags unknown
-folders that need human classification before any manual move. Non-reserved hidden or
-underscore-prefixed folders are reported too, because they may contain staged imports or legacy
-source material. It also scans note frontmatter for legacy alias domains such as
-`domain: marketing` or `domain: clients` and reports the canonical domain/folder recommendation without
-rewriting files. Use `--worksheet` to print a Markdown review checklist for a migration batch, and
-`--runbook` to print a step-by-step legacy-folder migration protocol before any manual folder
-move. Use `--normalize-frontmatter-domains` to preview rewriting known frontmatter aliases such as
-`domain: marketing` to `domain: market`; add `--worksheet` for a review checklist, then add
-`--write` only after approval. This write mode changes only known frontmatter domain aliases in
-markdown notes. It does not move files, delete folders, rewrite unknown domains, or edit generated
-source/repo mirrors.
+folders that need human classification before any manual move. `_meta/profile.yml` remains the
+authority for canonical profile domains and folders; `_meta/domain-map.yml` is only the legacy
+alias and operator-guidance layer. Non-reserved hidden or underscore-prefixed folders are reported
+too, because they may contain staged imports or legacy source material. It also scans note
+frontmatter for legacy alias domains such as `domain: marketing` or `domain: clients` and reports
+the active profile's canonical domain/folder recommendation without rewriting files. Use
+`--worksheet` to print a Markdown review checklist for a migration batch, and `--runbook` to print
+a step-by-step legacy-folder migration protocol before any manual folder move. These worksheets
+print the active profile identity and canonical domain folders so unknown folder/domain decisions
+are made against the profile contract first. Use `--normalize-frontmatter-domains` to preview
+rewriting known frontmatter aliases such as `domain: marketing` to `domain: market`; add
+`--worksheet` for a review checklist, then add `--write` only after approval. This write mode
+changes only known frontmatter domain aliases in markdown notes. It does not move files, delete
+folders, rewrite unknown domains, or edit generated source/repo mirrors.
 
 `pilot` is read-only. It summarizes aggregate pilot evidence from manifests, audit events,
 conversion priorities, optional conversion-quality result counts/scores, recovery action counts,

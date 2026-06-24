@@ -14,7 +14,11 @@ try:
 except ImportError:
     sys.exit("Missing dependency: pip install pyyaml")
 
-from vaultwright.runtime_profile import configured_office_mirror_root, profile_machine_owned_note_types
+from vaultwright.runtime_profile import (
+    configured_office_mirror_root,
+    load_profile_mapping,
+    profile_machine_owned_note_types,
+)
 
 
 DEFAULT_ROOT = Path.cwd()
@@ -37,6 +41,73 @@ RESERVED_TOP_LEVEL = {
     "node_modules",
     "tools",
 }
+PROFILE_DOMAIN_PREVIEW_LIMIT = 12
+
+
+def active_profile_summary(root: Path) -> dict[str, object]:
+    profile = load_profile_mapping(root)
+    if not profile:
+        return {
+            "id": "",
+            "name": "",
+            "profile_version": "",
+            "domains": [],
+        }
+    domains: list[dict[str, str]] = []
+    raw_domains = profile.get("domains")
+    if isinstance(raw_domains, dict):
+        for domain, definition in sorted(raw_domains.items(), key=lambda item: str(item[0])):
+            if not isinstance(definition, dict):
+                continue
+            folder = definition.get("folder")
+            if not isinstance(folder, str) or not folder.strip():
+                continue
+            domains.append({"id": str(domain), "folder": folder.strip()})
+    return {
+        "id": str(profile.get("id", "") or ""),
+        "name": str(profile.get("name", "") or ""),
+        "profile_version": str(profile.get("profile_version", "") or ""),
+        "domains": domains,
+    }
+
+
+def active_profile_label(summary: dict[str, object]) -> str:
+    profile_id = str(summary.get("id", "") or "")
+    version = str(summary.get("profile_version", "") or "")
+    if profile_id and version:
+        return f"{profile_id} {version}"
+    if profile_id:
+        return profile_id
+    return "unavailable or legacy profile"
+
+
+def profile_domain_preview(summary: dict[str, object]) -> str:
+    domains = summary.get("domains")
+    if not isinstance(domains, list) or not domains:
+        return "none declared"
+    entries: list[str] = []
+    for item in domains[:PROFILE_DOMAIN_PREVIEW_LIMIT]:
+        if not isinstance(item, dict):
+            continue
+        domain_id = str(item.get("id", "") or "")
+        folder = str(item.get("folder", "") or "")
+        if domain_id and folder:
+            entries.append(f"{domain_id} -> {folder}")
+    remaining = len(domains) - len(entries)
+    if remaining > 0:
+        entries.append(f"... {remaining} more")
+    return ", ".join(entries) if entries else "none declared"
+
+
+def print_active_profile_context(root: Path) -> None:
+    summary = active_profile_summary(root)
+    print("## Active Profile")
+    print()
+    print(f"- Profile: `{md_escape(active_profile_label(summary))}`")
+    print(f"- Canonical domain folders: `{md_escape(profile_domain_preview(summary))}`")
+    print("- `_meta/profile.yml` is authoritative for canonical domains and folders.")
+    print("- `_meta/domain-map.yml` is only the legacy alias and operator-guidance layer.")
+    print()
 
 
 def load_profile_routing(
@@ -218,8 +289,9 @@ def frontmatter_domain_items(root: Path, aliases: dict[str, dict[str, str]], can
             recommended_domain = ""
             recommended_folder = ""
             action = (
-                "Review whether the domain should map to an existing canonical domain or be added to "
-                "_meta/domain-map.yml before moving the note."
+                "Review whether the domain maps to an active profile domain in _meta/profile.yml "
+                "or requires a profile contract change; use _meta/domain-map.yml only for legacy "
+                "aliases after the canonical domain is chosen."
             )
         items.append({
             "kind": kind,
@@ -271,8 +343,9 @@ def build_report(root: Path) -> tuple[list[dict], list[dict], list[str], list[st
                 "recommended_folder": "",
                 "counts": counts,
                 "action": (
-                    "Review whether this belongs under an existing canonical folder or should be "
-                    "documented in _meta/domain-map.yml before ingestion."
+                    "Review whether this belongs under an active profile folder from "
+                    "_meta/profile.yml or requires a profile contract change; use "
+                    "_meta/domain-map.yml only for legacy aliases after the canonical folder is chosen."
                 ),
             })
     return items, frontmatter_domain_items(root, aliases, canonical_domains), warnings, []
@@ -326,6 +399,7 @@ def print_worksheet(root: Path, items: list[dict], frontmatter_items: list[dict]
         for error in errors:
             print(f"- Error: {md_escape(error)}")
         print()
+    print_active_profile_context(root)
     print("## Review Protocol")
     print()
     print("- Confirm the copied vault is backed up before moving files.")
@@ -394,6 +468,7 @@ def print_runbook(root: Path, items: list[dict], frontmatter_items: list[dict], 
         for error in errors:
             print(f"- Error: {md_escape(error)}")
         print()
+    print_active_profile_context(root)
     print("## Preconditions")
     print()
     mirror_root = configured_office_mirror_root(root).as_posix()
@@ -408,7 +483,10 @@ def print_runbook(root: Path, items: list[dict], frontmatter_items: list[dict], 
     print("1. Run `vaultwright migration --worksheet` and review the folder/domain queue.")
     print("2. Run `vaultwright migration --normalize-frontmatter-domains --worksheet`.")
     print("3. If approved, run `vaultwright migration --normalize-frontmatter-domains --write`.")
-    print("4. Classify unknown folders/domains in `_meta/domain-map.yml` or a private decision log.")
+    print(
+        "4. Classify unknown folders/domains against `_meta/profile.yml`; record legacy aliases in "
+        "`_meta/domain-map.yml` or a private decision log only after the canonical profile domain is chosen."
+    )
     print("5. Move one alias folder batch at a time into the recommended canonical folder.")
     print("6. Update affected wikilinks, note frontmatter, hub links, and entity pages.")
     print("7. Regenerate `vaultwright catalog` and `vaultwright catalog --html`.")
@@ -420,14 +498,14 @@ def print_runbook(root: Path, items: list[dict], frontmatter_items: list[dict], 
     print("- Prefer manual review or `git mv` over broad shell moves.")
     print(f"- Move source files and curated notes; do not move generated mirrors out of `{mirror_root}/`.")
     print("- Preserve mixed-content folders as subfolders until ownership is clear.")
-    print("- Do not merge unrelated customer, finance, people, or governance records only because paths match.")
+    print("- Do not merge unrelated profile domains only because paths match; use the active profile domain list above.")
     print("- Keep old folders until the post-move verification checklist passes.")
     print()
     print("## Stop Conditions")
     print()
     print("- Stop if `vaultwright recovery --worksheet` reports missing sources, conflicts, or manual generated edits.")
     print("- Stop if `vaultwright lint` reports broken links, invalid domains, or stale mirrors.")
-    print("- Stop if a folder mixes multiple business functions and cannot be classified confidently.")
+    print("- Stop if a folder mixes multiple active-profile domains and cannot be classified confidently.")
     print("- Stop if source ownership, retention posture, or privacy sensitivity is unclear.")
     print()
     print("## Alias Folder Queue")
@@ -659,13 +737,14 @@ def print_normalize_frontmatter_domains_worksheet(
         for error in read_errors:
             print(f"- Error: {md_escape(error)}")
         print()
+    print_active_profile_context(root)
 
     print("## Review Protocol")
     print()
     print("- Confirm the copied vault is backed up before applying any writes.")
     print("- Review every planned frontmatter change below; this worksheet does not move files.")
     print("- Treat skipped generated mirrors as source/repo-sync artifacts, not hand-edited notes.")
-    print("- Classify unknown domains in `_meta/domain-map.yml` before changing those notes.")
+    print("- Classify unknown domains against `_meta/profile.yml`; use `_meta/domain-map.yml` only for legacy aliases.")
     print("- After approval, run `vaultwright migration --normalize-frontmatter-domains --write`.")
     print("- Then regenerate `vaultwright catalog` and run `vaultwright lint`.")
     print()
