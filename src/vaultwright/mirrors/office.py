@@ -49,7 +49,12 @@ try:
 except ImportError:
     sys.exit("Missing dependency: pip install markitdown")
 
-from vaultwright.runtime_profile import profile_generated_mirror_statuses, profile_mirror_status
+from vaultwright.runtime_profile import (
+    profile_generated_mirror_statuses,
+    profile_mirror_mode,
+    profile_mirror_root,
+    profile_mirror_status,
+)
 
 # --- configuration ---------------------------------------------------------
 
@@ -394,8 +399,8 @@ def normalized_mirror_config(mode: str, mirror_root: str, include_pdf: bool = Fa
 
 
 def load_mirror_config(root: Path, mode_override: str | None = None, root_override: str | None = None) -> dict[str, Path | str | bool]:
-    mode = DEFAULT_MIRROR_MODE
-    mirror_root = DEFAULT_MIRROR_ROOT
+    mode = profile_mirror_mode(root)
+    mirror_root = profile_mirror_root(root)
     include_pdf = False
     cfg = root / "_meta" / "mirror-config.yml"
     if cfg.exists():

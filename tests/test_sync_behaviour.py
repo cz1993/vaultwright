@@ -5346,6 +5346,52 @@ def test_office_sync_defaults_to_dedicated_mirror_root(tmp_path: Path) -> None:
     assert collision is False
 
 
+def test_office_sync_uses_profile_mirror_root_when_config_missing(tmp_path: Path) -> None:
+    sync = load_office_sync_module()
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    (vault / "_meta" / "mirror-config.yml").unlink()
+    profile_path = vault / "_meta" / "profile.yml"
+    profile = yaml.safe_load(profile_path.read_text(encoding="utf-8"))
+    profile["policy_defaults"]["mirror_root"] = "_generated"
+    profile_path.write_text(yaml.safe_dump(profile, sort_keys=False), encoding="utf-8")
+    source = vault / "40_delivery" / "brief.docx"
+    source.write_bytes(b"fixture")
+
+    config = sync.load_mirror_config(vault)
+    mirror, collision = sync.mirror_path_for(source, vault, config)
+
+    assert config["mode"] == "dedicated"
+    assert config["root"] == Path("_generated")
+    assert mirror == vault / "_generated" / "40_delivery" / "brief.md"
+    assert collision is False
+
+
+def test_office_sync_mirror_config_overrides_profile_mirror_root(tmp_path: Path) -> None:
+    sync = load_office_sync_module()
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    profile_path = vault / "_meta" / "profile.yml"
+    profile = yaml.safe_load(profile_path.read_text(encoding="utf-8"))
+    profile["policy_defaults"]["mirror_root"] = "_generated"
+    profile_path.write_text(yaml.safe_dump(profile, sort_keys=False), encoding="utf-8")
+    (vault / "_meta" / "mirror-config.yml").write_text(
+        "office_mirrors:\n"
+        "  mode: dedicated\n"
+        "  root: _operator_mirrors\n",
+        encoding="utf-8",
+    )
+    source = vault / "40_delivery" / "brief.docx"
+    source.write_bytes(b"fixture")
+
+    config = sync.load_mirror_config(vault)
+    mirror, collision = sync.mirror_path_for(source, vault, config)
+
+    assert config["root"] == Path("_operator_mirrors")
+    assert mirror == vault / "_operator_mirrors" / "40_delivery" / "brief.md"
+    assert collision is False
+
+
 def test_office_sync_routes_domain_aliases_to_canonical_mirror_folder(tmp_path: Path) -> None:
     sync = load_office_sync_module()
     vault = tmp_path / "vault"

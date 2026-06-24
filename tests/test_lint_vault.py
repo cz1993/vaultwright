@@ -899,6 +899,81 @@ def test_template_linter_blocks_source_mirror_type_outside_dedicated_mirror_root
     assert "source-mirror notes belong under _mirrors" in result.stdout
 
 
+def test_template_linter_uses_profile_mirror_root_when_config_missing(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    (vault / "_meta" / "mirror-config.yml").unlink()
+    profile_path = vault / "_meta" / "profile.yml"
+    profile = yaml.safe_load(profile_path.read_text(encoding="utf-8"))
+    profile["policy_defaults"]["mirror_root"] = "_generated"
+    profile_path.write_text(yaml.safe_dump(profile, sort_keys=False), encoding="utf-8")
+    source_rel = "40_delivery/brief.docx"
+    source = vault / source_rel
+    source.write_bytes(b"source bytes")
+    source_sha = source_sha_for(vault, source_rel)
+    mirror = vault / "_generated" / "40_delivery" / "brief.md"
+    mirror.parent.mkdir(parents=True)
+    mirror.write_text(
+        "---\n"
+        "title: Brief\n"
+        "type: source-mirror\n"
+        "status: active\n"
+        "domain: delivery\n"
+        f"{source_mirror_fields(source_rel, source_sha256=source_sha)}"
+        "created: 2026-01-01\n"
+        "updated: 2026-01-01\n"
+        "---\n"
+        f"# Brief\n\n{SENTINEL}\n\nExtracted content.\n",
+        encoding="utf-8",
+    )
+    write_source_manifest(vault, ("src-test", source_rel, "_generated/40_delivery/brief.md", source_sha))
+
+    result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "lint_vault.py")],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stdout
+
+
+def test_template_linter_reports_profile_mirror_root_for_misplaced_source_mirror(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    (vault / "_meta" / "mirror-config.yml").unlink()
+    profile_path = vault / "_meta" / "profile.yml"
+    profile = yaml.safe_load(profile_path.read_text(encoding="utf-8"))
+    profile["policy_defaults"]["mirror_root"] = "_generated"
+    profile_path.write_text(yaml.safe_dump(profile, sort_keys=False), encoding="utf-8")
+    note = vault / "40_delivery" / "hidden-generated-type.md"
+    note.write_text(
+        "---\n"
+        "title: Hidden Generated Type\n"
+        "type: source-mirror\n"
+        "status: active\n"
+        "domain: delivery\n"
+        "source: 40_delivery/hidden-generated-type.docx\n"
+        "created: 2026-01-01\n"
+        "updated: 2026-01-01\n"
+        "---\n"
+        "# Hidden Generated Type\n\n"
+        "Hand-authored content should not hide from orphan or overlap checks by claiming a mirror type.\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "lint_vault.py")],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 1
+    assert "Mirror layout errors: 1" in result.stdout
+    assert "source-mirror notes belong under _generated" in result.stdout
+
+
 def test_template_linter_blocks_source_mirror_under_mirror_root_with_wrong_source_path(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     shutil.copytree(ROOT / "template", vault)

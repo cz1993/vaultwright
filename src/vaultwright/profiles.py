@@ -44,6 +44,20 @@ FORBIDDEN_PROFILE_PATH_PARTS = {".git", ".githooks", ".github", "node_modules"}
 NOTE_TYPE_BOOLEAN_FIELDS = {"machine_owned"}
 STATUS_BOOLEAN_FIELDS = {"attention", "inactive"}
 POLICY_STATUS_DEFAULT_FIELDS = {"mirror_status", "repo_stub_status"}
+MIRROR_MODES = {"dedicated", "sibling"}
+FORBIDDEN_MIRROR_ROOT_PARTS = {
+    ".git",
+    ".githooks",
+    ".github",
+    ".obsidian",
+    "_archive",
+    "_fixtures",
+    "_meta",
+    "_templates",
+    "_tmp",
+    "node_modules",
+    "tools",
+}
 
 
 class ProfileValidationError(ValueError):
@@ -122,6 +136,13 @@ def validate_profile_path(value: Any, field: str) -> PurePosixPath:
     if path.is_absolute() or ".." in path.parts or not path.parts or path.as_posix() == ".":
         raise ProfileValidationError(f"{field} must stay inside the vault")
     if any(part.startswith(".") or part in FORBIDDEN_PROFILE_PATH_PARTS for part in path.parts):
+        raise ProfileValidationError(f"{field} contains a reserved path component")
+    return path
+
+
+def validate_mirror_root(value: Any, field: str) -> PurePosixPath:
+    path = validate_profile_path(value, field)
+    if any(part.startswith(".") or part in FORBIDDEN_MIRROR_ROOT_PARTS for part in path.parts):
         raise ProfileValidationError(f"{field} contains a reserved path component")
     return path
 
@@ -228,6 +249,15 @@ def validate_profile_mapping(data: Any) -> None:
         validate_string(value, f"policy_defaults.{field}")
         if str(value).strip() not in data["statuses"]:
             raise ProfileValidationError(f"policy_defaults.{field} must reference a declared status")
+
+    if "mirror_mode" in data["policy_defaults"]:
+        mirror_mode = data["policy_defaults"]["mirror_mode"]
+        validate_string(mirror_mode, "policy_defaults.mirror_mode")
+        if str(mirror_mode).strip() not in MIRROR_MODES:
+            raise ProfileValidationError("policy_defaults.mirror_mode must be one of: dedicated, sibling")
+
+    if "mirror_root" in data["policy_defaults"]:
+        validate_mirror_root(data["policy_defaults"]["mirror_root"], "policy_defaults.mirror_root")
 
     validate_folder_plan(data["folder_plan"], domain_folders)
 

@@ -14,6 +14,8 @@ LEGACY_REPO_NOTES_DIR = "80_sources/repos"
 LEGACY_CONTEXT_KEYS = {"account", "client", "program", "vendor"}
 LEGACY_INACTIVE_STATUSES = {"archived", "superseded"}
 LEGACY_MACHINE_OWNED_NOTE_TYPES = {"source-mirror", "repo-mirror"}
+LEGACY_MIRROR_MODE = "dedicated"
+LEGACY_MIRROR_ROOT = "_mirrors"
 LEGACY_MIRROR_STATUS = "active"
 LEGACY_REPO_STUB_STATUS = "draft"
 NON_CONTEXT_PROPERTIES = {
@@ -171,6 +173,20 @@ def profile_repo_stub_status(root: Path) -> str:
 
 def profile_generated_mirror_statuses(root: Path) -> set[str]:
     return {profile_mirror_status(root), profile_repo_stub_status(root)}
+
+
+def profile_mirror_mode(root: Path) -> str:
+    value = profile_policy_defaults(root).get("mirror_mode")
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    return LEGACY_MIRROR_MODE
+
+
+def profile_mirror_root(root: Path) -> str:
+    value = profile_policy_defaults(root).get("mirror_root")
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    return LEGACY_MIRROR_ROOT
 
 
 def profile_repo_notes_dir(root: Path) -> str:

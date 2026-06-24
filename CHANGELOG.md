@@ -46,6 +46,9 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 - Profiles now own generated mirror status defaults with `policy_defaults.mirror_status` and
   `policy_defaults.repo_stub_status`; Office/repo sync, lint, and annotation migration use those
   values instead of hard-coded `active`/`draft` checks for generated mirror metadata.
+- Profiles now own Office mirror placement defaults with `policy_defaults.mirror_mode` and
+  `policy_defaults.mirror_root`; Office sync and lint use those values when
+  `_meta/mirror-config.yml` does not override them.
 - `vaultwright benchmark` and the aggregate `vaultwright pilot` report now read profile-declared
   `benchmark_tasks` paths, while explicit `--tasks` and the legacy `_meta/agent-readiness-tasks.yml`
   path remain supported.

@@ -20,6 +20,8 @@ except ImportError:
 from vaultwright.runtime_profile import (
     profile_context_keys as runtime_profile_context_keys,
     profile_generated_mirror_statuses,
+    profile_mirror_mode,
+    profile_mirror_root,
 )
 
 ROOT = Path.cwd().resolve()
@@ -205,8 +207,10 @@ def safe_mirror_root(value: str) -> Path:
 
 def mirror_config() -> tuple[dict[str, Path | str], list[tuple[str, str]]]:
     cfg = ROOT / "_meta" / "mirror-config.yml"
-    mode = DEFAULT_MIRROR_MODE
-    mirror_root = DEFAULT_MIRROR_ROOT
+    mode = profile_mirror_mode(ROOT)
+    mirror_root = profile_mirror_root(ROOT)
+    mode_label = f"{PROFILE_REL}:policy_defaults.mirror_mode"
+    root_label = f"{PROFILE_REL}:policy_defaults.mirror_root"
     errors: list[tuple[str, str]] = []
     if cfg.exists():
         try:
@@ -220,13 +224,17 @@ def mirror_config() -> tuple[dict[str, Path | str], list[tuple[str, str]]]:
             return {"mode": mode, "root": Path(mirror_root)}, [("_meta/mirror-config.yml:office_mirrors", "must be a mapping")]
         mode = str(office.get("mode", mode))
         mirror_root = str(office.get("root", mirror_root))
+        if "mode" in office:
+            mode_label = "_meta/mirror-config.yml:office_mirrors.mode"
+        if "root" in office:
+            root_label = "_meta/mirror-config.yml:office_mirrors.root"
     if mode not in MIRROR_MODES:
-        errors.append(("_meta/mirror-config.yml:office_mirrors.mode", "invalid mode"))
+        errors.append((mode_label, "invalid mode"))
         mode = DEFAULT_MIRROR_MODE
     try:
         root_path = safe_mirror_root(mirror_root)
     except ValueError as exc:
-        errors.append(("_meta/mirror-config.yml:office_mirrors.root", str(exc)))
+        errors.append((root_label, str(exc)))
         root_path = Path(DEFAULT_MIRROR_ROOT)
     return {"mode": mode, "root": root_path}, errors
 

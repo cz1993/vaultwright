@@ -94,10 +94,11 @@ vaultwright --root <vault> profile views --write
 
 `policy_defaults`
 : Mapping reserved for profile-level defaults such as retention, governance, and generated-output
-locations. The current profile uses `repo_notes_dir` to set the default GitHub repository mirror
-folder when `tools/repos.yml` does not declare `settings.notes_dir`, `mirror_status` for refreshed
-machine-owned source/repo mirrors, and `repo_stub_status` for repository mirrors that have not been
-successfully fetched yet.
+  locations. The current profile uses `repo_notes_dir` to set the default GitHub repository mirror
+  folder when `tools/repos.yml` does not declare `settings.notes_dir`, `mirror_mode` and
+  `mirror_root` for Office mirror placement when `_meta/mirror-config.yml` does not override them,
+  `mirror_status` for refreshed machine-owned source/repo mirrors, and `repo_stub_status` for
+  repository mirrors that have not been successfully fetched yet.
 
 ## Validation Rules
 
@@ -121,6 +122,8 @@ successfully fetched yet.
 - duplicate `folder_plan` paths are rejected.
 - optional `note_types.<type>.machine_owned` values are booleans.
 - optional `statuses.<status>.attention` and `statuses.<status>.inactive` values are booleans.
+- optional `policy_defaults.mirror_mode` is either `dedicated` or `sibling`.
+- optional `policy_defaults.mirror_root` is a safe vault-relative generated-output folder.
 - optional `policy_defaults.mirror_status` and `policy_defaults.repo_stub_status` values reference
   declared statuses.
 
@@ -134,9 +137,11 @@ statuses, required properties, and inactive status roles.
 `_meta/agent-readiness-tasks.yml` path remains a compatibility fallback. GitHub repo mirror sync
 and lint read
 `policy_defaults.repo_notes_dir` for the default repository-mirror folder and derive repo-mirror
-frontmatter domains from the profile's domain/folder mapping. Source/repo mirror sync and
-annotation migration read `policy_defaults.mirror_status` and `policy_defaults.repo_stub_status`
-when generating mirrors and deciding which mirror statuses are machine metadata rather than human
+frontmatter domains from the profile's domain/folder mapping. Office mirror sync and lint read
+`policy_defaults.mirror_mode` and `policy_defaults.mirror_root` as generated-output defaults while
+honoring `_meta/mirror-config.yml` as an operator override. Source/repo mirror sync and annotation
+migration read `policy_defaults.mirror_status` and `policy_defaults.repo_stub_status` when
+generating mirrors and deciding which mirror statuses are machine metadata rather than human
 annotations. Repo mirror context frontmatter also comes from the active profile's optional
 properties, so the `business-operations` profile keeps `account`/`client` compatibility while other
 profiles can declare fields such as `research_project` or `component`. Microsoft 365 handoff,
