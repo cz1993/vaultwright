@@ -14,6 +14,7 @@ from vaultwright.profiles import ProfileContract, ProfileValidationError, load_p
 from vaultwright.runtime_profile import (
     configured_office_mirror_root,
     profile_context_aliases,
+    profile_frontmatter_key_order,
     profile_content_roots,
     profile_domain_folders,
     profile_mirror_status,
@@ -161,6 +162,34 @@ def test_runtime_profile_context_aliases_fall_back_for_profileless_legacy_vault(
     vault.mkdir()
 
     assert profile_context_aliases(vault) == {"client": "account"}
+
+
+def test_runtime_profile_frontmatter_key_order_is_contract_owned(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    profile_path = vault / "_meta" / "profile.yml"
+    profile = yaml.safe_load(profile_path.read_text(encoding="utf-8"))
+    profile["optional_properties"] = [
+        value
+        for value in profile["optional_properties"]
+        if value not in {"account", "client", "program", "vendor"}
+    ]
+    profile["optional_properties"].extend(["research_project", "component"])
+    profile["policy_defaults"].pop("context_aliases", None)
+    profile_path.write_text(yaml.safe_dump(profile, sort_keys=False), encoding="utf-8")
+
+    order = profile_frontmatter_key_order(vault, ["title", "type"], ["source_id"])
+
+    assert order == ["title", "type", "component", "research_project", "source_id"]
+
+
+def test_runtime_profile_frontmatter_key_order_falls_back_for_profileless_legacy_vault(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    vault.mkdir()
+
+    order = profile_frontmatter_key_order(vault, ["title", "type"], ["source_id"])
+
+    assert order == ["title", "type", "account", "client", "program", "vendor", "source_id"]
 
 
 def test_github_repo_sync_uses_validated_runtime_profile_helpers(tmp_path: Path) -> None:

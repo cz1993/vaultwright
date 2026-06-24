@@ -47,7 +47,9 @@ reuses those helpers instead of maintaining a separate profile parser. Lint, cat
 calibration, and repo mirror output validation now share the same profile-owned content-root
 fallback. Catalog and migration reporting also load profile domain
 routing through the package validator before treating profile-declared folders as canonical, and
-benchmark/pilot task discovery validates the active profile before using profile-declared
+Office/GitHub generated mirror frontmatter ordering now shares runtime profile-derived context
+keys before managed source/repo metadata. Benchmark/pilot task discovery validates the active
+profile before using profile-declared
 `benchmark_tasks`. Office source-mirror and GitHub repo-mirror frontmatter ordering now read the
 active profile's context fields instead of privileging business-only context keys for every
 profile, Office mirror planning reports unsafe output paths against the active profile/configured

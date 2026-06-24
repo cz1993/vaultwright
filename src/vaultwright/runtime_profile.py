@@ -14,7 +14,8 @@ PROFILE_REL = Path("_meta/profile.yml")
 REPO_CONFIG_REL = Path("tools/repos.yml")
 MIRROR_CONFIG_REL = Path("_meta/mirror-config.yml")
 LEGACY_REPO_NOTES_DIR = "80_sources/repos"
-LEGACY_CONTEXT_KEYS = {"account", "client", "program", "vendor"}
+LEGACY_CONTEXT_KEY_ORDER = ["account", "client", "program", "vendor"]
+LEGACY_CONTEXT_KEYS = set(LEGACY_CONTEXT_KEY_ORDER)
 LEGACY_CONTEXT_ALIASES = {"client": "account"}
 LEGACY_INACTIVE_STATUSES = {"archived", "superseded"}
 LEGACY_MACHINE_OWNED_NOTE_TYPES = {"source-mirror", "repo-mirror"}
@@ -141,6 +142,24 @@ def profile_context_keys(root: Path) -> set[str]:
         for key in profile_optional_properties(root)
         if key not in NON_CONTEXT_PROPERTIES
     }
+
+
+def profile_context_key_order(root: Path | None) -> list[str]:
+    if root is None:
+        return list(LEGACY_CONTEXT_KEY_ORDER)
+    return sorted(profile_context_keys(root))
+
+
+def profile_frontmatter_key_order(
+    root: Path | None,
+    base_keys: list[str],
+    managed_keys: list[str],
+) -> list[str]:
+    base = list(base_keys)
+    managed = list(managed_keys)
+    reserved = {*base, *managed}
+    context = [key for key in profile_context_key_order(root) if key not in reserved]
+    return [*base, *context, *managed]
 
 
 def profile_context_aliases(root: Path) -> dict[str, str]:

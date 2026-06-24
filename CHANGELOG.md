@@ -16,6 +16,8 @@ All notable changes to Vaultwright are documented here. Format loosely follows
   `init` and profile migration remain limited to scaffolded `business-operations`.
 - Added a shared runtime profile helper for active content roots so lint, catalog, overlap
   calibration, and repo mirror output validation use the same profile-owned folder fallback.
+- Added shared runtime profile frontmatter-key ordering so Office and GitHub generated mirrors
+  place profile-owned context fields consistently before managed source/repo metadata.
 - The installable `vaultwright` CLI now supports `init --profile business-operations`,
   `profile list`, `profile show`, and `profile validate` against the package-owned profile
   contract.

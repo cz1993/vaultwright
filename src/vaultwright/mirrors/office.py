@@ -50,8 +50,8 @@ except ImportError:
     sys.exit("Missing dependency: pip install markitdown")
 
 from vaultwright.runtime_profile import (
-    profile_context_keys,
     profile_domain_folders,
+    profile_frontmatter_key_order,
     profile_generated_mirror_statuses,
     profile_mirror_mode,
     profile_mirror_root,
@@ -143,12 +143,10 @@ BASE_KEY_ORDER = [
     "title", "type", "status", "domain", "owner", "created", "updated",
     "tags", "related",
 ]
-LEGACY_CONTEXT_KEY_ORDER = ["account", "client", "program", "vendor"]
 MANAGED_KEY_ORDER = [
     "source_id", "source", "source_manifest", "source_format", "source_modified",
     "synced", "source_sha256", "converter", "converter_version",
 ]
-KEY_ORDER = [*BASE_KEY_ORDER, *LEGACY_CONTEXT_KEY_ORDER, *MANAGED_KEY_ORDER]
 
 MAX_CHARS = 400_000  # safety cap on extracted text per file
 
@@ -493,15 +491,7 @@ def split_frontmatter(text: str):
 
 
 def frontmatter_key_order(root: Path | None = None) -> list[str]:
-    if root is None:
-        context_keys = LEGACY_CONTEXT_KEY_ORDER
-    else:
-        try:
-            context_keys = sorted(profile_context_keys(root))
-        except Exception:
-            context_keys = LEGACY_CONTEXT_KEY_ORDER
-    profile_context_order = [key for key in context_keys if key not in BASE_KEY_ORDER and key not in MANAGED_KEY_ORDER]
-    return [*BASE_KEY_ORDER, *profile_context_order, *MANAGED_KEY_ORDER]
+    return profile_frontmatter_key_order(root, BASE_KEY_ORDER, MANAGED_KEY_ORDER)
 
 
 def dump_frontmatter(data: dict, root: Path | None = None) -> str:

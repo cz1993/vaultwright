@@ -41,6 +41,7 @@ from vaultwright.runtime_profile import (
     profile_content_roots as runtime_profile_content_roots,
     profile_context_keys as runtime_profile_context_keys,
     profile_domain_folders as runtime_profile_domain_folders,
+    profile_frontmatter_key_order,
     profile_generated_mirror_statuses,
     profile_mirror_status,
     profile_repo_notes_dir as runtime_profile_repo_notes_dir,
@@ -67,12 +68,10 @@ LIFECYCLE_CONTRACT_REL = Path("_meta/lifecycle-states.yml")
 MANAGED = {"type", "repo_id", "repo_manifest", "repo", "repo_url", "default_branch", "last_commit",
            "last_commit_date", "open_issues", "synced", "updated"}
 BASE_KEY_ORDER = ["title", "type", "status", "domain", "owner", "created", "updated", "tags", "related"]
-LEGACY_CONTEXT_KEY_ORDER = ["account", "client", "program", "vendor"]
 MANAGED_KEY_ORDER = [
     "repo_id", "repo_manifest", "repo", "repo_url", "default_branch", "last_commit",
     "last_commit_date", "open_issues", "synced",
 ]
-KEY_ORDER = [*BASE_KEY_ORDER, *LEGACY_CONTEXT_KEY_ORDER, *MANAGED_KEY_ORDER]
 GIT_ENV = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
 FORBIDDEN_OUTPUT_PARTS = {
     ".git", ".githooks", ".github", ".obsidian", "_archive", "_fixtures",
@@ -851,12 +850,7 @@ def sync_audit_event(plan: dict, manifest: dict, status: str, entry: dict) -> di
 
 
 def dump_fm(data):
-    context_keys = [
-        key
-        for key in sorted(active_profile_context_keys())
-        if key not in BASE_KEY_ORDER and key not in MANAGED_KEY_ORDER
-    ]
-    key_order = [*BASE_KEY_ORDER, *context_keys, *MANAGED_KEY_ORDER]
+    key_order = profile_frontmatter_key_order(ROOT, BASE_KEY_ORDER, MANAGED_KEY_ORDER)
     ordered = {k: data[k] for k in key_order if k in data}
     for k, v in data.items():
         ordered.setdefault(k, v)
