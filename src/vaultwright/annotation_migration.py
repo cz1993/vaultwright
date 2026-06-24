@@ -14,6 +14,7 @@ import yaml
 
 from vaultwright.runtime_profile import (
     profile_generated_mirror_statuses,
+    profile_context_aliases as runtime_profile_context_aliases,
     profile_context_keys as runtime_profile_context_keys,
     profile_repo_notes_dir,
 )
@@ -50,6 +51,7 @@ REPO_MANAGED_KEYS = {
 }
 DEFAULT_FRONTMATTER_KEYS = {"title", "domain", "owner", "created", "updated"}
 LEGACY_PROFILE_CONTEXT_KEYS = {"account", "client", "program", "vendor"}
+LEGACY_PROFILE_CONTEXT_ALIASES = {"client": "account"}
 RESERVED_PARTS = {
     ".git",
     ".githooks",
@@ -185,24 +187,44 @@ def active_profile_context_keys(root: Path) -> set[str]:
         return set(LEGACY_PROFILE_CONTEXT_KEYS)
 
 
-def repo_context_values(entry: dict[str, Any], context_keys: set[str]) -> dict[str, str]:
+def active_profile_context_aliases(root: Path) -> dict[str, str]:
+    try:
+        return dict(runtime_profile_context_aliases(root))
+    except Exception:
+        return dict(LEGACY_PROFILE_CONTEXT_ALIASES)
+
+
+def normalize_context_alias_values(values: dict[str, str], aliases: dict[str, str]) -> dict[str, str]:
+    out = dict(values)
+    for alias, target in aliases.items():
+        if alias not in out and target not in out:
+            continue
+        canonical_value = out.get(target) or out.get(alias)
+        if canonical_value:
+            out[target] = canonical_value
+            out[alias] = canonical_value
+    return out
+
+
+def repo_context_values(
+    entry: dict[str, Any],
+    context_keys: set[str],
+    context_aliases: dict[str, str] | None = None,
+) -> dict[str, str]:
     values: dict[str, str] = {}
-    if "account" in context_keys:
-        account = entry.get("account") or entry.get("client")
-        if isinstance(account, str) and account.strip():
-            values["account"] = account.strip()
-    if "client" in context_keys:
-        client = entry.get("client") or values.get("account") or entry.get("account")
-        if isinstance(client, str) and client.strip():
-            values["client"] = client.strip()
-    for key in sorted(context_keys - {"account", "client"}):
+    for key in sorted(context_keys):
         value = entry.get(key)
         if isinstance(value, str) and value.strip():
             values[key] = value.strip()
-    return values
+    return normalize_context_alias_values(values, context_aliases or {})
 
 
-def configured_repo_seed(root: Path, mirror_rel: str, context_keys: set[str]) -> dict[str, Any]:
+def configured_repo_seed(
+    root: Path,
+    mirror_rel: str,
+    context_keys: set[str],
+    context_aliases: dict[str, str] | None = None,
+) -> dict[str, Any]:
     path = root / REPO_CONFIG
     if not path.exists():
         return {}
@@ -236,7 +258,7 @@ def configured_repo_seed(root: Path, mirror_rel: str, context_keys: set[str]) ->
             "tags": entry.get("tags", ["repo"]),
             "related": entry.get("related", []),
         }
-        seed.update(repo_context_values(entry, context_keys))
+        seed.update(repo_context_values(entry, context_keys, context_aliases))
         return seed
     return {}
 
@@ -244,8 +266,9 @@ def configured_repo_seed(root: Path, mirror_rel: str, context_keys: set[str]) ->
 def frontmatter_has_annotation(fm: dict[str, Any], kind: str, root: Path, mirror_rel: str) -> bool:
     preserved = preserved_frontmatter(fm, kind)
     context_keys = active_profile_context_keys(root)
+    context_aliases = active_profile_context_aliases(root)
     generated_statuses = profile_generated_mirror_statuses(root)
-    repo_seed = configured_repo_seed(root, mirror_rel, context_keys) if kind == "repo-mirror" else {}
+    repo_seed = configured_repo_seed(root, mirror_rel, context_keys, context_aliases) if kind == "repo-mirror" else {}
     for key, value in preserved.items():
         if key in DEFAULT_FRONTMATTER_KEYS:
             continue

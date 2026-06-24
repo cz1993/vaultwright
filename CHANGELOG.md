@@ -91,6 +91,9 @@ All notable changes to Vaultwright are documented here. Format loosely follows
   from the active profile's optional properties, preserving the business profile's
   `account`/`client` compatibility while allowing non-business profiles to use their own context
   fields.
+- Annotation migration now also reads `policy_defaults.context_aliases` when comparing generated
+  repo-mirror frontmatter with `tools/repos.yml`, so profile-defined aliases are not mistaken for
+  human mirror annotations.
 - Microsoft 365 handoff, sandbox preflight, recovery, and review-ledger reporting now resolve repo
   mirror folders from the active profile or `tools/repos.yml`, and the vault-local report scripts
   delegate to the package runtime to prevent implementation drift.

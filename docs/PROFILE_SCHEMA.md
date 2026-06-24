@@ -117,7 +117,8 @@ vaultwright --root <vault> profile views --write
   `repo_stub_status` for repository mirrors that have not been successfully fetched yet. The
   current profile also uses `context_aliases` to declare compatibility aliases between optional
   frontmatter context fields; for example, `client: account` means `client` is treated as an alias
-  of canonical `account` in repo-mirror frontmatter generation and lint checks. The current profile
+  of canonical `account` in repo-mirror frontmatter generation, lint checks, and annotation
+  migration. The current profile
   also declares
   `original_sources_authoritative: true` and `real_data_in_repo: false`, which preserve the
   Vaultwright policy that source systems remain authoritative and real/private data stays outside
@@ -182,8 +183,10 @@ generated source-mirror evidence against the active Office mirror root. GitHub r
 lint read
 `policy_defaults.repo_notes_dir` for the default repository-mirror folder, derive repo-mirror
 frontmatter domains from the profile's domain/folder mapping, and normalize repo context aliases
-from `policy_defaults.context_aliases`. Office mirror sync derives canonical source domains and
-canonical mirror paths from the active profile's domain folders, while
+from `policy_defaults.context_aliases`. Annotation migration uses the same context aliases when
+deciding whether repo-mirror frontmatter is generated metadata or human annotation. Office mirror
+sync derives canonical source domains and canonical mirror paths from the active profile's domain
+folders, while
 `_meta/domain-map.yml` remains a legacy alias layer for old source-folder names. Office mirror sync,
 lint, catalog, Microsoft 365 handoff, sandbox preflight, doctor, migration guidance, and
 review-ledger classification read `policy_defaults.mirror_mode` and `policy_defaults.mirror_root`
@@ -194,8 +197,9 @@ machine metadata rather than human annotations. Repo mirror context frontmatter 
 active profile's optional
 properties, so the `business-operations` profile keeps `account`/`client` compatibility while other
 profiles can declare fields such as `research_project` or `component` without inheriting that
-business-specific alias unless they opt in. Lint also reads `context_aliases` when checking context
-frontmatter consistency. Microsoft 365 handoff, sandbox preflight, recovery, and review-ledger
+business-specific alias unless they opt in. Lint and annotation migration also read
+`context_aliases` when checking context frontmatter against repo configuration. Microsoft 365
+handoff, sandbox preflight, recovery, and review-ledger
 reporting also resolve repo mirror folders from the active profile, while honoring an explicit
 `tools/repos.yml` `settings.notes_dir` override. The `vaultwright migration` command uses
 `_meta/profile.yml` for canonical domain folders and `_meta/domain-map.yml` for legacy aliases.
