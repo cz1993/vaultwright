@@ -11,6 +11,9 @@ All notable changes to Vaultwright are documented here. Format loosely follows
   finish-line matrix.
 - Added an initial package-owned profile contract validator plus `_meta/profile.yml` for the
   current `business-operations` template, establishing the first Stage 1 profile-schema seam.
+- Added package-owned v1 profile contracts for `research-learning`, `software-project`, and
+  `blank`; `vaultwright profile list/show` now exposes all four official profile contracts while
+  `init` and profile migration remain limited to scaffolded `business-operations`.
 - The installable `vaultwright` CLI now supports `init --profile business-operations`,
   `profile list`, `profile show`, and `profile validate` against the package-owned profile
   contract.

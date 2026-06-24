@@ -1,0 +1,138 @@
+schema_version: 1
+id: software-project
+name: Software Project
+profile_version: 0.1.0
+description: Maintained v1 profile contract for product, architecture, runbooks, releases, incidents, and source references.
+
+domains:
+  inbox:
+    folder: 00_inbox
+    purpose: Intake lane for unprocessed engineering material and agent drafts.
+  product:
+    folder: 10_product
+    purpose: Product requirements, user journeys, roadmap, and planning context.
+  architecture:
+    folder: 20_architecture
+    purpose: Architecture notes, system boundaries, technical strategy, and diagrams.
+  decisions:
+    folder: 30_decisions
+    purpose: ADRs, technical decisions, tradeoffs, and approval records.
+  interfaces:
+    folder: 40_interfaces
+    purpose: APIs, schemas, integrations, contracts, and public interfaces.
+  runbooks:
+    folder: 50_runbooks
+    purpose: Operations runbooks, deployment notes, support playbooks, and maintenance tasks.
+  releases:
+    folder: 60_releases
+    purpose: Release plans, changelogs, quality gates, and rollout notes.
+  incidents:
+    folder: 70_incidents
+    purpose: Incidents, postmortems, risks, and reliability investigations.
+  sources:
+    folder: 80_sources
+    purpose: Repository mirrors, source inventories, external docs, and source references.
+
+note_types:
+  moc:
+    purpose: Hub note that links a product or engineering cluster.
+  note:
+    purpose: General curated engineering note.
+  guide:
+    purpose: How-to, setup, or support guide.
+  record:
+    purpose: Dated report, meeting note, or evidence record.
+  adr:
+    purpose: Architecture decision record.
+  runbook:
+    purpose: Operational runbook or maintenance procedure.
+  api:
+    purpose: API, schema, integration, or interface reference.
+  release:
+    purpose: Release plan, changelog, or rollout record.
+  incident:
+    purpose: Incident, postmortem, risk, or reliability record.
+  source-mirror:
+    purpose: Machine-generated mirror of a binary/source file.
+    machine_owned: true
+  source-ref:
+    purpose: Human-readable companion for a non-mirrored source.
+  repo-mirror:
+    purpose: Machine-generated mirror of a configured repository.
+    machine_owned: true
+
+statuses:
+  draft:
+    purpose: Draft material not yet reviewed.
+    attention: true
+  active:
+    purpose: Current reviewed working knowledge.
+  in-review:
+    purpose: Awaiting human review.
+    attention: true
+  accepted:
+    purpose: Accepted decision, interface, release, or runbook.
+  deprecated:
+    purpose: Replaced by newer engineering material.
+    inactive: true
+  archived:
+    purpose: Retained but no longer active.
+    inactive: true
+
+required_properties:
+  - title
+  - type
+  - status
+  - domain
+  - created
+  - updated
+
+optional_properties:
+  - owner
+  - tags
+  - related
+  - component
+  - repository
+  - service
+  - release
+
+folder_plan:
+  - path: 00_inbox
+    domain: inbox
+  - path: 10_product
+    domain: product
+  - path: 20_architecture
+    domain: architecture
+  - path: 30_decisions
+    domain: decisions
+  - path: 40_interfaces
+    domain: interfaces
+  - path: 50_runbooks
+    domain: runbooks
+  - path: 60_releases
+    domain: releases
+  - path: 70_incidents
+    domain: incidents
+  - path: 80_sources
+    domain: sources
+  - path: 80_sources/repos
+    domain: sources
+
+templates:
+  - _templates/base-note.md
+  - _templates/decision-record.md
+  - _templates/guide.md
+  - _templates/source-ref.md
+
+views: []
+skills: []
+benchmark_tasks: []
+
+policy_defaults:
+  mirror_mode: dedicated
+  mirror_root: _mirrors
+  mirror_status: active
+  repo_stub_status: draft
+  repo_notes_dir: 80_sources/repos
+  original_sources_authoritative: true
+  real_data_in_repo: false

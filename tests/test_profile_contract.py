@@ -622,7 +622,20 @@ def test_profile_cli_lists_built_in_profile() -> None:
 
     assert result.returncode == 0, result.stderr
     assert "business-operations" in result.stdout
+    assert "research-learning" in result.stdout
+    assert "software-project" in result.stdout
+    assert "blank" in result.stdout
     assert "version" in result.stdout
+
+
+def test_profile_cli_lists_all_official_profile_contracts_json() -> None:
+    result = run_cli("profile", "list", "--json")
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    ids = [item["id"] for item in payload]
+    assert ids == ["blank", "business-operations", "research-learning", "software-project"]
+    assert all(item["schema_version"] == 1 for item in payload)
 
 
 def test_profile_cli_shows_built_in_profile_json() -> None:
@@ -633,6 +646,18 @@ def test_profile_cli_shows_built_in_profile_json() -> None:
     assert data["id"] == "business-operations"
     assert data["schema_version"] == 1
     assert "customers" in data["domains"]
+
+
+def test_profile_cli_shows_non_business_official_profile_contract_json() -> None:
+    result = run_cli("profile", "show", "research-learning", "--json")
+
+    assert result.returncode == 0, result.stderr
+    data = json.loads(result.stdout)
+    assert data["id"] == "research-learning"
+    assert data["schema_version"] == 1
+    assert "literature" in data["domains"]
+    assert "customers" not in data["domains"]
+    assert data["policy_defaults"]["repo_notes_dir"] == "10_sources/repos"
 
 
 def test_profile_cli_initializes_and_validates_current_profile(tmp_path: Path) -> None:
@@ -898,7 +923,18 @@ def test_profile_cli_rejects_unavailable_init_profile(tmp_path: Path) -> None:
     result = run_cli("init", "--profile", "research-learning", str(tmp_path / "vault"))
 
     assert result.returncode == 1
-    assert "not available yet" in result.stderr
+    assert "packaged contract but no scaffold template yet" in result.stderr
+    assert "scaffolded profiles: business-operations" in result.stderr
+
+
+def test_profile_cli_migrate_rejects_non_scaffolded_profile_contract(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    vault.mkdir()
+
+    result = run_cli("--root", str(vault), "profile", "migrate", "--profile", "software-project", "--plan")
+
+    assert result.returncode == 1
+    assert "packaged contract but no scaffold template yet" in result.stderr
 
 
 def test_profile_cli_diff_rejects_unavailable_target_version(tmp_path: Path) -> None:

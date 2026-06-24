@@ -1,0 +1,138 @@
+schema_version: 1
+id: research-learning
+name: Research and Learning
+profile_version: 0.1.0
+description: Maintained v1 profile contract for literature, concepts, questions, projects, and syntheses.
+
+domains:
+  inbox:
+    folder: 00_inbox
+    purpose: Intake lane for unprocessed research material and agent drafts.
+  sources:
+    folder: 10_sources
+    purpose: Source inventories, literature records, repository mirrors, and raw-source references.
+  literature:
+    folder: 20_literature
+    purpose: Papers, books, articles, talks, datasets, and bibliographic notes.
+  concepts:
+    folder: 30_concepts
+    purpose: Concepts, definitions, theories, methods, and reusable explanations.
+  questions:
+    folder: 40_questions
+    purpose: Open questions, hypotheses, experiments, and inquiry backlogs.
+  projects:
+    folder: 50_projects
+    purpose: Research projects, courses, reading programs, and study plans.
+  syntheses:
+    folder: 60_syntheses
+    purpose: Human-curated findings, literature reviews, essays, and decision-ready summaries.
+  reading:
+    folder: 70_reading
+    purpose: Reading queue, watch lists, review cadence, and learning workflows.
+  archive:
+    folder: 80_archive
+    purpose: Retired research material kept for provenance and later retrieval.
+
+note_types:
+  moc:
+    purpose: Hub note that links a research or learning cluster.
+  note:
+    purpose: General curated research note.
+  source:
+    purpose: Human-readable source summary or bibliographic companion.
+  literature-note:
+    purpose: Note about a paper, book, article, talk, or dataset.
+  concept:
+    purpose: Stable explanation of a concept, method, or term.
+  question:
+    purpose: Open question, hypothesis, or investigation prompt.
+  experiment:
+    purpose: Research experiment, reading exercise, or evaluation protocol.
+  synthesis:
+    purpose: Curated synthesis across sources or research threads.
+  course:
+    purpose: Course, syllabus, or structured learning program.
+  project:
+    purpose: Research or learning project page.
+  source-mirror:
+    purpose: Machine-generated mirror of a binary/source file.
+    machine_owned: true
+  source-ref:
+    purpose: Human-readable companion for a non-mirrored source.
+  repo-mirror:
+    purpose: Machine-generated mirror of a configured repository.
+    machine_owned: true
+
+statuses:
+  draft:
+    purpose: Draft material not yet reviewed.
+    attention: true
+  active:
+    purpose: Current reviewed working knowledge.
+  in-review:
+    purpose: Awaiting human review.
+    attention: true
+  validated:
+    purpose: Reviewed and accepted for durable use.
+  superseded:
+    purpose: Replaced by newer research material.
+    inactive: true
+  archived:
+    purpose: Retained but no longer active.
+    inactive: true
+
+required_properties:
+  - title
+  - type
+  - status
+  - domain
+  - created
+  - updated
+
+optional_properties:
+  - owner
+  - tags
+  - related
+  - research_project
+  - literature_collection
+  - course
+  - source_url
+
+folder_plan:
+  - path: 00_inbox
+    domain: inbox
+  - path: 10_sources
+    domain: sources
+  - path: 10_sources/repos
+    domain: sources
+  - path: 20_literature
+    domain: literature
+  - path: 30_concepts
+    domain: concepts
+  - path: 40_questions
+    domain: questions
+  - path: 50_projects
+    domain: projects
+  - path: 60_syntheses
+    domain: syntheses
+  - path: 70_reading
+    domain: reading
+  - path: 80_archive
+    domain: archive
+
+templates:
+  - _templates/base-note.md
+  - _templates/source-ref.md
+
+views: []
+skills: []
+benchmark_tasks: []
+
+policy_defaults:
+  mirror_mode: dedicated
+  mirror_root: _mirrors
+  mirror_status: active
+  repo_stub_status: draft
+  repo_notes_dir: 10_sources/repos
+  original_sources_authoritative: true
+  real_data_in_repo: false

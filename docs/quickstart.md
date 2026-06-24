@@ -34,9 +34,10 @@ vaultwright --root ~/my-business-vault profile views --check
 vaultwright --root ~/my-business-vault migrate annotations --plan
 ```
 
-`business-operations` is currently the only packaged profile. The v1 finish line tracks
-research-learning, software-project, and blank profiles, but the CLI intentionally rejects them
-until their profile contracts and fixtures exist.
+Packaged profile contracts now include `business-operations`, `research-learning`,
+`software-project`, and `blank`. `business-operations` is still the only scaffolded `init` profile;
+the other contracts are inspectable with `vaultwright profile show <profile-id>` while their
+profile-specific fixtures and initialization flows are built out.
 
 Profile schema reference: [`PROFILE_SCHEMA.md`](PROFILE_SCHEMA.md).
 

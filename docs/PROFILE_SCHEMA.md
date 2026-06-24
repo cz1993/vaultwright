@@ -5,8 +5,11 @@ metadata, starter folders, views, skills, and benchmark hooks. Core runtime code
 contract instead of hard-coding business-specific folders, note types, statuses, or required
 properties.
 
-The current schema is `schema_version: 1`. The only packaged profile today is
-`business-operations` at `profile_version: 0.1.0`.
+The current schema is `schema_version: 1`. Packaged v1 profile contracts currently include
+`business-operations`, `research-learning`, `software-project`, and `blank`, each at
+`profile_version: 0.1.0`. Only `business-operations` has a scaffolded `init` template today; the
+other official contracts are available for inspection while profile-specific fixtures and init
+flows are built out.
 
 ## Contract File
 
@@ -16,10 +19,16 @@ Each vault stores its active profile at:
 _meta/profile.yml
 ```
 
-The packaged target profile is copied from:
+The scaffolded `business-operations` target profile is copied from:
 
 ```text
 template/_meta/profile.yml
+```
+
+The other packaged profile contracts live under:
+
+```text
+src/vaultwright/builtin_profiles/
 ```
 
 Use these commands to inspect and validate the contract:
@@ -27,6 +36,7 @@ Use these commands to inspect and validate the contract:
 ```bash
 vaultwright profile list
 vaultwright profile show business-operations
+vaultwright profile show research-learning
 vaultwright --root <vault> profile validate
 vaultwright --root <vault> profile diff 0.1.0
 vaultwright --root <vault> profile migrate --plan
@@ -350,5 +360,6 @@ marks `draft` and `in-review` as attention states, and marks `superseded` and `a
 inactive states for overlap/lint calibration.
 
 These values belong to the `business-operations` profile, not the long-term core. Future
-`research-learning`, `software-project`, and `blank` profiles must define their own domains, note
-types, statuses, views, and benchmark hooks before Stage 2 starts.
+`research-learning`, `software-project`, and `blank` scaffold work must keep using their own
+package-owned domains, note types, statuses, policy defaults, views, and benchmark hooks instead
+of inheriting the business vocabulary.

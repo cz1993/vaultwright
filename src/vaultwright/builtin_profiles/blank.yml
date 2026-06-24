@@ -1,0 +1,75 @@
+schema_version: 1
+id: blank
+name: Blank
+profile_version: 0.1.0
+description: Minimal v1 starter profile for advanced users who want only the core Vaultwright contract.
+
+domains:
+  inbox:
+    folder: 00_inbox
+    purpose: Intake lane for unprocessed material and agent drafts.
+  sources:
+    folder: 80_sources
+    purpose: Source inventories, repository mirrors, and source references.
+
+note_types:
+  moc:
+    purpose: Hub note that links a knowledge cluster.
+  note:
+    purpose: General curated note.
+  source-mirror:
+    purpose: Machine-generated mirror of a binary/source file.
+    machine_owned: true
+  source-ref:
+    purpose: Human-readable companion for a non-mirrored source.
+  repo-mirror:
+    purpose: Machine-generated mirror of a configured repository.
+    machine_owned: true
+
+statuses:
+  draft:
+    purpose: Draft material not yet reviewed.
+    attention: true
+  active:
+    purpose: Current reviewed working knowledge.
+  archived:
+    purpose: Retained but no longer active.
+    inactive: true
+
+required_properties:
+  - title
+  - type
+  - status
+  - domain
+  - created
+  - updated
+
+optional_properties:
+  - owner
+  - tags
+  - related
+
+folder_plan:
+  - path: 00_inbox
+    domain: inbox
+  - path: 80_sources
+    domain: sources
+  - path: 80_sources/repos
+    domain: sources
+
+templates:
+  - _templates/base-note.md
+  - _templates/source-ref.md
+
+views: []
+skills: []
+benchmark_tasks: []
+
+policy_defaults:
+  mirror_mode: dedicated
+  mirror_root: _mirrors
+  mirror_status: active
+  repo_stub_status: draft
+  repo_notes_dir: 80_sources/repos
+  original_sources_authoritative: true
+  real_data_in_repo: false

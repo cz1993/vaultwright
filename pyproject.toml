@@ -28,6 +28,7 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 vaultwright = [
+  "builtin_profiles/*.yml",
   "template/**/*",
   "template/.gitignore",
   "template/**/.gitkeep",

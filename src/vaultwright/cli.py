@@ -36,6 +36,9 @@ from vaultwright.profile_migration import profile_migration_plan, write_profile_
 from vaultwright.profiles import ProfileContract, ProfileValidationError, load_profile
 from vaultwright.views import profile_views_plan, write_profile_views
 
+BUILTIN_PROFILE_DIR = Path(__file__).resolve().parent / "builtin_profiles"
+SCAFFOLDED_PROFILE_IDS = {"business-operations"}
+
 
 def template_source() -> Path | None:
     env_root = os.environ.get("VAULTWRIGHT_REPO")
@@ -51,19 +54,39 @@ def template_source() -> Path | None:
     return None
 
 
+def built_in_profile_paths() -> list[Path]:
+    paths: list[Path] = []
+    template = template_source()
+    if template:
+        paths.append(template / "_meta" / "profile.yml")
+    if BUILTIN_PROFILE_DIR.exists():
+        paths.extend(sorted(BUILTIN_PROFILE_DIR.glob("*.yml")))
+    return paths
+
+
+def built_in_profiles() -> dict[str, tuple[ProfileContract, Path]]:
+    profiles: dict[str, tuple[ProfileContract, Path]] = {}
+    for path in built_in_profile_paths():
+        if not path.exists():
+            continue
+        profile = load_profile(path)
+        if profile.id in profiles:
+            previous_path = profiles[profile.id][1]
+            raise ProfileValidationError(
+                f"duplicate built-in profile id {profile.id}: {previous_path} and {path}"
+            )
+        profiles[profile.id] = (profile, path)
+    return dict(sorted(profiles.items()))
+
+
 def ensure_empty_or_missing(target: Path) -> None:
     if target.exists() and any(target.iterdir()):
         raise ValueError(f"refusing: '{target}' exists and is not empty")
 
 
 def built_in_profile() -> tuple[ProfileContract, Path] | None:
-    template = template_source()
-    if not template:
-        return None
-    path = template / "_meta" / "profile.yml"
-    if not path.exists():
-        return None
-    return load_profile(path), path
+    profiles = built_in_profiles()
+    return profiles.get("business-operations")
 
 
 def print_profile_summary(profile: ProfileContract) -> None:
@@ -81,19 +104,19 @@ def print_profile_summary(profile: ProfileContract) -> None:
 
 def command_profile_list(args: argparse.Namespace) -> int:
     try:
-        loaded = built_in_profile()
+        profiles = built_in_profiles()
     except ProfileValidationError as exc:
         print(f"profile list: invalid built-in profile: {exc}", file=sys.stderr)
         return 1
-    if not loaded:
+    if not profiles:
         print("profile list: no built-in profiles found", file=sys.stderr)
         return 1
-    profile, _path = loaded
     if args.json:
-        print(json.dumps([profile.summary()], indent=2, sort_keys=True))
+        print(json.dumps([profile.summary() for profile, _path in profiles.values()], indent=2, sort_keys=True))
     else:
         print("id\tversion\tname")
-        print(f"{profile.id}\t{profile.profile_version}\t{profile.name}")
+        for profile, _path in profiles.values():
+            print(f"{profile.id}\t{profile.profile_version}\t{profile.name}")
     return 0
 
 
@@ -114,14 +137,15 @@ def load_optional_current_profile(root: Path) -> tuple[ProfileContract | None, P
 def command_profile_show(args: argparse.Namespace) -> int:
     try:
         if args.profile_id:
-            loaded = built_in_profile()
-            if not loaded:
+            profiles = built_in_profiles()
+            if not profiles:
                 print("profile show: no built-in profiles found", file=sys.stderr)
                 return 1
-            profile, path = loaded
-            if args.profile_id != profile.id:
+            loaded = profiles.get(args.profile_id)
+            if not loaded:
                 print(f"profile show: unknown built-in profile: {args.profile_id}", file=sys.stderr)
                 return 1
+            profile, path = loaded
         else:
             profile, path = load_current_profile(args.root.expanduser().resolve())
     except ProfileValidationError as exc:
@@ -211,10 +235,20 @@ def load_target_profile(profile_id: str | None = None) -> tuple[ProfileContract,
     template = template_source()
     if not template:
         raise ProfileValidationError("no built-in profiles found")
-    path = template / "_meta" / "profile.yml"
-    profile = load_profile(path)
-    if profile_id and profile.id != profile_id:
-        raise ProfileValidationError(f"unknown built-in profile: {profile_id}")
+    profiles = built_in_profiles()
+    if not profiles:
+        raise ProfileValidationError("no built-in profiles found")
+    target_id = profile_id or "business-operations"
+    loaded = profiles.get(target_id)
+    if not loaded:
+        raise ProfileValidationError(f"unknown built-in profile: {target_id}")
+    profile, path = loaded
+    if profile.id not in SCAFFOLDED_PROFILE_IDS:
+        available = ", ".join(sorted(SCAFFOLDED_PROFILE_IDS))
+        raise ProfileValidationError(
+            f"profile '{profile.id}' has a packaged contract but no scaffold template yet; "
+            f"scaffolded profiles: {available}"
+        )
     return profile, path, template
 
 
@@ -298,24 +332,10 @@ def command_profile_migrate(args: argparse.Namespace) -> int:
 
 
 def command_init(args: argparse.Namespace) -> int:
-    template = template_source()
-    if not template:
-        print(
-            "vaultwright init cannot find a packaged template. Reinstall Vaultwright or set "
-            "VAULTWRIGHT_REPO to a source checkout.",
-            file=sys.stderr,
-        )
-        return 1
     try:
-        profile = load_profile(template / "_meta" / "profile.yml")
+        profile, _profile_path, template = load_target_profile(args.profile)
     except ProfileValidationError as exc:
-        print(f"vaultwright init: invalid packaged profile: {exc}", file=sys.stderr)
-        return 1
-    if args.profile != profile.id:
-        print(
-            f"vaultwright init: profile '{args.profile}' is not available yet; available: {profile.id}",
-            file=sys.stderr,
-        )
+        print(f"vaultwright init: {exc}", file=sys.stderr)
         return 1
     target = args.target.expanduser().resolve()
     try:
@@ -577,7 +597,7 @@ def build_parser() -> argparse.ArgumentParser:
     init.add_argument(
         "--profile",
         default="business-operations",
-        help="Profile to initialize. Currently: business-operations.",
+        help="Profile to initialize. Currently scaffolded: business-operations.",
     )
     init.add_argument("target", type=Path)
     init.set_defaults(func=command_init)
