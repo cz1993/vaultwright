@@ -202,6 +202,44 @@ def test_profile_contract_rejects_unsafe_mirror_root_default() -> None:
         validate_profile_mapping(data)
 
 
+def test_profile_contract_accepts_profile_repo_notes_dir_inside_domain_folder() -> None:
+    data = minimal_profile()
+    data["domains"]["research"] = {"folder": "25_research"}
+    data["folder_plan"].append({"path": "25_research", "domain": "research"})
+    data["policy_defaults"] = {"repo_notes_dir": "25_research/repos"}
+
+    validate_profile_mapping(data)
+
+
+def test_profile_contract_rejects_unsafe_repo_notes_dir_default() -> None:
+    data = minimal_profile()
+    data["policy_defaults"] = {"repo_notes_dir": "_meta/repos"}
+
+    with pytest.raises(ProfileValidationError, match=r"policy_defaults\.repo_notes_dir contains a reserved path component"):
+        validate_profile_mapping(data)
+
+
+def test_profile_contract_requires_repo_notes_dir_inside_domain_folder() -> None:
+    data = minimal_profile()
+    data["policy_defaults"] = {"repo_notes_dir": "90_repos"}
+
+    with pytest.raises(ProfileValidationError, match=r"policy_defaults\.repo_notes_dir must be inside a declared domain folder"):
+        validate_profile_mapping(data)
+
+
+def test_profile_contract_rejects_repo_notes_dir_mirror_root_overlap() -> None:
+    data = minimal_profile()
+    data["domains"]["sources"] = {"folder": "80_sources"}
+    data["folder_plan"].append({"path": "80_sources", "domain": "sources"})
+    data["policy_defaults"] = {
+        "mirror_root": "80_sources/repos",
+        "repo_notes_dir": "80_sources/repos",
+    }
+
+    with pytest.raises(ProfileValidationError, match=r"policy_defaults\.repo_notes_dir must not overlap"):
+        validate_profile_mapping(data)
+
+
 def test_profile_contract_requires_folder_plan_declared_domain() -> None:
     data = minimal_profile()
     data["folder_plan"] = [{"path": "00_inbox", "domain": "missing"}]

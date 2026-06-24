@@ -60,6 +60,20 @@ FORBIDDEN_MIRROR_ROOT_PARTS = {
     "node_modules",
     "tools",
 }
+FORBIDDEN_REPO_NOTES_DIR_PARTS = {
+    ".git",
+    ".githooks",
+    ".github",
+    ".obsidian",
+    "_archive",
+    "_fixtures",
+    "_meta",
+    "_mirrors",
+    "_templates",
+    "_tmp",
+    "node_modules",
+    "tools",
+}
 
 
 class ProfileValidationError(ValueError):
@@ -162,6 +176,22 @@ def validate_mirror_root(value: Any, field: str) -> PurePosixPath:
     path = validate_profile_path(value, field)
     if any(part.startswith(".") or part in FORBIDDEN_MIRROR_ROOT_PARTS for part in path.parts):
         raise ProfileValidationError(f"{field} contains a reserved path component")
+    return path
+
+
+def validate_repo_notes_dir(
+    value: Any,
+    field: str,
+    domain_folders: dict[str, PurePosixPath],
+    mirror_root: PurePosixPath | None,
+) -> PurePosixPath:
+    path = validate_profile_path(value, field)
+    if any(part.startswith(".") or part in FORBIDDEN_REPO_NOTES_DIR_PARTS for part in path.parts):
+        raise ProfileValidationError(f"{field} contains a reserved path component")
+    if not any(path_is_under(path, folder) for folder in domain_folders.values()):
+        raise ProfileValidationError(f"{field} must be inside a declared domain folder")
+    if mirror_root and (path_is_under(path, mirror_root) or path_is_under(mirror_root, path)):
+        raise ProfileValidationError(f"{field} must not overlap policy_defaults.mirror_root")
     return path
 
 
@@ -280,8 +310,17 @@ def validate_profile_mapping(data: Any) -> None:
         if str(mirror_mode).strip() not in MIRROR_MODES:
             raise ProfileValidationError("policy_defaults.mirror_mode must be one of: dedicated, sibling")
 
+    mirror_root: PurePosixPath | None = None
     if "mirror_root" in data["policy_defaults"]:
-        validate_mirror_root(data["policy_defaults"]["mirror_root"], "policy_defaults.mirror_root")
+        mirror_root = validate_mirror_root(data["policy_defaults"]["mirror_root"], "policy_defaults.mirror_root")
+
+    if "repo_notes_dir" in data["policy_defaults"]:
+        validate_repo_notes_dir(
+            data["policy_defaults"]["repo_notes_dir"],
+            "policy_defaults.repo_notes_dir",
+            domain_folders,
+            mirror_root,
+        )
 
     validate_folder_plan(data["folder_plan"], domain_folders)
 
