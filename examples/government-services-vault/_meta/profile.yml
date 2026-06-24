@@ -134,6 +134,8 @@ benchmark_tasks: []
 policy_defaults:
   mirror_mode: dedicated
   mirror_root: _mirrors
+  mirror_status: active
+  repo_stub_status: draft
   repo_notes_dir: 80_sources/repos
   original_sources_authoritative: true
   real_data_in_repo: false

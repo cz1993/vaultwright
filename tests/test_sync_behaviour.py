@@ -4740,6 +4740,51 @@ def test_github_sync_populates_stub_without_carrying_in_mirror_notes(tmp_path: P
     assert "Operational runbook." in populated_text
 
 
+def test_github_sync_uses_profile_repo_stub_and_mirror_status_defaults(tmp_path: Path, monkeypatch) -> None:
+    sync = load_sync_module()
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    profile_path = vault / "_meta" / "profile.yml"
+    profile = yaml.safe_load(profile_path.read_text(encoding="utf-8"))
+    profile["statuses"]["queued"] = {"purpose": "Profile-defined repo stub status."}
+    profile["statuses"]["current"] = {"purpose": "Profile-defined generated mirror status."}
+    profile["policy_defaults"]["repo_stub_status"] = "queued"
+    profile["policy_defaults"]["mirror_status"] = "current"
+    profile_path.write_text(yaml.safe_dump(profile, sort_keys=False), encoding="utf-8")
+    monkeypatch.setattr(sync, "ROOT", vault)
+    monkeypatch.setattr(sync, "resolve_slug", lambda _entry, _token: (None, None))
+    entry = {
+        "repo": "example/private-service",
+        "note": "private-service.md",
+    }
+    settings = {"notes_dir": "80_sources/repos"}
+
+    stub_status = sync.sync_one(entry, settings, None, False, False)
+    note = vault / "80_sources" / "repos" / "private-service.md"
+    stub_fm, _stub_body = sync.split_fm(note.read_text(encoding="utf-8"))
+
+    assert stub_status == "stub"
+    assert stub_fm["status"] == "queued"
+
+    fixture = vault / "_fixtures" / "private-service"
+    fixture.mkdir(parents=True)
+    (fixture / "README.md").write_text("# Private Service\n\nOperational runbook.\n", encoding="utf-8")
+    reachable_entry = {**entry, "local_path": "_fixtures/private-service"}
+
+    populate_status = sync.sync_one(
+        reachable_entry,
+        settings,
+        None,
+        False,
+        False,
+        trusted_existing_baseline=True,
+    )
+    populated_fm, _populated_body = sync.split_fm(note.read_text(encoding="utf-8"))
+
+    assert populate_status == "updated"
+    assert populated_fm["status"] == "current"
+
+
 def test_github_sync_preserves_note_and_recovers_after_write_failure(tmp_path: Path, monkeypatch) -> None:
     sync = load_sync_module()
     vault = tmp_path / "vault"
@@ -5724,6 +5769,29 @@ def test_office_sync_with_annotation_sidecar_makes_mirror_machine_owned(tmp_path
     assert updated_fm["tags"] == []
     assert updated_fm["related"] == []
     assert updated_fm["type"] == "source-mirror"
+
+
+def test_office_sync_uses_profile_mirror_status_default(tmp_path: Path) -> None:
+    sync = load_office_sync_module()
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    profile_path = vault / "_meta" / "profile.yml"
+    profile = yaml.safe_load(profile_path.read_text(encoding="utf-8"))
+    profile["statuses"]["current"] = {"purpose": "Profile-defined generated mirror status."}
+    profile["policy_defaults"]["mirror_status"] = "current"
+    profile_path.write_text(yaml.safe_dump(profile, sort_keys=False), encoding="utf-8")
+    source = vault / "40_delivery" / "registration.docx"
+    source.parent.mkdir(parents=True, exist_ok=True)
+    source.write_bytes(b"office bytes")
+    config = sync.load_mirror_config(vault)
+    manifest = sync.empty_manifest()
+
+    status = sync.sync_one(source, vault, FakeConverter(), False, False, config, {}, manifest, "markitdown", "test")
+    mirror = vault / "_mirrors" / "40_delivery" / "registration.md"
+    fm, _body = sync.split_frontmatter(mirror.read_text(encoding="utf-8"))
+
+    assert status == "created"
+    assert fm["status"] == "current"
 
 
 def test_office_sync_repairs_managed_source_frontmatter_identity_drift(tmp_path: Path) -> None:

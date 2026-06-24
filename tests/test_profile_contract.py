@@ -47,6 +47,8 @@ def test_template_business_operations_profile_validates() -> None:
     assert profile.statuses["in-review"]["attention"] is True
     assert profile.statuses["superseded"]["inactive"] is True
     assert profile.statuses["archived"]["inactive"] is True
+    assert profile.policy_defaults["mirror_status"] == "active"
+    assert profile.policy_defaults["repo_stub_status"] == "draft"
     assert "Documents.base" in profile.views
 
 
@@ -130,6 +132,15 @@ def test_profile_contract_rejects_non_boolean_note_type_roles() -> None:
     data["note_types"] = {"machine-note": {"purpose": "generated note", "machine_owned": "yes"}}
 
     with pytest.raises(ProfileValidationError, match=r"note_types\.machine-note\.machine_owned must be true or false"):
+        validate_profile_mapping(data)
+
+
+def test_profile_contract_requires_policy_default_statuses_to_be_declared() -> None:
+    data = minimal_profile()
+    data["statuses"] = {"queued": {"purpose": "pending"}}
+    data["policy_defaults"] = {"mirror_status": "current"}
+
+    with pytest.raises(ProfileValidationError, match=r"policy_defaults\.mirror_status must reference a declared status"):
         validate_profile_mapping(data)
 
 

@@ -43,6 +43,7 @@ MAPPING_FIELDS = {"domains", "note_types", "statuses", "policy_defaults"}
 FORBIDDEN_PROFILE_PATH_PARTS = {".git", ".githooks", ".github", "node_modules"}
 NOTE_TYPE_BOOLEAN_FIELDS = {"machine_owned"}
 STATUS_BOOLEAN_FIELDS = {"attention", "inactive"}
+POLICY_STATUS_DEFAULT_FIELDS = {"mirror_status", "repo_stub_status"}
 
 
 class ProfileValidationError(ValueError):
@@ -219,6 +220,14 @@ def validate_profile_mapping(data: Any) -> None:
         for field in STATUS_BOOLEAN_FIELDS:
             if field in definition and not isinstance(definition[field], bool):
                 raise ProfileValidationError(f"statuses.{status}.{field} must be true or false")
+
+    for field in POLICY_STATUS_DEFAULT_FIELDS:
+        if field not in data["policy_defaults"]:
+            continue
+        value = data["policy_defaults"][field]
+        validate_string(value, f"policy_defaults.{field}")
+        if str(value).strip() not in data["statuses"]:
+            raise ProfileValidationError(f"policy_defaults.{field} must reference a declared status")
 
     validate_folder_plan(data["folder_plan"], domain_folders)
 

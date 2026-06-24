@@ -49,6 +49,8 @@ try:
 except ImportError:
     sys.exit("Missing dependency: pip install markitdown")
 
+from vaultwright.runtime_profile import profile_generated_mirror_statuses, profile_mirror_status
+
 # --- configuration ---------------------------------------------------------
 
 DEFAULT_EXTS = [".docx", ".pptx", ".xlsx", ".doc"]
@@ -490,7 +492,7 @@ def managed_frontmatter(
     domain = domain_from_path(src, root, routing)
     source_rel = as_posix_rel(src.relative_to(root))
     fm.setdefault("title", humanize(src.stem))
-    fm.setdefault("status", "active")
+    fm.setdefault("status", profile_mirror_status(root))
     fm.setdefault("domain", domain)
     fm.setdefault("owner", "you")
     fm.setdefault("tags", [])
@@ -779,12 +781,13 @@ def preserved_body_has_annotation(body: str) -> bool:
     return any(not default_preserved_line(line) for line in body.splitlines())
 
 
-def frontmatter_has_annotation(existing_fm: dict | None) -> bool:
+def frontmatter_has_annotation(existing_fm: dict | None, root: Path) -> bool:
     preserved = preserved_annotation_frontmatter(existing_fm)
+    generated_statuses = profile_generated_mirror_statuses(root)
     for key, value in preserved.items():
         if key in DEFAULT_ANNOTATION_FRONTMATTER_KEYS:
             continue
-        if key == "status" and str(value or "").strip() in {"", "active", "draft"}:
+        if key == "status" and str(value or "").strip() in {"", *generated_statuses}:
             continue
         if key in {"tags", "related"} and value in (None, "", []):
             continue
@@ -808,7 +811,7 @@ def annotation_migration_required(
     preserved, sentinel_found = split_body_at_sentinel(existing_body)
     if not sentinel_found:
         return False
-    if not (preserved_body_has_annotation(preserved) or frontmatter_has_annotation(existing_fm)):
+    if not (preserved_body_has_annotation(preserved) or frontmatter_has_annotation(existing_fm, root)):
         return False
     return annotation_sidecar_matches(
         root,

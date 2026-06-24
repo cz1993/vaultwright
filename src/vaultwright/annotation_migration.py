@@ -13,6 +13,7 @@ from typing import Any
 import yaml
 
 from vaultwright.runtime_profile import (
+    profile_generated_mirror_statuses,
     profile_context_keys as runtime_profile_context_keys,
     profile_repo_notes_dir,
 )
@@ -243,11 +244,12 @@ def configured_repo_seed(root: Path, mirror_rel: str, context_keys: set[str]) ->
 def frontmatter_has_annotation(fm: dict[str, Any], kind: str, root: Path, mirror_rel: str) -> bool:
     preserved = preserved_frontmatter(fm, kind)
     context_keys = active_profile_context_keys(root)
+    generated_statuses = profile_generated_mirror_statuses(root)
     repo_seed = configured_repo_seed(root, mirror_rel, context_keys) if kind == "repo-mirror" else {}
     for key, value in preserved.items():
         if key in DEFAULT_FRONTMATTER_KEYS:
             continue
-        if key == "status" and str(value or "").strip() in {"", "active", "draft"}:
+        if key == "status" and str(value or "").strip() in {"", *generated_statuses}:
             continue
         if key == "tags":
             tags = value if isinstance(value, list) else []

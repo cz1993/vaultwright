@@ -36,7 +36,12 @@ try:
 except ImportError:
     sys.exit("Missing dependency: pip install pyyaml")
 
-from vaultwright.runtime_profile import profile_context_keys as runtime_profile_context_keys
+from vaultwright.runtime_profile import (
+    profile_context_keys as runtime_profile_context_keys,
+    profile_generated_mirror_statuses,
+    profile_mirror_status,
+    profile_repo_stub_status,
+)
 
 ROOT = Path(__file__).resolve().parent.parent
 CONFIG = Path(__file__).resolve().parent / "repos.yml"
@@ -620,10 +625,11 @@ def repo_seed_frontmatter(entry: dict) -> dict[str, object]:
 def frontmatter_has_annotation(existing_fm: dict | None, entry: dict) -> bool:
     preserved = preserved_annotation_frontmatter(existing_fm)
     seed = repo_seed_frontmatter(entry)
+    generated_statuses = profile_generated_mirror_statuses(ROOT)
     for key, value in preserved.items():
         if key in DEFAULT_ANNOTATION_FRONTMATTER_KEYS:
             continue
-        if key == "status" and str(value or "").strip() in {"", "active", "draft"}:
+        if key == "status" and str(value or "").strip() in {"", *generated_statuses}:
             continue
         if key == "tags":
             tags = value if isinstance(value, list) else []
@@ -1352,9 +1358,10 @@ def sync_one(entry, settings, token, force, dry, trusted_existing_baseline=False
             "html_url": entry.get("repo_url", ""),
         }
         fm = base_fm(frontmatter_source, entry, slug, domain=domain)
+        generated_statuses = profile_generated_mirror_statuses(ROOT)
         fm["status"] = (
-            "active"
-            if frontmatter_source.get("status") in (None, "", "draft")
+            profile_mirror_status(ROOT)
+            if str(frontmatter_source.get("status") or "").strip() in {"", *generated_statuses}
             else frontmatter_source["status"]
         )
         fm["default_branch"] = meta["default_branch"]
@@ -1375,7 +1382,7 @@ def sync_one(entry, settings, token, force, dry, trusted_existing_baseline=False
         if existing_fm.get("last_commit"):
             return "skipped:unreachable"
         fm = base_fm(frontmatter_source, entry, entry["repo"], domain=domain)
-        fm.setdefault("status", "draft")
+        fm.setdefault("status", profile_repo_stub_status(ROOT))
         fm["synced"] = ""
         error = write_note_error(note_path, fm, preserved, pending_auto(entry["repo"], "not reachable / auth not configured"), dry)
         if error:
@@ -1391,7 +1398,7 @@ def sync_one(entry, settings, token, force, dry, trusted_existing_baseline=False
         if existing_fm.get("last_commit"):
             return f"error:clone ({err})"
         fm = base_fm(frontmatter_source, entry, slug, domain=domain)
-        fm.setdefault("status", "draft")
+        fm.setdefault("status", profile_repo_stub_status(ROOT))
         fm["synced"] = ""
         error = write_note_error(note_path, fm, preserved, pending_auto(slug, f"clone failed: {err}"), dry)
         if error:
@@ -1410,10 +1417,11 @@ def sync_one(entry, settings, token, force, dry, trusted_existing_baseline=False
         shutil.rmtree(tmp, ignore_errors=True)
 
     fm = base_fm(frontmatter_source, entry, slug, domain=domain)
-    # promote a never-synced/draft stub to active; otherwise respect the curated status
+    # Promote a generated stub status to the profile's refreshed mirror status; preserve curated statuses.
+    generated_statuses = profile_generated_mirror_statuses(ROOT)
     fm["status"] = (
-        "active"
-        if frontmatter_source.get("status") in (None, "", "draft")
+        profile_mirror_status(ROOT)
+        if str(frontmatter_source.get("status") or "").strip() in {"", *generated_statuses}
         else frontmatter_source["status"]
     )
     fm["default_branch"] = (meta or {}).get("default_branch", "")

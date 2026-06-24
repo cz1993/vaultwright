@@ -17,7 +17,10 @@ try:
 except ImportError:
     sys.exit("pip install pyyaml")
 
-from vaultwright.runtime_profile import profile_context_keys as runtime_profile_context_keys
+from vaultwright.runtime_profile import (
+    profile_context_keys as runtime_profile_context_keys,
+    profile_generated_mirror_statuses,
+)
 
 ROOT = Path.cwd().resolve()
 DEFAULT_REQUIRED = ["title", "type", "status", "domain", "created", "updated"]
@@ -69,6 +72,7 @@ REPO_MANAGED_KEYS = {
 DEFAULT_ANNOTATION_FRONTMATTER_KEYS = {"title", "domain", "owner", "created", "updated"}
 PROFILE_CONTEXT_KEYS = {"account", "client", "program", "vendor"}
 INACTIVE_STATUSES = list(DEFAULT_INACTIVE_STATUSES)
+GENERATED_MIRROR_STATUSES = {"active", "draft"}
 STOPWORDS = {
     "about", "after", "again", "against", "also", "because", "before", "being", "between",
     "could", "during", "each", "from", "have", "into", "more", "must", "need", "only",
@@ -501,7 +505,7 @@ def local_tree_sha(repodir: Path) -> str:
     return "local-" + h.hexdigest()[:40]
 
 def main(root: Path | None = None) -> int:
-    global ROOT, CONTENT_ROOTS, PROFILE_DOMAIN_FOLDERS, PROFILE_POLICY_DEFAULTS, PROFILE_CONTEXT_KEYS, INACTIVE_STATUSES
+    global ROOT, CONTENT_ROOTS, PROFILE_DOMAIN_FOLDERS, PROFILE_POLICY_DEFAULTS, PROFILE_CONTEXT_KEYS, INACTIVE_STATUSES, GENERATED_MIRROR_STATUSES
     ROOT = (root or Path.cwd()).resolve()
     # inventory
     all_files = sorted(
@@ -566,6 +570,7 @@ def main(root: Path | None = None) -> int:
     }
     PROFILE_POLICY_DEFAULTS = dict(PROFILE_SETTINGS["policy_defaults"])
     PROFILE_CONTEXT_KEYS = set(runtime_profile_context_keys(ROOT))
+    GENERATED_MIRROR_STATUSES = profile_generated_mirror_statuses(ROOT)
     DOMAIN_FOLDERS, DOMAIN_FOLDER_ALIASES, domain_map_errors = domain_folders(PROFILE_DOMAIN_FOLDERS)
     DOMAIN_BY_FOLDER = {folder: domain for domain, folder in DOMAIN_FOLDERS.items()}
     MIRROR_CONFIG, mirror_config_errors = mirror_config()
@@ -695,7 +700,7 @@ def main(root: Path | None = None) -> int:
         for key, value in preserved.items():
             if key in DEFAULT_ANNOTATION_FRONTMATTER_KEYS:
                 continue
-            if key == "status" and str(value or "").strip() in {"", "active", "draft"}:
+            if key == "status" and str(value or "").strip() in {"", *GENERATED_MIRROR_STATUSES}:
                 continue
             if key == "tags":
                 tags = value if isinstance(value, list) else []
