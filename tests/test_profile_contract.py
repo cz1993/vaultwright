@@ -13,6 +13,7 @@ from vaultwright.profile_migration import target_dir_paths
 from vaultwright.profiles import ProfileContract, ProfileValidationError, load_profile, validate_profile_mapping
 from vaultwright.runtime_profile import (
     configured_office_mirror_root,
+    profile_context_aliases,
     profile_domain_folders,
     profile_mirror_status,
     profile_repo_notes_dir,
@@ -116,6 +117,24 @@ def test_runtime_profile_helpers_ignore_invalid_profile_contract(tmp_path: Path)
     assert profile_repo_notes_dir(vault) == "80_sources/repos"
     assert profile_mirror_status(vault) == "active"
     assert configured_office_mirror_root(vault) == Path("_mirrors")
+
+
+def test_runtime_profile_context_aliases_are_contract_owned(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    profile_path = vault / "_meta" / "profile.yml"
+    profile = yaml.safe_load(profile_path.read_text(encoding="utf-8"))
+    profile["policy_defaults"].pop("context_aliases")
+    profile_path.write_text(yaml.safe_dump(profile, sort_keys=False), encoding="utf-8")
+
+    assert profile_context_aliases(vault) == {}
+
+
+def test_runtime_profile_context_aliases_fall_back_for_profileless_legacy_vault(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    vault.mkdir()
+
+    assert profile_context_aliases(vault) == {"client": "account"}
 
 
 def test_github_repo_sync_uses_validated_runtime_profile_helpers(tmp_path: Path) -> None:

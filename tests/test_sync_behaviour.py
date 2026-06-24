@@ -7493,6 +7493,61 @@ def test_repo_frontmatter_does_not_infer_context_aliases_for_other_profiles(tmp_
     assert fm["client"] == "[[Client Context]]"
 
 
+def test_repo_frontmatter_does_not_infer_context_aliases_when_profile_omits_policy(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    sync = load_sync_module()
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    profile_path = vault / "_meta" / "profile.yml"
+    profile = yaml.safe_load(profile_path.read_text(encoding="utf-8"))
+    profile["policy_defaults"].pop("context_aliases")
+    profile_path.write_text(yaml.safe_dump(profile, sort_keys=False), encoding="utf-8")
+    monkeypatch.setattr(sync, "ROOT", vault)
+
+    fm = sync.base_fm({}, {"repo": "local/repo", "note": "repo.md", "client": "[[Legacy Client]]"}, "local/repo")
+
+    assert "account" not in fm
+    assert fm["client"] == "[[Legacy Client]]"
+
+
+def test_repo_frontmatter_order_uses_profile_context_fields(tmp_path: Path, monkeypatch) -> None:
+    sync = load_sync_module()
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    profile_path = vault / "_meta" / "profile.yml"
+    profile = yaml.safe_load(profile_path.read_text(encoding="utf-8"))
+    profile["optional_properties"] = [
+        value
+        for value in profile["optional_properties"]
+        if value not in {"account", "client", "program", "vendor"}
+    ]
+    profile["optional_properties"].append("component")
+    profile["policy_defaults"].pop("context_aliases", None)
+    profile_path.write_text(yaml.safe_dump(profile, sort_keys=False), encoding="utf-8")
+    monkeypatch.setattr(sync, "ROOT", vault)
+
+    rendered = sync.dump_fm(
+        {
+            "title": "Repo",
+            "type": "repo-mirror",
+            "status": "active",
+            "domain": "sources",
+            "component": "[[Compiler]]",
+            "account": "[[Legacy Business Context]]",
+            "repo_id": "repo_fixture",
+            "repo_manifest": "_meta/repo-manifest.json",
+            "repo": "local/repo",
+        }
+    )
+    lines = rendered.splitlines()
+    line_index = {line.split(":", 1)[0]: index for index, line in enumerate(lines) if ":" in line}
+
+    assert line_index["component"] < line_index["repo_id"]
+    assert line_index["account"] > line_index["repo"]
+
+
 def test_repo_sync_marks_manifest_record_unconfigured_when_config_entry_removed(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     tools = vault / "tools"

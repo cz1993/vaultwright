@@ -221,13 +221,14 @@ deciding whether a Markdown artifact is generated and reviewable.
 Source/repo mirror sync and annotation migration read `policy_defaults.mirror_status` and
 `policy_defaults.repo_stub_status` when generating mirrors and deciding which mirror statuses are
 machine metadata rather than human annotations. Repo mirror context frontmatter also comes from the
-active profile's optional
-properties, so the `business-operations` profile keeps `account`/`client` compatibility while other
+active profile's optional properties, so the `business-operations` profile keeps
+`account`/`client` compatibility only because it declares `context_aliases`, while other valid
 profiles can declare fields such as `research_project` or `component` without inheriting that
 business-specific alias unless they opt in. Lint and annotation migration also read
 `context_aliases` when checking context frontmatter against repo configuration. Office source
-mirrors use the active profile's context fields when ordering preserved frontmatter before managed
-source metadata. Microsoft 365 handoff, sandbox preflight, recovery, and review-ledger
+mirrors and GitHub repo mirrors use the active profile's context fields when ordering preserved
+frontmatter before managed source/repo metadata. Microsoft 365 handoff, sandbox preflight,
+recovery, and review-ledger
 reporting also resolve repo mirror folders from the active profile, while honoring an explicit
 `tools/repos.yml` `settings.notes_dir` override. The `vaultwright migration` command uses
 validated `_meta/profile.yml` domains for canonical domain folders and `_meta/domain-map.yml` for
@@ -319,6 +320,7 @@ mirror_mode -> dedicated
 mirror_root -> _mirrors
 mirror_status -> active
 repo_stub_status -> draft
+context_aliases -> client: account
 ```
 
 Allowed note types are:

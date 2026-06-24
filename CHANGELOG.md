@@ -119,7 +119,7 @@ All notable changes to Vaultwright are documented here. Format loosely follows
   profile's domain/folder mapping.
 - GitHub repo mirror sync and lint now read `policy_defaults.context_aliases`, so the
   `business-operations` profile can declare `client` as an alias of `account` without forcing that
-  business-specific rule onto future profiles.
+  business-specific rule onto any valid profile that omits the policy.
 - Profile validation now requires `policy_defaults.repo_notes_dir`, when present, to be a safe
   vault-relative folder inside a declared profile domain and separate from the Office mirror root.
 - Profile validation now enforces boolean source-authority/no-real-data policy defaults, requiring
@@ -131,6 +131,9 @@ All notable changes to Vaultwright are documented here. Format loosely follows
   fields.
 - Office source-mirror frontmatter ordering now uses the active profile's context fields before
   managed source metadata, instead of privileging business-only context keys in every profile.
+- GitHub repo-mirror frontmatter ordering now uses the active profile's context fields before
+  managed repo metadata, and runtime helpers no longer infer business context aliases from a
+  profile ID when `policy_defaults.context_aliases` is absent.
 - Annotation migration now also reads `policy_defaults.context_aliases` when comparing generated
   repo-mirror frontmatter with `tools/repos.yml`, so profile-defined aliases are not mistaken for
   human mirror annotations.

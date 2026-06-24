@@ -151,12 +151,6 @@ def profile_context_aliases(root: Path) -> dict[str, str]:
                 aliases[alias_key] = target_key
         return aliases
 
-    if (
-        profile.get("id") == "business-operations"
-        and set(LEGACY_CONTEXT_ALIASES).issubset(context_keys)
-        and set(LEGACY_CONTEXT_ALIASES.values()).issubset(context_keys)
-    ):
-        return dict(LEGACY_CONTEXT_ALIASES)
     return {}
 
 

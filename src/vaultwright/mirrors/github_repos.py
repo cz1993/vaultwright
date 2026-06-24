@@ -65,10 +65,13 @@ LEGACY_PROFILE_CONTEXT_ALIASES = {"client": "account"}
 LIFECYCLE_CONTRACT_REL = Path("_meta/lifecycle-states.yml")
 MANAGED = {"type", "repo_id", "repo_manifest", "repo", "repo_url", "default_branch", "last_commit",
            "last_commit_date", "open_issues", "synced", "updated"}
-KEY_ORDER = ["title", "type", "status", "domain", "owner", "created", "updated",
-             "tags", "related", "account", "client", "program", "vendor",
-             "repo_id", "repo_manifest", "repo", "repo_url", "default_branch", "last_commit",
-             "last_commit_date", "open_issues", "synced"]
+BASE_KEY_ORDER = ["title", "type", "status", "domain", "owner", "created", "updated", "tags", "related"]
+LEGACY_CONTEXT_KEY_ORDER = ["account", "client", "program", "vendor"]
+MANAGED_KEY_ORDER = [
+    "repo_id", "repo_manifest", "repo", "repo_url", "default_branch", "last_commit",
+    "last_commit_date", "open_issues", "synced",
+]
+KEY_ORDER = [*BASE_KEY_ORDER, *LEGACY_CONTEXT_KEY_ORDER, *MANAGED_KEY_ORDER]
 GIT_ENV = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
 CONTENT_ROOTS = {
     "00_inbox", "10_governance", "20_market", "30_customers", "40_delivery",
@@ -852,8 +855,12 @@ def sync_audit_event(plan: dict, manifest: dict, status: str, entry: dict) -> di
 
 
 def dump_fm(data):
-    context_keys = [key for key in sorted(active_profile_context_keys()) if key not in KEY_ORDER]
-    key_order = [*KEY_ORDER[:9], *context_keys, *KEY_ORDER[9:]]
+    context_keys = [
+        key
+        for key in sorted(active_profile_context_keys())
+        if key not in BASE_KEY_ORDER and key not in MANAGED_KEY_ORDER
+    ]
+    key_order = [*BASE_KEY_ORDER, *context_keys, *MANAGED_KEY_ORDER]
     ordered = {k: data[k] for k in key_order if k in data}
     for k, v in data.items():
         ordered.setdefault(k, v)

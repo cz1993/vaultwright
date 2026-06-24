@@ -46,8 +46,10 @@ settings only from a validated profile contract, and GitHub repo sync reuses tho
 of maintaining a separate profile parser. Catalog and migration reporting also load profile domain
 routing through the package validator before treating profile-declared folders as canonical, and
 benchmark/pilot task discovery validates the active profile before using profile-declared
-`benchmark_tasks`. Office source-mirror frontmatter ordering now reads the active profile's context
-fields instead of privileging business-only context keys for every profile.
+`benchmark_tasks`. Office source-mirror and GitHub repo-mirror frontmatter ordering now read the
+active profile's context fields instead of privileging business-only context keys for every
+profile, and runtime helpers no longer infer business context aliases from the profile ID when
+`policy_defaults.context_aliases` is absent.
 
 ## Conditional V1 Explorer Finish Line
 

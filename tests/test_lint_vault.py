@@ -513,6 +513,65 @@ def test_template_linter_blocks_client_without_account(tmp_path: Path) -> None:
     assert "client requires account" in result.stdout
 
 
+def test_template_linter_does_not_infer_context_aliases_when_profile_omits_policy(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    profile = load_profile(vault)
+    profile["policy_defaults"].pop("context_aliases")
+    write_profile(vault, profile)
+    customers = vault / "30_customers"
+    (customers / "Acme.md").write_text(
+        "---\n"
+        "title: Acme\n"
+        "type: entity\n"
+        "status: active\n"
+        "domain: customers\n"
+        "created: 2026-01-01\n"
+        "updated: 2026-01-01\n"
+        "---\n"
+        "# Acme\n",
+        encoding="utf-8",
+    )
+    (customers / "Other.md").write_text(
+        "---\n"
+        "title: Other\n"
+        "type: entity\n"
+        "status: active\n"
+        "domain: customers\n"
+        "created: 2026-01-01\n"
+        "updated: 2026-01-01\n"
+        "---\n"
+        "# Other\n",
+        encoding="utf-8",
+    )
+    note = customers / "independent-context.md"
+    note.write_text(
+        "---\n"
+        "title: Independent Context\n"
+        "type: note\n"
+        "status: active\n"
+        "domain: customers\n"
+        "account: \"[[Acme]]\"\n"
+        "client: \"[[Other]]\"\n"
+        "created: 2026-01-01\n"
+        "updated: 2026-01-01\n"
+        "---\n"
+        "# Independent Context\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "lint_vault.py")],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+    assert "Context alias mismatch: 0" in result.stdout
+    assert "client must match account" not in result.stdout
+
+
 def test_template_linter_does_not_infer_context_aliases_for_other_profiles(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     shutil.copytree(ROOT / "template", vault)
