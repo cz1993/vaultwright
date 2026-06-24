@@ -84,6 +84,8 @@ All notable changes to Vaultwright are documented here. Format loosely follows
   evidence checks, so custom generated roots do not trigger false unsynced-source warnings.
 - Profile validation now rejects templates, views, skills, and benchmark task packs declared inside
   `policy_defaults.mirror_root`, keeping generated Office mirrors separate from profile artifacts.
+- Generated `Documents.base` review-attention filters now use only profile-declared
+  `attention: true` status roles instead of inferring business-oriented status names.
 - `vaultwright benchmark` and the aggregate `vaultwright pilot` report now read profile-declared
   `benchmark_tasks` paths, while explicit `--tasks` and the legacy `_meta/agent-readiness-tasks.yml`
   path remain supported.

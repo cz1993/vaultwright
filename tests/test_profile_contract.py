@@ -663,6 +663,25 @@ def test_profile_view_generation_uses_status_attention_flags() -> None:
     assert 'status == "done"' not in rendered
 
 
+def test_profile_view_generation_does_not_infer_attention_status_names() -> None:
+    data = minimal_profile()
+    data["required_properties"] = ["title", "type", "status", "domain", "updated"]
+    data["note_types"] = {"note": {"purpose": "general note"}}
+    data["statuses"] = {
+        "draft": {"purpose": "ordinary draft without a profile attention role"},
+        "in-review": {"purpose": "ordinary review state without a profile attention role"},
+        "done": {"purpose": "complete"},
+    }
+    data["views"] = ["Documents.base"]
+    profile = ProfileContract.from_mapping(data)
+
+    rendered = render_documents_base(profile)
+
+    assert "Needs attention" not in rendered
+    assert 'status == "draft"' not in rendered
+    assert 'status == "in-review"' not in rendered
+
+
 def test_profile_contract_rejects_unsafe_view_paths() -> None:
     data = minimal_profile()
     data["views"] = ["../Documents.base"]

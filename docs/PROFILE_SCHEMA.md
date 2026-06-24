@@ -230,8 +230,7 @@ profile's required properties, optional properties, note types, and statuses:
 
 - core document tables use profile-defined frontmatter keys;
 - source mirror and repo mirror tables are emitted only when the profile declares those note types;
-- review-attention filters are emitted from statuses marked `attention: true`, with legacy
-  name-based fallback only for older profiles that have not yet declared status roles.
+- review-attention filters are emitted only from statuses marked `attention: true`.
 
 Generated view writes are explicit and may replace stale generated view files. They do not move,
 delete, or rewrite source documents, generated mirrors, annotation sidecars, or curated markdown

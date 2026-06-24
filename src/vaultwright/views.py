@@ -12,7 +12,6 @@ from vaultwright.profiles import ProfileContract
 
 
 SUPPORTED_BASES = {"Documents.base"}
-FALLBACK_ATTENTION_STATUSES = ("draft", "in-review", "review", "needs-review", "needs-work", "todo")
 FORBIDDEN_VIEW_PARTS = {
     ".git",
     ".githooks",
@@ -80,17 +79,12 @@ def note_type_available(profile: ProfileContract, note_type: str) -> bool:
 
 def attention_statuses(profile: ProfileContract) -> list[str]:
     flagged: list[str] = []
-    saw_flag = False
     for status, definition in profile.statuses.items():
         if not isinstance(definition, dict) or "attention" not in definition:
             continue
-        saw_flag = True
         if definition.get("attention") is True:
             flagged.append(str(status))
-    if saw_flag:
-        return unique(flagged)
-    available = {str(key) for key in profile.statuses}
-    return [status for status in FALLBACK_ATTENTION_STATUSES if status in available]
+    return unique(flagged)
 
 
 def status_filter(statuses: list[str]) -> dict[str, list[str]]:
