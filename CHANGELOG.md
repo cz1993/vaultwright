@@ -105,6 +105,9 @@ All notable changes to Vaultwright are documented here. Format loosely follows
   validator before exposing domains, status roles, mirror defaults, repo context fields, or repo
   mirror folders to sync/report code; invalid contracts fall back to legacy defaults instead of
   partially trusted profile data, and GitHub repo sync reuses the shared helper path.
+- `vaultwright catalog` and `vaultwright migration` now load profile domain routing through the
+  package profile validator before reporting canonical profile folders, so invalid profile
+  contracts surface as report errors instead of letting partial profile data drive routing.
 - `vaultwright benchmark` and the aggregate `vaultwright pilot` report now read profile-declared
   `benchmark_tasks` paths, while explicit `--tasks` and the legacy `_meta/agent-readiness-tasks.yml`
   path remain supported.

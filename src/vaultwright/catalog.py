@@ -18,6 +18,7 @@ try:
 except ImportError:
     sys.exit("Missing dependency: pip install pyyaml")
 
+from vaultwright.profiles import ProfileValidationError, load_profile
 from vaultwright.runtime_profile import (
     configured_office_mirror_root,
     is_office_mirror_path,
@@ -134,20 +135,18 @@ def load_profile_domains(root: Path) -> tuple[list[dict[str, str]], dict[str, st
     if not path.exists():
         return [], {}, set(DEFAULT_CONTENT_ROOTS), [], [f"{PROFILE.as_posix()}: missing"]
     try:
-        data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-    except yaml.YAMLError as exc:
-        return [], {}, set(DEFAULT_CONTENT_ROOTS), [], [f"{PROFILE.as_posix()}: invalid YAML ({exc.__class__.__name__})"]
-    if not isinstance(data, dict):
-        return [], {}, set(DEFAULT_CONTENT_ROOTS), [], [f"{PROFILE.as_posix()}: must be a mapping"]
-    domains = data.get("domains")
-    if not isinstance(domains, dict) or not domains:
-        return [], {}, set(DEFAULT_CONTENT_ROOTS), [], [f"{PROFILE.as_posix()}: missing domains map"]
+        profile = load_profile(path)
+    except ProfileValidationError as exc:
+        message = str(exc).replace(str(path), PROFILE.as_posix())
+        return [], {}, set(DEFAULT_CONTENT_ROOTS), [], [
+            f"{PROFILE.as_posix()}: invalid profile contract ({message})"
+        ]
 
     items: list[dict[str, str]] = []
     aliases: dict[str, str] = {}
     content_roots: set[str] = set()
     errors: list[str] = []
-    for domain, info in domains.items():
+    for domain, info in profile.domains.items():
         if not isinstance(info, dict) or not info.get("folder"):
             errors.append(f"{PROFILE.as_posix()}:domains.{domain}: missing folder")
             continue

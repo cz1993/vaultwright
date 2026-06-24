@@ -43,7 +43,8 @@ domain-map content and profile-less legacy vaults still fail. Lint now loads `_m
 through the package profile validator before deriving domains, note types, statuses, policy
 defaults, and content roots. Shared runtime profile helpers now expose profile-derived sync/report
 settings only from a validated profile contract, and GitHub repo sync reuses those helpers instead
-of maintaining a separate profile parser.
+of maintaining a separate profile parser. Catalog and migration reporting also load profile domain
+routing through the package validator before treating profile-declared folders as canonical.
 
 ## Conditional V1 Explorer Finish Line
 
@@ -61,7 +62,7 @@ the index has benchmark evidence.
 | Open Work | Finish-Line Mapping | Execution Rule |
 | --- | --- | --- |
 | Copied vault-local scripts | V1-C1 | Keep package modules authoritative; copied sync, lint, catalog, conversion, m365, migration, overlap, benchmark, pilot, sandbox, recovery, review-ledger, and operator-wrapper scripts are now shims |
-| Hard-coded business folders, note types, statuses, and linter assumptions | V1-C2, V1-C3, V1-C7 | Continue extracting into profile contracts before adding more profiles; `lint`, `catalog`, `migration`, Office mirror placement defaults, overlap calibration roots/context links/inactive statuses, benchmark tasks, repo mirror defaults/context fields, Microsoft 365/sandbox/recovery/review repo/source mirror reporting, and `Documents.base` generation now read profile-defined values |
+| Hard-coded business folders, note types, statuses, and linter assumptions | V1-C2, V1-C3, V1-C7 | Continue extracting into profile contracts before adding more profiles; `lint`, `catalog`, `migration`, Office mirror placement defaults, overlap calibration roots/context links/inactive statuses, benchmark tasks, repo mirror defaults/context fields, Microsoft 365/sandbox/recovery/review repo/source mirror reporting, and `Documents.base` generation now read validated profile-defined values |
 | Current business template and examples | V1-C3, V1-C4 | Treat as `business-operations`; migrate rather than fork |
 | Above-sentinel notes in generated mirrors | V1-C5 | Preserve first with `migrate annotations --write`; sync blocks unmigrated mirror annotations, fresh mirrors are machine-owned, and sidecar-aware sync makes migrated mirrors machine-owned on the next regeneration |
 | Obsidian Bases and future Canvas outputs | V1-C6, V1-C7 | Adapter only; `profile views --check` keeps generated Bases testable without Obsidian, and Canvas remains open |

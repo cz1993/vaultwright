@@ -172,15 +172,15 @@ vaultwright --root <vault> profile views --write
 - optional `policy_defaults.original_sources_authoritative`, when present, must be `true`.
 - optional `policy_defaults.real_data_in_repo`, when present, must be `false`.
 
-`vaultwright lint`, `vaultwright catalog`, and `vaultwright overlap` read `_meta/profile.yml` for
-domain folders. Catalog, Microsoft 365 handoff, and sandbox inventory also read profile-defined
-machine-owned note types so generated Markdown artifacts are reported separately from curated
-Markdown/domain note counts. Overlap calibration also reads `related` plus the active profile's
-context frontmatter fields when counting inbound wikilinks for candidate ranking, and it excludes
-notes in profile-defined inactive statuses and machine-owned note types. Lint loads the same
-profile contract validator before applying allowed note types, statuses, required properties,
-inactive status roles, policy defaults, and content roots, so invalid profile contracts are
-blocking profile errors before lint uses profile data.
+`vaultwright lint`, `vaultwright catalog`, `vaultwright migration`, and `vaultwright overlap` read
+`_meta/profile.yml` for domain folders. Catalog, Microsoft 365 handoff, and sandbox inventory also
+read profile-defined machine-owned note types so generated Markdown artifacts are reported
+separately from curated Markdown/domain note counts. Overlap calibration also reads `related` plus
+the active profile's context frontmatter fields when counting inbound wikilinks for candidate
+ranking, and it excludes notes in profile-defined inactive statuses and machine-owned note types.
+Lint, catalog domain routing, and migration domain routing load the same profile contract validator
+before applying profile-derived settings, so invalid profile contracts are blocking profile errors
+before those tools use profile data.
 Shared runtime profile helpers used by sync and report modules also load the package profile
 validator before exposing profile-derived domains, status roles, generated-mirror defaults, Office
 mirror defaults, repo context fields, or repo mirror folders. In tolerant runtime contexts, a
@@ -228,7 +228,8 @@ business-specific alias unless they opt in. Lint and annotation migration also r
 handoff, sandbox preflight, recovery, and review-ledger
 reporting also resolve repo mirror folders from the active profile, while honoring an explicit
 `tools/repos.yml` `settings.notes_dir` override. The `vaultwright migration` command uses
-`_meta/profile.yml` for canonical domain folders and `_meta/domain-map.yml` for legacy aliases.
+validated `_meta/profile.yml` domains for canonical domain folders and `_meta/domain-map.yml` for
+legacy aliases.
 Migration worksheets, runbooks, and frontmatter-normalization worksheets print the active profile
 identity plus canonical domain folders, and they direct unknown folder/domain classification back to
 `_meta/profile.yml` before operators record any legacy alias guidance. `_meta/domain-map.yml`

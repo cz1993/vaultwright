@@ -40,6 +40,14 @@ def add_research_repo_profile(vault: Path) -> None:
     profile_path.write_text(yaml.safe_dump(profile, sort_keys=False), encoding="utf-8")
 
 
+def add_invalid_research_repo_profile(vault: Path) -> None:
+    add_research_repo_profile(vault)
+    profile_path = vault / "_meta" / "profile.yml"
+    profile = yaml.safe_load(profile_path.read_text(encoding="utf-8"))
+    profile["policy_defaults"]["repo_notes_dir"] = "90_repos"
+    profile_path.write_text(yaml.safe_dump(profile, sort_keys=False), encoding="utf-8")
+
+
 def add_research_context_profile(vault: Path) -> None:
     add_research_repo_profile(vault)
     profile_path = vault / "_meta" / "profile.yml"
@@ -270,6 +278,32 @@ def test_package_cli_catalog_separates_profile_machine_owned_markdown(tmp_path: 
     assert domains["research"]["markdown_files"] == 1
     assert domains["research"]["machine_owned_markdown"] == 1
     assert report["summary"]["machine_owned_markdown"] == 1
+
+
+def test_package_cli_catalog_blocks_invalid_profile_contract_before_domain_routing(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    add_invalid_research_repo_profile(vault)
+    (vault / "25_research").mkdir()
+
+    result = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "catalog", "--json"],
+        cwd=ROOT,
+        env=package_cli_env(),
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 1
+    payload = json.loads(result.stdout)
+    assert any(
+        "invalid profile contract" in error and "policy_defaults.repo_notes_dir" in error
+        for error in payload["errors"]
+    )
+    domains = {item["domain"]: item for item in payload["report"]["domains"]}
+    assert "research" not in domains
+    assert "25_research" not in payload["report"]["canonical_folders"]
+    assert {"folder": "25_research"} in payload["report"]["legacy_folders"]
 
 
 def test_package_cli_m365_separates_profile_machine_owned_markdown(tmp_path: Path) -> None:
@@ -533,6 +567,30 @@ def test_migration_blocks_domain_map_folder_drift_from_profile(tmp_path: Path) -
     assert result.returncode == 1
     payload = json.loads(result.stdout)
     assert payload["errors"] == ["_meta/domain-map.yml:market: folder differs from _meta/profile.yml"]
+
+
+def test_package_cli_migration_blocks_invalid_profile_contract_before_domain_routing(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    add_invalid_research_repo_profile(vault)
+    (vault / "25_research").mkdir()
+
+    result = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "migration", "--json"],
+        cwd=ROOT,
+        env=package_cli_env(),
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 1
+    payload = json.loads(result.stdout)
+    assert payload["summary"] == {"alias": 0, "total": 0, "unknown": 0}
+    assert payload["frontmatter_summary"] == {"alias": 0, "total": 0, "unknown": 0}
+    assert any(
+        "invalid profile contract" in error and "policy_defaults.repo_notes_dir" in error
+        for error in payload["errors"]
+    )
 
 
 def test_package_cli_migration_guidance_uses_active_profile_vocabulary(tmp_path: Path) -> None:
