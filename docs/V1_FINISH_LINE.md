@@ -44,7 +44,9 @@ through the package profile validator before deriving domains, note types, statu
 defaults, and content roots. Shared runtime profile helpers now expose profile-derived sync/report
 settings only from a validated profile contract, and GitHub repo sync reuses those helpers instead
 of maintaining a separate profile parser. Catalog and migration reporting also load profile domain
-routing through the package validator before treating profile-declared folders as canonical.
+routing through the package validator before treating profile-declared folders as canonical, and
+benchmark/pilot task discovery validates the active profile before using profile-declared
+`benchmark_tasks`.
 
 ## Conditional V1 Explorer Finish Line
 

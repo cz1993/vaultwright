@@ -15,6 +15,7 @@ try:
 except ImportError:
     sys.exit("pip install pyyaml")
 
+from vaultwright.profiles import ProfileValidationError, load_profile
 from vaultwright.runtime_profile import configured_office_mirror_root
 
 
@@ -106,59 +107,40 @@ def safe_yaml_output_path(path_arg: Path, label: str) -> Path:
     return resolved
 
 
-def safe_profile_task_path(value: object) -> Path | None:
-    if not isinstance(value, str) or not value.strip():
-        return None
-    path = Path(value.strip())
-    if path.is_absolute() or ".." in path.parts or not path.parts:
-        return None
-    if path.suffix not in {".yml", ".yaml"}:
-        return None
-    if any(part.startswith(".") and part != "_meta" for part in path.parts):
-        return None
-    return path
-
-
-def profile_task_paths(root: Path) -> tuple[list[Path], list[str]]:
+def profile_task_paths(root: Path) -> tuple[list[Path], list[str], list[str]]:
     path = root / PROFILE
     if not path.exists():
-        return [], []
+        return [], [], []
     try:
-        data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-    except yaml.YAMLError as exc:
-        return [], [f"{PROFILE.as_posix()}: invalid YAML ({exc.__class__.__name__})"]
-    if not isinstance(data, dict):
-        return [], [f"{PROFILE.as_posix()}: must be a mapping"]
-    raw_paths = data.get("benchmark_tasks", [])
+        profile = load_profile(path)
+    except ProfileValidationError as exc:
+        message = str(exc).replace(str(path), PROFILE.as_posix())
+        return [], [], [f"{PROFILE.as_posix()}: invalid profile contract ({message})"]
+
+    raw_paths = profile.benchmark_tasks
     if raw_paths in (None, []):
-        return [], []
-    if not isinstance(raw_paths, list):
-        return [], [f"{PROFILE.as_posix()}:benchmark_tasks must be a list"]
-    warnings: list[str] = []
+        return [], [], []
     paths: list[Path] = []
     seen: set[str] = set()
-    for index, value in enumerate(raw_paths):
-        rel = safe_profile_task_path(value)
-        if rel is None:
-            warnings.append(
-                f"{PROFILE.as_posix()}:benchmark_tasks[{index}] must be a safe vault-relative .yml path"
-            )
-            continue
+    for value in raw_paths:
+        rel = Path(str(value).strip())
         rel_text = rel.as_posix()
         if rel_text in seen:
             continue
         seen.add(rel_text)
         paths.append(rel)
-    return paths, warnings
+    return paths, [], []
 
 
-def resolved_task_paths(task_arg: Path | None) -> tuple[list[Path], list[str], str]:
+def resolved_task_paths(task_arg: Path | None) -> tuple[list[Path], list[str], list[str], str]:
     if task_arg is not None:
-        return [task_arg if task_arg.is_absolute() else ROOT / task_arg], [], "explicit"
-    profile_paths, warnings = profile_task_paths(ROOT)
+        return [task_arg if task_arg.is_absolute() else ROOT / task_arg], [], [], "explicit"
+    profile_paths, warnings, errors = profile_task_paths(ROOT)
+    if errors:
+        return [], warnings, errors, "profile"
     if profile_paths:
-        return [ROOT / rel for rel in profile_paths], warnings, "profile"
-    return [ROOT / DEFAULT_TASKS], warnings, "legacy"
+        return [ROOT / rel for rel in profile_paths], warnings, [], "profile"
+    return [ROOT / DEFAULT_TASKS], warnings, [], "legacy"
 
 
 def display_task_arg(path: Path) -> str:
@@ -1046,9 +1028,27 @@ def main(argv: list[str] | None = None, root: Path | None = None) -> int:
             file=sys.stderr,
         )
         return 1
-    task_paths, discovery_warnings, task_source = resolved_task_paths(args.tasks)
+    task_paths, discovery_warnings, discovery_errors, task_source = resolved_task_paths(args.tasks)
     result_path_arg = args.results or DEFAULT_RESULTS
     result_path = result_path_arg if result_path_arg.is_absolute() else ROOT / result_path_arg
+    if discovery_errors:
+        if args.json:
+            if args.init_tasks:
+                payload = {"task_scaffold": {}, "warnings": discovery_warnings, "errors": discovery_errors}
+            else:
+                payload = {
+                    "summary": {},
+                    "result_summary": {},
+                    "warnings": discovery_warnings,
+                    "errors": discovery_errors,
+                }
+            print(json.dumps(payload, indent=2, sort_keys=True))
+        else:
+            for warning in discovery_warnings:
+                print(f"  warning: {warning}")
+            for error in discovery_errors:
+                print(f"  error: {error}", file=sys.stderr)
+        return 1
     if args.init_tasks:
         errors: list[str] = []
         try:

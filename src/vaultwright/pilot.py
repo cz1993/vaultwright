@@ -232,7 +232,9 @@ def overlap_summary(root: Path) -> tuple[dict[str, Any], list[str], list[str]]:
 def benchmark_summary(root: Path) -> tuple[dict[str, Any], list[str], list[str]]:
     try:
         benchmark_module.configure_root(root)
-        task_paths, discovery_warnings, task_source = benchmark_module.resolved_task_paths(None)
+        task_paths, discovery_warnings, discovery_errors, task_source = benchmark_module.resolved_task_paths(None)
+        if discovery_errors:
+            return {"available": False, "summary": {}}, discovery_warnings, discovery_errors
         missing_task_paths = [path for path in task_paths if not path.exists()]
         if missing_task_paths:
             missing = missing_task_paths[0]

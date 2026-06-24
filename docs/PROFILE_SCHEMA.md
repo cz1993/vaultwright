@@ -190,11 +190,12 @@ block invalid profile contracts.
 The review ledger accepts profile-defined machine-owned Markdown note types as generated artifacts
 eligible for metadata-only review decisions; it records hashes and frontmatter metadata, not
 artifact bodies.
-`vaultwright benchmark` and the aggregate `vaultwright pilot` evidence report read profile-declared
-`benchmark_tasks`, while an explicit `--tasks` argument still takes precedence and the legacy
-`_meta/agent-readiness-tasks.yml` path remains a compatibility fallback. Benchmark task-pack
-validation, result citation validation, and `benchmark --init-tasks` scaffolding also resolve
-generated source-mirror evidence against the active Office mirror root. The aggregate pilot
+`vaultwright benchmark` and the aggregate `vaultwright pilot` evidence report load
+profile-declared `benchmark_tasks` through the same profile contract validator, while an explicit
+`--tasks` argument still takes precedence and the legacy `_meta/agent-readiness-tasks.yml` path
+remains a compatibility fallback. Benchmark task-pack validation, result citation validation, and
+`benchmark --init-tasks` scaffolding also resolve generated source-mirror evidence against the
+active Office mirror root. The aggregate pilot
 workspace inventory also excludes the active Office mirror root from operator-content and source
 candidate counts, and recovery excludes the active Office mirror root when checking whether a
 missing source manifest still has source evidence in the vault. GitHub repo mirror sync and
