@@ -310,6 +310,28 @@ def test_profile_contract_rejects_unsafe_domain_folder_paths() -> None:
         validate_profile_mapping(data)
 
 
+def test_profile_contract_rejects_duplicate_domain_folders() -> None:
+    data = minimal_profile()
+    data["domains"]["triage"] = {"folder": "00_inbox"}
+
+    with pytest.raises(
+        ProfileValidationError,
+        match=r"domains\.triage\.folder duplicates domains\.inbox\.folder",
+    ):
+        validate_profile_mapping(data)
+
+
+def test_profile_contract_rejects_nested_domain_folders() -> None:
+    data = minimal_profile()
+    data["domains"]["questions"] = {"folder": "00_inbox/questions"}
+
+    with pytest.raises(
+        ProfileValidationError,
+        match=r"domains\.inbox\.folder must not overlap domains\.questions\.folder",
+    ):
+        validate_profile_mapping(data)
+
+
 def test_profile_contract_rejects_unsafe_benchmark_task_paths() -> None:
     data = minimal_profile()
     data["benchmark_tasks"] = ["../private/tasks.yml"]

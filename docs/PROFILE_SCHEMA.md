@@ -54,7 +54,9 @@ vaultwright --root <vault> profile views --write
 
 `domains`
 : Mapping of domain IDs to domain definitions. Domain IDs must be lowercase kebab-case
-  identifiers. Each domain must define `folder`.
+  identifiers. Each domain must define `folder`. Domain folders must be safe vault-relative POSIX
+  paths, and they must be unique and non-overlapping so profile-driven routing can map each vault
+  path to one canonical domain without ambiguity.
 
 `note_types`
 : Mapping of allowed note type IDs to definitions. Note type IDs must be lowercase kebab-case
@@ -131,6 +133,7 @@ vaultwright --root <vault> profile views --write
 - benchmark task entries are safe vault-relative `.yml` or `.yaml` paths;
 - domain, note-type, and status identifiers are lowercase kebab-case;
 - every domain definition includes a non-empty vault-relative `folder`;
+- domain folders are unique and non-overlapping;
 - `folder_plan` contains mapping entries with vault-relative POSIX `path` values and non-empty
   `domain` values;
 - every `folder_plan` domain references a declared profile domain;

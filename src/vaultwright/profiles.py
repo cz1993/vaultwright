@@ -257,6 +257,26 @@ def validate_folder_plan(folder_plan: Any, domain_folders: dict[str, PurePosixPa
         seen_paths.add(path_text)
 
 
+def validate_domain_folders(domain_folders: dict[str, PurePosixPath]) -> None:
+    seen_folders: dict[str, str] = {}
+    for domain_name, folder in domain_folders.items():
+        folder_text = folder.as_posix()
+        previous_domain = seen_folders.get(folder_text)
+        if previous_domain:
+            raise ProfileValidationError(
+                f"domains.{domain_name}.folder duplicates domains.{previous_domain}.folder"
+            )
+        seen_folders[folder_text] = domain_name
+
+    items = list(domain_folders.items())
+    for index, (domain_name, folder) in enumerate(items):
+        for other_domain, other_folder in items[index + 1 :]:
+            if path_is_under(folder, other_folder) or path_is_under(other_folder, folder):
+                raise ProfileValidationError(
+                    f"domains.{domain_name}.folder must not overlap domains.{other_domain}.folder"
+                )
+
+
 def validate_profile_mapping(data: Any) -> None:
     if not isinstance(data, dict):
         raise ProfileValidationError("profile must be a mapping")
@@ -314,6 +334,7 @@ def validate_profile_mapping(data: Any) -> None:
             definition.get("folder"),
             f"domains.{domain}.folder",
         )
+    validate_domain_folders(domain_folders)
 
     for note_type, definition in data["note_types"].items():
         note_type_name = validate_profile_key(note_type, "note_types key")

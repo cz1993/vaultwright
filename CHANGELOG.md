@@ -36,6 +36,8 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 - Profile validation now enforces safe domain folders plus non-empty `folder_plan` records whose
   paths stay inside declared profile domains, and profile migration creates directories from that
   validated folder plan.
+- Profile validation now rejects duplicate or nested domain folders, keeping profile-driven domain
+  routing, migration, and mirror placement unambiguous.
 - `vaultwright overlap` now reads the active profile's domain folders when choosing curated notes
   for calibration, so profile-defined content roots participate without hard-coded business
   folders.
