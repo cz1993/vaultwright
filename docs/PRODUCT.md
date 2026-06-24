@@ -61,7 +61,8 @@ A successful first workflow produces:
 
 - original files unchanged;
 - generated mirrors under `_mirrors/`;
-- repo mirrors under `80_sources/repos/`;
+- repo mirrors under the active profile's `repo_notes_dir` (`80_sources/repos/` in the packaged
+  business-operations profile);
 - generated `CATALOG.md` and `CATALOG.html` inventory gateways;
 - source/repo manifests, audit events, and lifecycle status reports;
 - a Microsoft 365 handoff readiness report when the target workflow involves SharePoint, OneDrive,

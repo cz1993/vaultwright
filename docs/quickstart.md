@@ -66,7 +66,7 @@ gh auth login                                   # read-only is enough (or export
 python3.11 tools/vaultwright.py doctor          # check dependencies and vault structure
 python3.11 tools/vaultwright.py sandbox --source-root /path/to/original-documents # copied-vault preflight
 python3.11 tools/vaultwright.py plan            # inspect source inventory and proposed mirrors
-python3.11 tools/vaultwright.py sync            # mirrors -> _mirrors/ and 80_sources/repos/
+python3.11 tools/vaultwright.py sync            # mirrors -> _mirrors/ and profile repo_notes_dir
 python3.11 tools/vaultwright.py status          # review manifest-backed lifecycle state
 python3.11 tools/vaultwright.py catalog         # write CATALOG.md inventory gateway
 python3.11 tools/vaultwright.py catalog --html  # write CATALOG.html visual inventory gateway

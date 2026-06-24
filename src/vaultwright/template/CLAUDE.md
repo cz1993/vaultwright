@@ -16,7 +16,7 @@ session that touches these documents. It is for both humans and the agent. (Agen
 | Layer | What it is | Who owns it | Mutability |
 | --- | --- | --- | --- |
 | **Raw sources** | the real artifacts: contracts, signed PDFs, decks, statements, repos, the originating `.docx/.pptx/.xlsx` | human / external | the agent **reads but never alters** them — source of truth |
-| **Generated mirrors** | markdown mirrors of Office sources and optional PDF text mirrors under `_mirrors/`, plus repo mirrors under `80_sources/repos/` | agent writes; human annotations live in curated notes or `_meta/mirror-annotations/` sidecars | regenerated from source |
+| **Generated mirrors** | markdown mirrors of Office sources and optional PDF text mirrors under `_mirrors/`, plus repo mirrors under the profile's `repo_notes_dir` (`80_sources/repos/` in this profile) | agent writes; human annotations live in curated notes or `_meta/mirror-annotations/` sidecars | regenerated from source |
 | **Wiki** | markdown notes that summarize, connect, and add metadata: MOCs, entity pages, decisions, guides, and indexes | agent writes; human curates | freely edited and cross-linked |
 | **Schema** | this file — conventions + workflows | human + agent co-evolve | edit deliberately |
 
@@ -132,7 +132,8 @@ when the original changes.
   a new corpus, and `sync_office_md.py --status` to inspect the `_meta/source-manifest.json`
   lifecycle state.
 - **GitHub repos**: `tools/sync_github_repos.py` (config `tools/repos.yml`) writes repo mirrors
-  under `80_sources/repos/` by default
+  under `_meta/profile.yml:policy_defaults.repo_notes_dir` by default (`80_sources/repos/` in this
+  profile)
   (`type: repo-mirror`) with the README, `/docs`, top-level markdown, and metadata — refreshed when
   the repo's HEAD changes. Repo lifecycle state lives in `_meta/repo-manifest.json`, and lint
   blocks configured repo entries whose expected generated mirror note is missing, unmanaged, or

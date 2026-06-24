@@ -19,7 +19,8 @@ For a reviewed pilot or enterprise handoff, use:
 - `CATALOG.html` for browser-based inventory review.
 - `CATALOG.md` for agent-readable inventory review.
 - `_mirrors/` for generated markdown mirrors of Office/PDF-like source records.
-- `80_sources/repos/` for generated repository mirrors, if configured.
+- the active profile's `repo_notes_dir` (`80_sources/repos/` in the packaged business-operations
+  profile) for generated repository mirrors, if configured.
 - `_meta/source-manifest.json`, `_meta/repo-manifest.json`, and `_meta/sync-audit.jsonl` for
   provenance and refresh evidence.
 - The original records in their approved SharePoint, OneDrive, records-management, or line-of-
@@ -38,8 +39,8 @@ permissions. This is the lowest-friction handoff path.
 
 Recommended practice:
 
-- Place `CATALOG.html`, `CATALOG.md`, `_mirrors/`, `80_sources/repos/`, and `_meta/` in a dedicated
-  reviewed folder or document library location.
+- Place `CATALOG.html`, `CATALOG.md`, `_mirrors/`, the configured repo mirror folder, and `_meta/`
+  in a dedicated reviewed folder or document library location.
 - Keep original documents separate unless the customer's records policy explicitly allows a copied
   package.
 - Regenerate `CATALOG.md` and `CATALOG.html` after each sync before uploading or copying the handoff

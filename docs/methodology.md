@@ -8,8 +8,9 @@ schema in `template/CLAUDE.md`.
 - **Raw sources** — the real artifacts (contracts, decks, statements, receipts, repos, the
   originating Office files). Immutable: the agent reads them, never rewrites them. Source of truth.
 - **Generated mirrors** — markdown conversions of Office/PDF files under `_mirrors/`, plus repo
-  mirrors under `80_sources/repos/`. The agent regenerates these from source; you curate only
-  above the sentinel.
+  mirrors under the active profile's `repo_notes_dir` (`80_sources/repos/` in the packaged
+  business-operations profile). The agent regenerates these from source; you curate only above the
+  sentinel.
 - **Wiki** — markdown notes that summarize, connect, and add metadata: Maps of Content (MOCs),
   entity pages, knowledge notes, decisions, and guides. The agent writes this; you curate.
 - **Schema** — `CLAUDE.md`: the conventions and the ingest/query/lint workflows. It's what makes

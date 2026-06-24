@@ -27,7 +27,7 @@ Stage 1 remains the active lane. Current status:
 | Requirement | Status |
 | --- | --- |
 | V1-C1 package-owned runtime | In progress. Package CLI exists; `plan`, `sync`, `status`, `doctor`, `catalog`, `lint`, `conversion`, `m365`, `migration`, `overlap`, `benchmark`, `pilot`, `sandbox`, `recovery`, and `review` are package-owned; Office mirror planning/sync/status lives in `vaultwright.mirrors.office`; GitHub repo mirror planning/sync/status lives in `vaultwright.mirrors.github_repos`; sync, lint, conversion, m365, migration, overlap, benchmark, pilot, sandbox, recovery, review-ledger, and operator-wrapper scripts remain compatibility shims. |
-| V1-C2 versioned profile contract | In progress. Schema validation, schema documentation, read-only profile commands, conservative write-mode profile migration, profile-generated `Documents.base` check/write support, and profile-driven migration domain routing exist; remaining profile-driven behavior is not done. |
+| V1-C2 versioned profile contract | In progress. Schema validation, schema documentation, read-only profile commands, conservative write-mode profile migration, profile-generated `Documents.base` check/write support, profile-driven migration domain routing, and profile-owned repo mirror defaults exist; remaining profile-driven behavior is not done. |
 | V1-C4 safe migration path | In progress. Reports, frontmatter-domain normalization, read-only plans, and conservative write-mode profile migration exist; migration reports now use profile-defined canonical domains with domain-map aliases; broader workspace/profile migration coverage will be needed as profile-driven behavior expands. |
 | V1-C5 machine-owned mirrors | Stage 1 closed by this batch. Fresh mirrors are machine-owned, sync blocks unmigrated mirror annotations, sidecar-aware sync rewrites migrated mirrors as machine-owned, and lint blocks unmigrated annotations. |
 
@@ -61,6 +61,8 @@ should remain gated until Stage 1 exits.
 
 Move the next Stage 1 gap deeper into profile-driven behavior: keep removing hard-coded business
 folder/type/status assumptions from sync, reports, and docs, and make those paths read
-`business-operations` profile data consistently. Preserve the example regeneration gates and
-require no-data, lifecycle, recovery, catalog, package-install, and profile-validation coverage
-before treating the slice as closed.
+`business-operations` profile data consistently. Repo mirror sync/lint now read
+`policy_defaults.repo_notes_dir`; look next for remaining report or lifecycle surfaces that still
+infer domain semantics from folder names. Preserve the example regeneration gates and require
+no-data, lifecycle, recovery, catalog, package-install, and profile-validation coverage before
+treating the slice as closed.

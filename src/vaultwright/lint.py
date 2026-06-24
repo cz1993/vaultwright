@@ -37,6 +37,8 @@ PROFILE_REL = "_meta/profile.yml"
 LINT_CONFIG_REL = "_meta/lint-config.yml"
 REPO_CONFIG_REL = "tools/repos.yml"
 DEFAULT_REPO_NOTES_DIR = "80_sources/repos"
+PROFILE_POLICY_DEFAULTS: dict[str, object] = {}
+PROFILE_DOMAIN_FOLDERS: dict[str, str] = {}
 SENTINEL = "%% AUTO-GENERATED BELOW — DO NOT EDIT %%"
 ANNOTATION_ROOT = Path("_meta/mirror-annotations")
 MIRROR_MODES = {"dedicated", "sibling"}
@@ -83,6 +85,7 @@ def profile_contract() -> tuple[dict[str, object], list[tuple[str, str]]]:
         "statuses": set(DEFAULT_STATUSES),
         "content_roots": set(DEFAULT_CONTENT_ROOTS),
         "domain_folders": {},
+        "policy_defaults": {},
     }
     path = ROOT / PROFILE_REL
     if not path.exists():
@@ -121,6 +124,11 @@ def profile_contract() -> tuple[dict[str, object], list[tuple[str, str]]]:
     if domain_folders:
         settings["domain_folders"] = domain_folders
         settings["content_roots"] = set(domain_folders.values())
+    policy_defaults = data.get("policy_defaults")
+    if isinstance(policy_defaults, dict):
+        settings["policy_defaults"] = dict(policy_defaults)
+    else:
+        errors.append((f"{PROFILE_REL}:policy_defaults", "must be a mapping"))
     return settings, errors
 
 def domain_folders(profile_domain_folders: dict[str, str]) -> tuple[dict[str, str], dict[str, str], list[tuple[str, str]]]:
@@ -269,6 +277,15 @@ def repo_note_path(notes_dir: str, note: str) -> Path:
         raise ValueError("note output path must not be a symlink")
     return output_path
 
+def default_repo_notes_dir() -> str:
+    configured = PROFILE_POLICY_DEFAULTS.get("repo_notes_dir")
+    if isinstance(configured, str) and configured.strip():
+        return configured.strip()
+    source_folder = PROFILE_DOMAIN_FOLDERS.get("sources")
+    if source_folder:
+        return f"{source_folder}/repos"
+    return DEFAULT_REPO_NOTES_DIR
+
 def repo_id_for(repo: str, note: str) -> str:
     digest = hashlib.sha256(f"{repo}\0{note}".encode("utf-8")).hexdigest()[:20]
     return f"repo_{digest}"
@@ -297,7 +314,7 @@ def repo_config() -> tuple[list[dict[str, object]], list[tuple[str, str]]]:
     if not isinstance(repos, list):
         return [], [*errors, (f"{REPO_CONFIG_REL}:repos", "must be a list")]
 
-    notes_dir = str(settings.get("notes_dir", DEFAULT_REPO_NOTES_DIR))
+    notes_dir = str(settings.get("notes_dir", default_repo_notes_dir()))
     configured: list[dict[str, object]] = []
     seen_note_paths: dict[str, str] = {}
     for index, entry in enumerate(repos):
@@ -450,7 +467,7 @@ def local_tree_sha(repodir: Path) -> str:
     return "local-" + h.hexdigest()[:40]
 
 def main(root: Path | None = None) -> int:
-    global ROOT, CONTENT_ROOTS
+    global ROOT, CONTENT_ROOTS, PROFILE_DOMAIN_FOLDERS, PROFILE_POLICY_DEFAULTS
     ROOT = (root or Path.cwd()).resolve()
     # inventory
     all_files = sorted(
@@ -512,6 +529,7 @@ def main(root: Path | None = None) -> int:
         str(domain): str(folder)
         for domain, folder in dict(PROFILE_SETTINGS["domain_folders"]).items()
     }
+    PROFILE_POLICY_DEFAULTS = dict(PROFILE_SETTINGS["policy_defaults"])
     DOMAIN_FOLDERS, DOMAIN_FOLDER_ALIASES, domain_map_errors = domain_folders(PROFILE_DOMAIN_FOLDERS)
     DOMAIN_BY_FOLDER = {folder: domain for domain, folder in DOMAIN_FOLDERS.items()}
     MIRROR_CONFIG, mirror_config_errors = mirror_config()
@@ -555,8 +573,19 @@ def main(root: Path | None = None) -> int:
         return bool(MIRROR_ROOT.parts) and rel.parts[:len(MIRROR_ROOT.parts)] == MIRROR_ROOT.parts
 
     def is_repo_mirror_path(rel: Path) -> bool:
-        return (ROOT / rel) in CONFIGURED_REPO_NOTE_PATHS or (
-            len(rel.parts) >= 3 and rel.parts[0] == "80_sources" and rel.parts[1] == "repos"
+        if (ROOT / rel) in CONFIGURED_REPO_NOTE_PATHS:
+            return True
+        try:
+            default_root = repo_note_path(default_repo_notes_dir(), "__vaultwright_repo_probe__.md").parent
+        except ValueError:
+            return False
+        try:
+            rel_default_root = default_root.relative_to(ROOT)
+        except ValueError:
+            return False
+        return (
+            len(rel.parts) > len(rel_default_root.parts)
+            and rel.parts[:len(rel_default_root.parts)] == rel_default_root.parts
         )
 
     def source_mirror_paths(source_rel: str) -> list[Path]:
@@ -917,7 +946,7 @@ def main(root: Path | None = None) -> int:
                 if is_repo_mirror_path(rel):
                     bad_mirror_layout.append((rels, "repo-mirror requires generated sentinel and manifest metadata"))
                 else:
-                    bad_mirror_layout.append((rels, "repo-mirror notes belong under configured tools/repos.yml notes_dir or 80_sources/repos"))
+                    bad_mirror_layout.append((rels, "repo-mirror notes belong under configured tools/repos.yml notes_dir or profile policy_defaults.repo_notes_dir"))
             if fm.get("client") and not fm.get("account"):
                 bad_account_client.append((rels, "client requires account"))
             elif fm.get("account") and fm.get("client") and str(fm["account"]).strip() != str(fm["client"]).strip():

@@ -83,8 +83,9 @@ vaultwright --root <vault> profile views --write
 : List of packaged benchmark task-pack paths. Empty for the current profile.
 
 `policy_defaults`
-: Mapping reserved for profile-level defaults such as retention or governance presets. Empty is
-valid.
+: Mapping reserved for profile-level defaults such as retention, governance, and generated-output
+locations. The current profile uses `repo_notes_dir` to set the default GitHub repository mirror
+folder when `tools/repos.yml` does not declare `settings.notes_dir`.
 
 ## Validation Rules
 
@@ -102,10 +103,12 @@ valid.
 - every domain definition includes a non-empty `folder`.
 
 `vaultwright lint` and `vaultwright catalog` read `_meta/profile.yml` for domain folders, allowed
-note types, statuses, and required properties. `vaultwright migration` uses `_meta/profile.yml` for
-canonical domain folders and `_meta/domain-map.yml` for legacy aliases. `_meta/domain-map.yml`
-remains a legacy alias and operator guidance layer; it must not contradict the profile's canonical
-domain folders.
+note types, statuses, and required properties. GitHub repo mirror sync and lint read
+`policy_defaults.repo_notes_dir` for the default repository-mirror folder and derive repo-mirror
+frontmatter domains from the profile's domain/folder mapping. `vaultwright migration` uses
+`_meta/profile.yml` for canonical domain folders and `_meta/domain-map.yml` for legacy aliases.
+`_meta/domain-map.yml` remains a legacy alias and operator guidance layer; it must not contradict
+the profile's canonical domain folders.
 
 ## Profile-Generated Views
 
@@ -172,6 +175,14 @@ operations -> 50_operations
 finance -> 60_finance
 people -> 70_people
 sources -> 80_sources
+```
+
+Its current generated-output defaults are:
+
+```text
+repo_notes_dir -> 80_sources/repos
+mirror_mode -> dedicated
+mirror_root -> _mirrors
 ```
 
 Allowed note types are:

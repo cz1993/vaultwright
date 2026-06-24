@@ -3,10 +3,12 @@
 """
 sync_github_repos.py — keep markdown mirrors of GitHub repos in the knowledge base.
 
-For each repo in tools/repos.yml, write a mirror note under `80_sources/repos/` by default that captures the
-repo's README, docs, and metadata — refreshed when the repo's HEAD changes. The repo on
-GitHub stays the source of truth; the mirror makes its knowledge searchable, linkable, and
-visible in Obsidian. Idempotent: a quick `git ls-remote` checks HEAD before cloning.
+For each repo in tools/repos.yml, write a mirror note under the active profile's default repo
+mirror folder (`80_sources/repos/` in the packaged business-operations profile) unless
+tools/repos.yml overrides it. Each mirror captures the repo's README, docs, and metadata —
+refreshed when the repo's HEAD changes. The repo on GitHub stays the source of truth; the mirror
+makes its knowledge searchable, linkable, and visible in Obsidian. Idempotent: a quick
+`git ls-remote` checks HEAD before cloning.
 
 Mirrors are machine-owned. Legacy above-sentinel mirror annotations must be migrated with
 `vaultwright migrate annotations --write` before sync refreshes the mirror. Only the auto region
@@ -40,8 +42,10 @@ SENTINEL = "%% AUTO-GENERATED BELOW — DO NOT EDIT %%"
 REPO_MANIFEST_REL = Path("_meta/repo-manifest.json")
 AUDIT_REL = Path("_meta/sync-audit.jsonl")
 ANNOTATION_ROOT = Path("_meta/mirror-annotations")
+PROFILE_REL = Path("_meta/profile.yml")
 MANIFEST_SCHEMA_VERSION = 1
 CONFIG_VERSION = "repo-mirrors:v1"
+LEGACY_REPO_NOTES_DIR = "80_sources/repos"
 ANNOTATION_MIGRATION_REQUIRED_WARNING = (
     "Unmigrated repo mirror annotations found above the generated sentinel; "
     "run `vaultwright migrate annotations --write` before syncing."
@@ -272,6 +276,57 @@ def local_source_path(entry):
     return resolved
 
 
+def load_profile_mapping(root: Path | None = None) -> dict:
+    path = (root or ROOT) / PROFILE_REL
+    if not path.exists():
+        return {}
+    try:
+        data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    except (OSError, yaml.YAMLError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def profile_domain_folders(root: Path | None = None) -> dict[str, str]:
+    domains = load_profile_mapping(root).get("domains", {})
+    if not isinstance(domains, dict):
+        return {}
+    out: dict[str, str] = {}
+    for domain, definition in domains.items():
+        if not isinstance(definition, dict):
+            continue
+        folder = definition.get("folder")
+        if isinstance(folder, str) and folder.strip():
+            out[str(domain)] = folder.strip()
+    return out
+
+
+def active_content_roots(root: Path | None = None) -> set[str]:
+    folders = set(profile_domain_folders(root).values())
+    return folders or set(CONTENT_ROOTS)
+
+
+def default_repo_notes_dir(root: Path | None = None) -> str:
+    profile = load_profile_mapping(root)
+    policy_defaults = profile.get("policy_defaults", {})
+    if isinstance(policy_defaults, dict):
+        configured = policy_defaults.get("repo_notes_dir")
+        if isinstance(configured, str) and configured.strip():
+            return configured.strip()
+    source_folder = profile_domain_folders(root).get("sources")
+    if source_folder:
+        return f"{source_folder}/repos"
+    return LEGACY_REPO_NOTES_DIR
+
+
+def fallback_note_output_path(note: str) -> Path:
+    fallback_note = note if note.endswith(".md") else "invalid.md"
+    try:
+        return note_output_path(default_repo_notes_dir(), fallback_note)
+    except Exception:
+        return ROOT / LEGACY_REPO_NOTES_DIR / fallback_note
+
+
 def safe_rel_path(value: str, label: str, *, allow_nested: bool = True) -> Path:
     path = Path(value)
     if path.is_absolute() or ".." in path.parts:
@@ -287,7 +342,7 @@ def safe_rel_path(value: str, label: str, *, allow_nested: bool = True) -> Path:
 def note_output_path(notes_dir: str, note: str) -> Path:
     rel_dir = safe_rel_path(notes_dir, "notes_dir")
     rel_note = safe_rel_path(note, "note", allow_nested=False)
-    if not rel_dir.parts or rel_dir.parts[0] not in CONTENT_ROOTS:
+    if not rel_dir.parts or rel_dir.parts[0] not in active_content_roots():
         raise ValueError("notes_dir must start with a canonical content root")
     if rel_note.suffix != ".md":
         raise ValueError("note must be a .md filename")
@@ -795,6 +850,9 @@ def fresh_preserved(slug, entry):
 
 def domain_from_notes_dir(notes_dir: str) -> str:
     first = Path(notes_dir).parts[0] if Path(notes_dir).parts else "sources"
+    for domain, folder in profile_domain_folders().items():
+        if folder == first:
+            return domain
     if len(first) > 3 and first[:2].isdigit() and first[2] == "_":
         return first[3:]
     return first
@@ -902,7 +960,10 @@ def validate_config(data) -> tuple[dict, list[dict], list[str]]:
     if not isinstance(repos, list):
         errors.append("repos must be a list")
         repos = []
-    notes_dir = settings.get("notes_dir", "80_sources/repos")
+    settings = dict(settings)
+    if "notes_dir" not in settings:
+        settings["notes_dir"] = default_repo_notes_dir()
+    notes_dir = settings.get("notes_dir")
     seen_note_paths: dict[str, str] = {}
     valid_repos: list[dict] = []
     for i, entry in enumerate(repos):
@@ -939,7 +1000,7 @@ def validate_config(data) -> tuple[dict, list[dict], list[str]]:
 def plan_one(entry, settings, token, manifest):
     warnings: list[str] = []
     errors: list[str] = []
-    notes_dir = settings.get("notes_dir", "80_sources/repos")
+    notes_dir = settings.get("notes_dir", default_repo_notes_dir())
     repo = str(entry.get("repo", ""))
     note = str(entry.get("note", ""))
     repo_id = repo_id_for(repo, note)
@@ -949,7 +1010,7 @@ def plan_one(entry, settings, token, manifest):
         note_path = note_output_path(str(notes_dir), note)
         note_rel = str(note_path.relative_to(ROOT))
     except Exception as exc:
-        note_path = ROOT / "80_sources" / "repos" / (note or "invalid.md")
+        note_path = fallback_note_output_path(note or "invalid.md")
         note_rel = str(note_path.relative_to(ROOT)) if note_path.is_relative_to(ROOT) else str(note_path)
         errors.append(f"Mirror path is invalid: {exc}")
 
@@ -1199,7 +1260,7 @@ def print_plan_or_status(settings, repos, token, manifest, mode: str, quiet: boo
 
 
 def sync_one(entry, settings, token, force, dry, trusted_existing_baseline=False):
-    notes_dir = settings.get("notes_dir", "80_sources/repos")
+    notes_dir = settings.get("notes_dir", default_repo_notes_dir())
     try:
         note_path = note_output_path(str(notes_dir), str(entry["note"]))
     except ValueError as e:
@@ -1417,7 +1478,7 @@ def main(argv: list[str] | None = None, default_root: Path | None = None, defaul
         key = status.split(":")[0]
         counts[key] = counts.get(key, 0) + 1
         if not args.quiet:
-            print(f"  [{status:<18}] {entry.get('repo', '')} -> {settings.get('notes_dir', '80_sources/repos')}/{entry.get('note', '')}")
+            print(f"  [{status:<18}] {entry.get('repo', '')} -> {settings.get('notes_dir', default_repo_notes_dir())}/{entry.get('note', '')}")
         if status in ("created", "updated"):
             changed.append(entry.get("note", ""))
         if not args.dry_run:

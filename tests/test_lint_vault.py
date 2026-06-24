@@ -1071,7 +1071,7 @@ def test_template_linter_blocks_repo_mirror_type_outside_repo_mirror_root(tmp_pa
 
     assert result.returncode == 1
     assert "Mirror layout errors: 1" in result.stdout
-    assert "repo-mirror notes belong under configured tools/repos.yml notes_dir or 80_sources/repos" in result.stdout
+    assert "repo-mirror notes belong under configured tools/repos.yml notes_dir or profile policy_defaults.repo_notes_dir" in result.stdout
 
 
 def test_template_linter_blocks_repo_mirror_without_generated_contract_under_repo_root(tmp_path: Path) -> None:
@@ -1128,6 +1128,37 @@ def test_template_linter_blocks_configured_repo_without_generated_mirror(tmp_pat
     assert "Repo config errors: 0" in result.stdout
     assert "Configured repos without a mirror: 1" in result.stdout
     assert "80_sources/repos/fixture.md  (configured repo mirror missing or unmanaged)" in result.stdout
+
+
+def test_template_linter_uses_profile_default_repo_notes_dir(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    profile = load_profile(vault)
+    profile["domains"]["research"] = {
+        "folder": "25_research",
+        "purpose": "Profile-defined research material.",
+    }
+    profile["folder_plan"].append({"path": "25_research", "domain": "research"})
+    profile["policy_defaults"]["repo_notes_dir"] = "25_research/repos"
+    write_profile(vault, profile)
+    (vault / "tools" / "repos.yml").write_text(
+        "repos:\n"
+        "  - repo: local/fixture\n"
+        "    note: fixture.md\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "lint_vault.py")],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 1
+    assert "Repo config errors: 0" in result.stdout
+    assert "Configured repos without a mirror: 1" in result.stdout
+    assert "25_research/repos/fixture.md  (configured repo mirror missing or unmanaged)" in result.stdout
 
 
 def test_template_linter_accepts_configured_repo_with_generated_mirror(tmp_path: Path) -> None:

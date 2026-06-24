@@ -167,3 +167,52 @@ def test_migration_blocks_domain_map_folder_drift_from_profile(tmp_path: Path) -
     assert result.returncode == 1
     payload = json.loads(result.stdout)
     assert payload["errors"] == ["_meta/domain-map.yml:market: folder differs from _meta/profile.yml"]
+
+
+def test_package_cli_repo_sync_uses_profile_repo_notes_dir(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    profile_path = vault / "_meta" / "profile.yml"
+    profile = yaml.safe_load(profile_path.read_text(encoding="utf-8"))
+    profile["domains"]["research"] = {
+        "folder": "25_research",
+        "purpose": "Profile-defined research material.",
+    }
+    profile["folder_plan"].append({"path": "25_research", "domain": "research"})
+    profile["policy_defaults"]["repo_notes_dir"] = "25_research/repos"
+    profile_path.write_text(yaml.safe_dump(profile, sort_keys=False), encoding="utf-8")
+    fixture = vault / "_fixtures" / "repo"
+    fixture.mkdir(parents=True)
+    (fixture / "README.md").write_text("# Research Fixture\n", encoding="utf-8")
+    (vault / "tools" / "repos.yml").write_text(
+        "repos:\n"
+        "  - repo: local/research-fixture\n"
+        "    local_path: _fixtures/repo\n"
+        "    note: research-fixture.md\n",
+        encoding="utf-8",
+    )
+
+    plan = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "plan"],
+        cwd=ROOT,
+        env=package_cli_env(),
+        text=True,
+        capture_output=True,
+    )
+    sync = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "sync"],
+        cwd=ROOT,
+        env=package_cli_env(),
+        text=True,
+        capture_output=True,
+    )
+
+    repo_note = vault / "25_research" / "repos" / "research-fixture.md"
+    assert plan.returncode == 0, plan.stderr or plan.stdout
+    assert "local/research-fixture -> 25_research/repos/research-fixture.md" in plan.stdout
+    assert sync.returncode == 0, sync.stderr or sync.stdout
+    assert repo_note.exists()
+    note_text = repo_note.read_text(encoding="utf-8")
+    assert "domain: research\n" in note_text
+    manifest = json.loads((vault / "_meta" / "repo-manifest.json").read_text(encoding="utf-8"))
+    assert manifest["records"][0]["note_path"] == "25_research/repos/research-fixture.md"
