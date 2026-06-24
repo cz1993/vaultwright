@@ -144,6 +144,8 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 - Annotation migration now also reads `policy_defaults.context_aliases` when comparing generated
   repo-mirror frontmatter with `tools/repos.yml`, so profile-defined aliases are not mistaken for
   human mirror annotations.
+- Annotation migration now reuses the shared runtime profile context helpers for repo-context
+  fields and aliases, preserving profile-less legacy fallback without a separate local copy.
 - Review-ledger classification now accepts profile-defined `machine_owned` Markdown note types as
   generated review targets while still recording only metadata, hashes, and frontmatter fields.
 - Microsoft 365 handoff, sandbox preflight, recovery, and review-ledger reporting now resolve repo

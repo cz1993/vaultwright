@@ -136,6 +136,43 @@ def write_repo_mirror_without_notes(vault: Path) -> Path:
     return mirror
 
 
+def write_legacy_repo_mirror_without_notes(vault: Path) -> Path:
+    mirror = vault / "80_sources" / "repos" / "fixture.md"
+    mirror.parent.mkdir(parents=True)
+    mirror.write_text(
+        "---\n"
+        "title: fixture\n"
+        "type: repo-mirror\n"
+        "status: active\n"
+        "domain: sources\n"
+        "owner: platform\n"
+        "created: 2026-06-23\n"
+        "updated: 2026-06-23\n"
+        "tags:\n"
+        "  - repo\n"
+        "account: '[[Legacy Account]]'\n"
+        "client: '[[Legacy Account]]'\n"
+        "repo_id: repo_fixture\n"
+        "repo_manifest: _meta/repo-manifest.json\n"
+        "repo: example/fixture\n"
+        "repo_url: https://example.invalid/fixture\n"
+        "default_branch: main\n"
+        "last_commit: abc123\n"
+        "last_commit_date: 2026-06-23\n"
+        "open_issues: ''\n"
+        "synced: 2026-06-23T00:00:00-04:00\n"
+        "---\n\n"
+        "> [!info] GitHub repo mirror \u2014 auto-generated\n"
+        "> Source: example/fixture (https://example.invalid/fixture). Edit the source repo, never this note.\n"
+        "> Curate notes below; everything under the line refreshes on sync.\n\n"
+        "## Notes\n\n"
+        f"{SENTINEL}\n\n"
+        "## Repository\n\nGenerated repo text.\n",
+        encoding="utf-8",
+    )
+    return mirror
+
+
 def test_annotation_migration_plans_writes_and_becomes_idempotent(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     original = write_source_mirror(vault).read_text(encoding="utf-8")
@@ -260,6 +297,27 @@ def test_annotation_migration_uses_profile_context_aliases(tmp_path: Path) -> No
     assert payload["summary"]["actions"] == 0
     assert payload["summary"]["without_annotations"] == 1
     assert "Concept Study" not in result.stdout
+
+
+def test_annotation_migration_uses_profileless_legacy_context_aliases(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    write_legacy_repo_mirror_without_notes(vault)
+    (vault / "tools").mkdir()
+    (vault / "tools" / "repos.yml").write_text(
+        "repos:\n"
+        "  - repo: example/fixture\n"
+        "    note: fixture.md\n"
+        "    client: '[[Legacy Account]]'\n",
+        encoding="utf-8",
+    )
+
+    result = run_cli("--root", str(vault), "migrate", "annotations", "--plan", "--json")
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    assert payload["summary"]["actions"] == 0
+    assert payload["summary"]["without_annotations"] == 1
+    assert "Legacy Account" not in result.stdout
 
 
 def test_annotation_migration_blocks_conflicting_sidecar(tmp_path: Path) -> None:

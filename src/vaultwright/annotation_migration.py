@@ -13,9 +13,9 @@ from typing import Any
 import yaml
 
 from vaultwright.runtime_profile import (
+    profile_context_aliases,
+    profile_context_keys,
     profile_generated_mirror_statuses,
-    profile_context_aliases as runtime_profile_context_aliases,
-    profile_context_keys as runtime_profile_context_keys,
     profile_repo_notes_dir,
 )
 
@@ -50,8 +50,6 @@ REPO_MANAGED_KEYS = {
     "updated",
 }
 DEFAULT_FRONTMATTER_KEYS = {"title", "domain", "owner", "created", "updated"}
-LEGACY_PROFILE_CONTEXT_KEYS = {"account", "client", "program", "vendor"}
-LEGACY_PROFILE_CONTEXT_ALIASES = {"client": "account"}
 RESERVED_PARTS = {
     ".git",
     ".githooks",
@@ -180,20 +178,6 @@ def preserved_frontmatter(fm: dict[str, Any], kind: str) -> dict[str, Any]:
     return {str(key): value for key, value in fm.items() if str(key) not in owned}
 
 
-def active_profile_context_keys(root: Path) -> set[str]:
-    try:
-        return set(runtime_profile_context_keys(root))
-    except Exception:
-        return set(LEGACY_PROFILE_CONTEXT_KEYS)
-
-
-def active_profile_context_aliases(root: Path) -> dict[str, str]:
-    try:
-        return dict(runtime_profile_context_aliases(root))
-    except Exception:
-        return dict(LEGACY_PROFILE_CONTEXT_ALIASES)
-
-
 def normalize_context_alias_values(values: dict[str, str], aliases: dict[str, str]) -> dict[str, str]:
     out = dict(values)
     for alias, target in aliases.items():
@@ -265,8 +249,8 @@ def configured_repo_seed(
 
 def frontmatter_has_annotation(fm: dict[str, Any], kind: str, root: Path, mirror_rel: str) -> bool:
     preserved = preserved_frontmatter(fm, kind)
-    context_keys = active_profile_context_keys(root)
-    context_aliases = active_profile_context_aliases(root)
+    context_keys = profile_context_keys(root)
+    context_aliases = profile_context_aliases(root)
     generated_statuses = profile_generated_mirror_statuses(root)
     repo_seed = configured_repo_seed(root, mirror_rel, context_keys, context_aliases) if kind == "repo-mirror" else {}
     for key, value in preserved.items():
