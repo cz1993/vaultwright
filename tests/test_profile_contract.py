@@ -147,6 +147,18 @@ def test_profile_contract_rejects_duplicate_frontmatter_property_keys() -> None:
         validate_profile_mapping(data)
 
 
+def test_profile_contract_rejects_overlapping_frontmatter_properties() -> None:
+    data = minimal_profile()
+    data["required_properties"] = ["title", "domain"]
+    data["optional_properties"] = ["domain", "title"]
+
+    with pytest.raises(
+        ProfileValidationError,
+        match="required_properties and optional_properties must not overlap: domain, title",
+    ):
+        validate_profile_mapping(data)
+
+
 def test_profile_contract_requires_folder_plan_entries() -> None:
     data = minimal_profile()
     data["folder_plan"] = []

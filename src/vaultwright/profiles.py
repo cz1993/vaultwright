@@ -311,6 +311,7 @@ def validate_profile_mapping(data: Any) -> None:
         for value in data[field]:
             if not isinstance(value, str):
                 raise ProfileValidationError(f"{field} entries must be strings")
+    frontmatter_properties: dict[str, set[str]] = {}
     for field in ("required_properties", "optional_properties"):
         seen_properties: set[str] = set()
         for value in data[field]:
@@ -318,6 +319,15 @@ def validate_profile_mapping(data: Any) -> None:
             if name in seen_properties:
                 raise ProfileValidationError(f"{field} entries must not contain duplicates")
             seen_properties.add(name)
+        frontmatter_properties[field] = seen_properties
+    overlapping_properties = sorted(
+        frontmatter_properties["required_properties"] & frontmatter_properties["optional_properties"]
+    )
+    if overlapping_properties:
+        raise ProfileValidationError(
+            "required_properties and optional_properties must not overlap: "
+            + ", ".join(overlapping_properties)
+        )
     for field in ("templates", "views", "skills"):
         validate_profile_artifact_list(data[field], field)
     for value in data["benchmark_tasks"]:

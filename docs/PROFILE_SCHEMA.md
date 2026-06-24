@@ -72,15 +72,15 @@ vaultwright --root <vault> profile views --write
 
 `required_properties`
 : List of frontmatter keys required on curated notes and managed notes where applicable. Entries
-  must be lowercase frontmatter keys using letters, numbers, and underscores, and must not contain
-  duplicates.
+  must be lowercase frontmatter keys using letters, numbers, and underscores. They must not contain
+  duplicates and must not also appear in `optional_properties`.
 
 `optional_properties`
 : List of frontmatter keys accepted by the profile but not required. GitHub repo mirror sync,
   lint, and annotation migration treat optional properties other than universal fields such as
   `owner`, `tags`, and `related` as profile-specific repo context fields when they appear in
   `tools/repos.yml`. Entries must follow the same lowercase frontmatter-key and duplicate rules as
-  `required_properties`.
+  `required_properties`, and must not also appear in `required_properties`.
 
 `folder_plan`
 : Non-empty list of starter folder records. Each current record uses `path` and `domain`; the
@@ -126,8 +126,8 @@ vaultwright --root <vault> profile views --write
 - scalar identity fields are non-empty strings;
 - mapping fields are YAML mappings;
 - list fields are YAML lists;
-- required and optional frontmatter property entries are lowercase frontmatter keys and do not
-  contain duplicates;
+- required and optional frontmatter property entries are lowercase frontmatter keys, do not
+  contain duplicates, and do not overlap each other;
 - template, view, and skill entries are safe vault-relative artifact paths and do not contain
   duplicates;
 - benchmark task entries are safe vault-relative `.yml` or `.yaml` paths;

@@ -31,6 +31,9 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 - Profile validation now requires domain, note-type, and status identifiers to be lowercase
   kebab-case, and required/optional frontmatter property names to be lowercase frontmatter keys
   without duplicates.
+- Profile validation now rejects frontmatter keys that are listed as both required and optional,
+  keeping generated views, lint, and repo-context inference aligned with one profile-owned field
+  contract.
 - Profile validation now requires `templates`, `views`, and `skills` entries to be safe
   vault-relative artifact paths without duplicates.
 - Profile validation now enforces safe domain folders plus non-empty `folder_plan` records whose
