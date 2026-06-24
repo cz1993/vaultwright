@@ -18,7 +18,11 @@ try:
 except ImportError:
     sys.exit("Missing dependency: pip install pyyaml")
 
-from vaultwright.runtime_profile import configured_office_mirror_root, is_office_mirror_path
+from vaultwright.runtime_profile import (
+    configured_office_mirror_root,
+    is_office_mirror_path,
+    profile_machine_owned_note_types,
+)
 
 
 DEFAULT_ROOT = Path.cwd()
@@ -240,12 +244,33 @@ def under_path_root(rel: Path, root: Path) -> bool:
     return bool(root.parts) and rel.parts[: len(root.parts)] == root.parts
 
 
+def markdown_note_type(path: Path) -> str:
+    try:
+        text = path.read_text(encoding="utf-8", errors="ignore")
+    except OSError:
+        return ""
+    if not text.startswith("---"):
+        return ""
+    end = text.find("\n---", 3)
+    if end == -1:
+        return ""
+    try:
+        data = yaml.safe_load(text[3:end].lstrip("\n")) or {}
+    except yaml.YAMLError:
+        return ""
+    if not isinstance(data, dict):
+        return ""
+    return str(data.get("type", "") or "")
+
+
 def workspace_inventory(root: Path, aliases: dict[str, str], content_roots: set[str]) -> dict[str, Any]:
     mirror_root = configured_office_mirror_root(root)
     mirror_top = mirror_root.parts[0] if mirror_root.parts else ""
+    machine_owned_note_types = profile_machine_owned_note_types(root)
     extensions: Counter[str] = Counter()
     source_candidates: list[str] = []
     markdown_files: list[str] = []
+    machine_owned_markdown_files: list[str] = []
     generated_mirrors = 0
     curated_markdown = 0
     top_level_counts: Counter[str] = Counter()
@@ -277,21 +302,30 @@ def workspace_inventory(root: Path, aliases: dict[str, str], content_roots: set[
         if suffix in SOURCE_EXTS:
             source_candidates.append(rel.as_posix())
         if suffix == ".md":
-            markdown_files.append(rel.as_posix())
-            curated_markdown += 1
+            if markdown_note_type(path) in machine_owned_note_types:
+                machine_owned_markdown_files.append(rel.as_posix())
+            else:
+                markdown_files.append(rel.as_posix())
+                curated_markdown += 1
 
     domain_source_counts: Counter[str] = Counter(domain_for_path(rel, aliases) for rel in source_candidates)
     domain_markdown_counts: Counter[str] = Counter(domain_for_path(rel, aliases) for rel in markdown_files)
+    domain_machine_owned_markdown_counts: Counter[str] = Counter(
+        domain_for_path(rel, aliases) for rel in machine_owned_markdown_files
+    )
     return {
         "extensions": dict(sorted(extensions.items())),
         "source_candidates": source_candidates,
         "markdown_files": markdown_files,
+        "machine_owned_markdown_files": machine_owned_markdown_files,
         "generated_mirrors": generated_mirrors,
         "curated_markdown": curated_markdown,
+        "machine_owned_markdown": len(machine_owned_markdown_files),
         "top_level_counts": dict(sorted(top_level_counts.items())),
         "legacy_folders": sorted(legacy_folders, key=lambda item: item["folder"]),
         "domain_source_counts": dict(sorted(domain_source_counts.items())),
         "domain_markdown_counts": dict(sorted(domain_markdown_counts.items())),
+        "domain_machine_owned_markdown_counts": dict(sorted(domain_machine_owned_markdown_counts.items())),
         "canonical_folders": sorted(canonical_folders),
     }
 
@@ -454,6 +488,7 @@ def build_report(root: Path) -> tuple[dict[str, Any], list[str], list[str]]:
                 "source_records": sum(1 for item in source_items if item["domain"] == domain_name),
                 "source_candidates": inventory["domain_source_counts"].get(domain_name, 0),
                 "markdown_files": inventory["domain_markdown_counts"].get(domain_name, 0),
+                "machine_owned_markdown": inventory["domain_machine_owned_markdown_counts"].get(domain_name, 0),
             }
         )
     if any(item["domain"] == "unclassified" for item in source_items) or inventory["domain_source_counts"].get("unclassified"):
@@ -465,6 +500,7 @@ def build_report(root: Path) -> tuple[dict[str, Any], list[str], list[str]]:
                 "source_records": sum(1 for item in source_items if item["domain"] == "unclassified"),
                 "source_candidates": inventory["domain_source_counts"].get("unclassified", 0),
                 "markdown_files": inventory["domain_markdown_counts"].get("unclassified", 0),
+                "machine_owned_markdown": inventory["domain_machine_owned_markdown_counts"].get("unclassified", 0),
             }
         )
 
@@ -476,6 +512,7 @@ def build_report(root: Path) -> tuple[dict[str, Any], list[str], list[str]]:
             "unmanaged_source_candidates": len(unmanaged_sources),
             "generated_mirrors": inventory["generated_mirrors"],
             "curated_markdown": inventory["curated_markdown"],
+            "machine_owned_markdown": inventory["machine_owned_markdown"],
             "legacy_top_level_folders": len(inventory["legacy_folders"]),
         },
         "states": dict(sorted(states.items())),
@@ -578,6 +615,7 @@ def render_markdown(report: dict[str, Any], warnings: list[str], errors: list[st
                 ["Unmanaged source candidates", summary["unmanaged_source_candidates"]],
                 ["Generated mirrors", summary["generated_mirrors"]],
                 ["Curated markdown files", summary["curated_markdown"]],
+                ["Machine-owned markdown files", summary["machine_owned_markdown"]],
                 ["Legacy top-level folders", summary["legacy_top_level_folders"]],
             ],
         ),
@@ -599,11 +637,17 @@ def render_markdown(report: dict[str, Any], warnings: list[str], errors: list[st
             item["source_records"],
             item["source_candidates"],
             item["markdown_files"],
+            item["machine_owned_markdown"],
             item["purpose"],
         ]
         for item in report["domains"]
     ]
-    lines.extend(table(["Folder", "Domain", "Manifest Sources", "Source Candidates", "Markdown", "Purpose"], domain_rows))
+    lines.extend(
+        table(
+            ["Folder", "Domain", "Manifest Sources", "Source Candidates", "Curated Markdown", "Machine-Owned Markdown", "Purpose"],
+            domain_rows,
+        )
+    )
     lines.append("")
 
     states = report["states"]
@@ -725,8 +769,11 @@ def render_html(report: dict[str, Any], warnings: list[str], errors: list[str], 
     domain_chart_rows = [
         (
             f"{item['folder'] or item['domain']} ({item['domain']})",
-            int(item["source_candidates"]) + int(item["markdown_files"]),
-            f"sources={item['source_candidates']}, markdown={item['markdown_files']}",
+            int(item["source_candidates"]) + int(item["markdown_files"]) + int(item["machine_owned_markdown"]),
+            (
+                f"sources={item['source_candidates']}, curated_markdown={item['markdown_files']}, "
+                f"machine_owned_markdown={item['machine_owned_markdown']}"
+            ),
         )
         for item in report["domains"]
     ]
@@ -807,6 +854,7 @@ def render_html(report: dict[str, Any], warnings: list[str], errors: list[str], 
         ("Unmanaged sources", summary["unmanaged_source_candidates"]),
         ("Generated mirrors", summary["generated_mirrors"]),
         ("Curated markdown", summary["curated_markdown"]),
+        ("Machine-owned markdown", summary["machine_owned_markdown"]),
         ("Legacy folders", summary["legacy_top_level_folders"]),
     ]
     for label, value in summary_cards:
@@ -836,12 +884,18 @@ def render_html(report: dict[str, Any], warnings: list[str], errors: list[str], 
             item["source_records"],
             item["source_candidates"],
             item["markdown_files"],
+            item["machine_owned_markdown"],
             item["purpose"],
         ]
         for item in report["domains"]
     ]
     lines.extend(['<section class="section">', "<h2>Domains</h2>"])
-    lines.extend(html_table(["Folder", "Domain", "Manifest Sources", "Source Candidates", "Markdown", "Purpose"], domain_rows))
+    lines.extend(
+        html_table(
+            ["Folder", "Domain", "Manifest Sources", "Source Candidates", "Curated Markdown", "Machine-Owned Markdown", "Purpose"],
+            domain_rows,
+        )
+    )
     lines.append("</section>")
 
     if report["states"]:

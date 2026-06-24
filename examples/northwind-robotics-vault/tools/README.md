@@ -87,15 +87,15 @@ and a tooling contract; it does not make destructive cleanup automatic.
 
 `catalog` writes `CATALOG.md` by default, and `CATALOG.html` when called with `--html`. Both are
 generated source-path and manifest inventories, not content extraction layers: they list counts,
-lifecycle states, source/mirror links, repo mirror links, unmanaged source candidates, and legacy
-top-level folders without copying document text. The HTML gateway also includes static aggregate
-charts for domain mix, source and repo lifecycle states, source formats, and top-level file
-distribution. Catalog generation compares `_meta/repo-manifest.json` with `tools/repos.yml` so
-retained repo mirrors whose config entry was removed appear as `repo_unconfigured` even before repo
-sync rewrites the manifest. When source/repo manifest records include lifecycle contract
-provenance, the catalog also reports which contract path and schema version govern those states.
-Use `--stdout` to preview, `--json` for automation, and `--check` in CI or review scripts to fail
-when the selected catalog is stale.
+lifecycle states, source/mirror links, repo mirror links, unmanaged source candidates, profile-
+declared machine-owned Markdown counts, and legacy top-level folders without copying document text.
+The HTML gateway also includes static aggregate charts for domain mix, source and repo lifecycle
+states, source formats, and top-level file distribution. Catalog generation compares
+`_meta/repo-manifest.json` with `tools/repos.yml` so retained repo mirrors whose config entry was
+removed appear as `repo_unconfigured` even before repo sync rewrites the manifest. When source/repo
+manifest records include lifecycle contract provenance, the catalog also reports which contract
+path and schema version govern those states. Use `--stdout` to preview, `--json` for automation,
+and `--check` in CI or review scripts to fail when the selected catalog is stale.
 
 `conversion` is read-only unless `--init-results` is supplied. It reads
 `_meta/source-manifest.json` and turns lifecycle states, format risks, warnings, errors, and

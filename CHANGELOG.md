@@ -57,6 +57,8 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 - Profile note type definitions can now declare `machine_owned: true`; validation enforces boolean
   values, overlap excludes machine-owned artifacts, and migration frontmatter cleanup ignores them
   without relying only on hard-coded mirror type names.
+- `vaultwright catalog` now separates profile-defined machine-owned Markdown artifacts from curated
+  Markdown/domain counts, while surfacing them as their own inventory metric.
 - Profiles now own generated mirror status defaults with `policy_defaults.mirror_status` and
   `policy_defaults.repo_stub_status`; Office/repo sync, lint, and annotation migration use those
   values instead of hard-coded `active`/`draft` checks for generated mirror metadata.
