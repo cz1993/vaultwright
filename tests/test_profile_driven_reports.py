@@ -1475,3 +1475,28 @@ def test_recovery_warns_for_profile_repo_notes_dir_without_manifest(tmp_path: Pa
         "_meta/repo-manifest.json not found; repo recovery has no manifest evidence yet."
         in payload["warnings"]
     )
+
+
+def test_recovery_excludes_configured_office_mirror_root_from_source_evidence(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    set_office_mirror_root(vault)
+    (vault / "_meta" / "source-manifest.json").unlink(missing_ok=True)
+    generated = vault / "_generated" / "40_delivery" / "generated-export.docx"
+    generated.parent.mkdir(parents=True)
+    generated.write_bytes(b"synthetic generated-root artifact")
+
+    result = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "recovery", "--json"],
+        cwd=ROOT,
+        env=package_cli_env(),
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+    payload = json.loads(result.stdout)
+    assert (
+        "_meta/source-manifest.json not found; run sync/status or restore it from backup."
+        not in payload["warnings"]
+    )

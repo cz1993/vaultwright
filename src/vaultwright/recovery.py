@@ -10,7 +10,7 @@ import re
 import sys
 from pathlib import Path
 
-from vaultwright.runtime_profile import repo_notes_dirs
+from vaultwright.runtime_profile import configured_office_mirror_root, repo_notes_dirs
 
 try:
     import yaml
@@ -215,12 +215,15 @@ def load_latest_audit_events(root: Path) -> tuple[dict[str, dict], list[str]]:
 
 
 def has_source_evidence(root: Path) -> bool:
+    mirror_root = configured_office_mirror_root(root)
     for path in root.rglob("*"):
         if not path.is_file() or path.is_symlink():
             continue
         try:
             rel = path.relative_to(root)
         except ValueError:
+            continue
+        if mirror_root.parts and rel.parts[: len(mirror_root.parts)] == mirror_root.parts:
             continue
         if any(part in EXCLUDED_PARTS for part in rel.parts):
             continue
