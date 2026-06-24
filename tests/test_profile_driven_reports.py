@@ -40,6 +40,56 @@ def add_research_repo_profile(vault: Path) -> None:
     profile_path.write_text(yaml.safe_dump(profile, sort_keys=False), encoding="utf-8")
 
 
+def write_profile_benchmark_task_pack(vault: Path) -> Path:
+    add_research_repo_profile(vault)
+    profile_path = vault / "_meta" / "profile.yml"
+    profile = yaml.safe_load(profile_path.read_text(encoding="utf-8"))
+    task_pack = Path("_meta/research-agent-readiness-tasks.yml")
+    profile["benchmark_tasks"] = [task_pack.as_posix()]
+    profile_path.write_text(yaml.safe_dump(profile, sort_keys=False), encoding="utf-8")
+
+    source = vault / "25_research" / "research-plan.docx"
+    mirror = vault / "_mirrors" / "25_research" / "research-plan.md"
+    source.parent.mkdir(parents=True, exist_ok=True)
+    mirror.parent.mkdir(parents=True, exist_ok=True)
+    source.write_bytes(b"synthetic research benchmark source bytes")
+    mirror.write_text(
+        "---\nsource_path: 25_research/research-plan.docx\n---\nSynthetic research mirror body\n",
+        encoding="utf-8",
+    )
+    tasks = []
+    for family in ("answer", "reconcile", "update", "audit", "consolidate"):
+        tasks.append(
+            {
+                "id": f"research-{family}",
+                "family": family,
+                "prompt": f"What should the research {family} task prove?",
+                "source_paths": ["25_research/research-plan.docx"],
+                "generated_mirror_paths": ["_mirrors/25_research/research-plan.md"],
+                "curated_paths": [],
+                "success_criteria": ["Uses declared profile benchmark evidence only"],
+            }
+        )
+    (vault / task_pack).write_text(
+        yaml.safe_dump(
+            {
+                "schema_version": 1,
+                "corpus": "profile-research-fixture",
+                "comparison_modes": [
+                    "raw_source_folder",
+                    "document_chat_transcript",
+                    "vaultwright_markdown",
+                ],
+                "scoring": {"scale": "0-2"},
+                "tasks": tasks,
+            },
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
+    return task_pack
+
+
 def test_catalog_reads_profile_domains_for_canonical_folders(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     shutil.copytree(ROOT / "template", vault)
@@ -281,6 +331,56 @@ def test_package_cli_overlap_reads_profile_content_roots(tmp_path: Path) -> None
     assert candidate["right_path"] == "25_research/question-map.md"
     assert candidate["same_domain"] is True
     assert "Research calibration synthesis" not in result.stdout
+
+
+def test_package_cli_benchmark_reads_profile_task_pack(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    task_pack = write_profile_benchmark_task_pack(vault)
+
+    result = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "benchmark", "--json"],
+        cwd=ROOT,
+        env=package_cli_env(),
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+    payload = json.loads(result.stdout)
+    assert payload["summary"]["path"] == task_pack.as_posix()
+    assert payload["summary"]["tasks"] == 5
+    assert payload["summary"]["families"] == ["answer", "audit", "consolidate", "reconcile", "update"]
+    assert payload["warnings"] == []
+    assert payload["errors"] == []
+    assert "synthetic research benchmark source bytes" not in result.stdout
+    assert "Synthetic research mirror body" not in result.stdout
+
+
+def test_package_cli_pilot_reads_profile_benchmark_task_pack(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    task_pack = write_profile_benchmark_task_pack(vault)
+
+    result = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "pilot", "--json"],
+        cwd=ROOT,
+        env=package_cli_env(),
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+    payload = json.loads(result.stdout)
+    benchmark = payload["report"]["benchmark"]
+    assert benchmark["available"] is True
+    assert benchmark["summary"]["path"] == task_pack.as_posix()
+    assert benchmark["summary"]["tasks"] == 5
+    assert benchmark["summary"]["results"] == {"available": False}
+    assert "synthetic research benchmark source bytes" not in result.stdout
+    assert "Synthetic research mirror body" not in result.stdout
+    assert "25_research/research-plan.docx" not in result.stdout
+    assert "_mirrors/25_research/research-plan.md" not in result.stdout
 
 
 def test_package_cli_reports_use_profile_repo_notes_dir(tmp_path: Path) -> None:

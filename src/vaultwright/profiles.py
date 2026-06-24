@@ -187,6 +187,10 @@ def validate_profile_mapping(data: Any) -> None:
         for value in data[field]:
             if not isinstance(value, str):
                 raise ProfileValidationError(f"{field} entries must be strings")
+    for value in data["benchmark_tasks"]:
+        path = validate_profile_path(value, "benchmark_tasks entry")
+        if path.suffix not in {".yml", ".yaml"}:
+            raise ProfileValidationError("benchmark_tasks entries must be .yml or .yaml files")
 
     domain_folders: dict[str, PurePosixPath] = {}
     for domain, definition in data["domains"].items():

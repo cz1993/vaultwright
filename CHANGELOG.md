@@ -34,6 +34,9 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 - `vaultwright overlap` now reads the active profile's domain folders when choosing curated notes
   for calibration, so profile-defined content roots participate without hard-coded business
   folders.
+- `vaultwright benchmark` and the aggregate `vaultwright pilot` report now read profile-declared
+  `benchmark_tasks` paths, while explicit `--tasks` and the legacy `_meta/agent-readiness-tasks.yml`
+  path remain supported.
 - Added package-owned `profile views --check` and `profile views --write` commands that generate
   the profile-owned `Documents.base` file from `_meta/profile.yml`, with CI smoke coverage for
   source and wheel installs.

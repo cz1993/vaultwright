@@ -18,6 +18,7 @@ except ImportError:
 
 DEFAULT_ROOT = Path.cwd()
 ROOT = DEFAULT_ROOT
+PROFILE = Path("_meta/profile.yml")
 DEFAULT_TASKS = Path("_meta/agent-readiness-tasks.yml")
 DEFAULT_RESULTS = Path("_meta/agent-readiness-results.yml")
 SOURCE_MANIFEST = Path("_meta/source-manifest.json")
@@ -93,6 +94,85 @@ def safe_yaml_output_path(path_arg: Path, label: str) -> Path:
     if resolved.exists() and resolved.is_dir():
         raise ValueError(f"{label} output must be a file, not a directory")
     return resolved
+
+
+def safe_profile_task_path(value: object) -> Path | None:
+    if not isinstance(value, str) or not value.strip():
+        return None
+    path = Path(value.strip())
+    if path.is_absolute() or ".." in path.parts or not path.parts:
+        return None
+    if path.suffix not in {".yml", ".yaml"}:
+        return None
+    if any(part.startswith(".") and part != "_meta" for part in path.parts):
+        return None
+    return path
+
+
+def profile_task_paths(root: Path) -> tuple[list[Path], list[str]]:
+    path = root / PROFILE
+    if not path.exists():
+        return [], []
+    try:
+        data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    except yaml.YAMLError as exc:
+        return [], [f"{PROFILE.as_posix()}: invalid YAML ({exc.__class__.__name__})"]
+    if not isinstance(data, dict):
+        return [], [f"{PROFILE.as_posix()}: must be a mapping"]
+    raw_paths = data.get("benchmark_tasks", [])
+    if raw_paths in (None, []):
+        return [], []
+    if not isinstance(raw_paths, list):
+        return [], [f"{PROFILE.as_posix()}:benchmark_tasks must be a list"]
+    warnings: list[str] = []
+    paths: list[Path] = []
+    seen: set[str] = set()
+    for index, value in enumerate(raw_paths):
+        rel = safe_profile_task_path(value)
+        if rel is None:
+            warnings.append(
+                f"{PROFILE.as_posix()}:benchmark_tasks[{index}] must be a safe vault-relative .yml path"
+            )
+            continue
+        rel_text = rel.as_posix()
+        if rel_text in seen:
+            continue
+        seen.add(rel_text)
+        paths.append(rel)
+    return paths, warnings
+
+
+def resolved_task_paths(task_arg: Path | None) -> tuple[list[Path], list[str], str]:
+    if task_arg is not None:
+        return [task_arg if task_arg.is_absolute() else ROOT / task_arg], [], "explicit"
+    profile_paths, warnings = profile_task_paths(ROOT)
+    if profile_paths:
+        return [ROOT / rel for rel in profile_paths], warnings, "profile"
+    return [ROOT / DEFAULT_TASKS], warnings, "legacy"
+
+
+def display_task_arg(path: Path) -> str:
+    if path.is_absolute():
+        try:
+            return path.relative_to(ROOT).as_posix()
+        except ValueError:
+            return path.as_posix()
+    return path.as_posix()
+
+
+def single_task_path(
+    task_paths: list[Path],
+    *,
+    source: str,
+    operation: str,
+) -> tuple[Path | None, list[str]]:
+    if len(task_paths) == 1:
+        return task_paths[0], []
+    if source == "profile":
+        return None, [
+            f"benchmark_tasks: {operation} needs one task pack; pass --tasks because the profile declares {len(task_paths)} packs"
+        ]
+    return None, [f"benchmark_tasks: {operation} needs one task pack"]
 
 
 def safe_task_output_path(path_arg: Path) -> Path:
@@ -856,7 +936,14 @@ def validate_result_pack(
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Validate a Vaultwright agent-readiness benchmark task pack.")
-    parser.add_argument("--tasks", type=Path, default=DEFAULT_TASKS, help="Task pack path relative to the vault root.")
+    parser.add_argument(
+        "--tasks",
+        type=Path,
+        help=(
+            "Task pack path relative to the vault root. Defaults to profile benchmark_tasks, "
+            "then _meta/agent-readiness-tasks.yml."
+        ),
+    )
     parser.add_argument("--results", type=Path, help="Optional benchmark results path relative to the vault root.")
     parser.add_argument(
         "--init-tasks",
@@ -941,18 +1028,18 @@ def main(argv: list[str] | None = None, root: Path | None = None) -> int:
             file=sys.stderr,
         )
         return 1
-    task_path = args.tasks if args.tasks.is_absolute() else ROOT / args.tasks
+    task_paths, discovery_warnings, task_source = resolved_task_paths(args.tasks)
     result_path_arg = args.results or DEFAULT_RESULTS
     result_path = result_path_arg if result_path_arg.is_absolute() else ROOT / result_path_arg
     if args.init_tasks:
         errors: list[str] = []
         try:
-            task_output = safe_task_output_path(args.tasks)
+            task_output = safe_task_output_path(args.tasks or DEFAULT_TASKS)
         except ValueError as exc:
             task_output = None
             errors.append(str(exc))
         summary: dict = {}
-        warnings: list[str] = []
+        warnings: list[str] = list(discovery_warnings)
         if task_output is not None:
             summary, scaffold_errors, warnings = write_task_scaffold(
                 task_output,
@@ -960,6 +1047,7 @@ def main(argv: list[str] | None = None, root: Path | None = None) -> int:
                 curated_limit=args.scaffold_curated,
                 force=args.force,
             )
+            warnings = [*discovery_warnings, *warnings]
             errors.extend(scaffold_errors)
         if args.json:
             print(
@@ -985,9 +1073,11 @@ def main(argv: list[str] | None = None, root: Path | None = None) -> int:
                 print(f"  error: {error}", file=sys.stderr)
         return 1 if errors else 0
 
-    if not task_path.exists():
+    missing_task_paths = [path for path in task_paths if not path.exists()]
+    if missing_task_paths:
+        missing_task = missing_task_paths[0]
         if (
-            args.tasks == DEFAULT_TASKS
+            task_source == "legacy"
             and not args.results
             and not args.require_results
             and not args.init_results
@@ -996,10 +1086,75 @@ def main(argv: list[str] | None = None, root: Path | None = None) -> int:
         ):
             print(f"benchmark_tasks: no {DEFAULT_TASKS.as_posix()} found; benchmark validation skipped")
             return 0
-        print(f"benchmark_tasks: missing task pack: {args.tasks}", file=sys.stderr)
+        print(f"benchmark_tasks: missing task pack: {display_task_arg(missing_task)}", file=sys.stderr)
         return 1
 
+    task_path, single_errors = single_task_path(
+        task_paths,
+        source=task_source,
+        operation="this operation" if (args.worksheet or args.init_results or args.results or args.require_results) else "result/worksheet operations",
+    )
+    if single_errors and (args.worksheet or args.init_results or args.results or args.require_results):
+        for warning in discovery_warnings:
+            print(f"  warning: {warning}")
+        for error in single_errors:
+            print(f"  error: {error}", file=sys.stderr)
+        return 1
+
+    if len(task_paths) > 1 and not (args.results or args.require_results or args.init_results or args.worksheet):
+        task_summaries: list[dict] = []
+        errors: list[str] = []
+        warnings: list[str] = list(discovery_warnings)
+        for path in task_paths:
+            pack_summary, pack_errors, pack_warnings = validate_task_pack(
+                path,
+                require_generated=args.require_generated,
+            )
+            if pack_summary:
+                task_summaries.append(pack_summary)
+            errors.extend(pack_errors)
+            warnings.extend(pack_warnings)
+        aggregate_summary = {
+            "task_packs": len(task_summaries),
+            "tasks": sum(int(summary.get("tasks", 0)) for summary in task_summaries),
+            "source_paths": sum(int(summary.get("source_paths", 0)) for summary in task_summaries),
+            "generated_mirror_paths": sum(
+                int(summary.get("generated_mirror_paths", 0)) for summary in task_summaries
+            ),
+            "curated_paths": sum(int(summary.get("curated_paths", 0)) for summary in task_summaries),
+            "warnings": len(warnings),
+            "errors": len(errors),
+        }
+        if args.json:
+            print(
+                json.dumps(
+                    {
+                        "summary": aggregate_summary,
+                        "task_packs": task_summaries,
+                        "result_summary": {},
+                        "warnings": warnings,
+                        "errors": errors,
+                    },
+                    indent=2,
+                    sort_keys=True,
+                )
+            )
+        else:
+            print(
+                "benchmark_tasks: "
+                f"{aggregate_summary['tasks']} tasks in {aggregate_summary['task_packs']} profile task packs"
+            )
+            for pack_summary in task_summaries:
+                print(f"  pack: {pack_summary.get('tasks', 0)} tasks in {pack_summary.get('path', '')}")
+            for warning in warnings:
+                print(f"  warning: {warning}")
+            for error in errors:
+                print(f"  error: {error}", file=sys.stderr)
+        return 1 if errors else 0
+
+    assert task_path is not None
     summary, errors, warnings = validate_task_pack(task_path, require_generated=args.require_generated)
+    warnings = [*discovery_warnings, *warnings]
     if args.worksheet:
         if errors:
             for error in errors:

@@ -82,7 +82,8 @@ vaultwright --root <vault> profile views --write
 : List of profile-specific agent skill paths. Empty for the current profile.
 
 `benchmark_tasks`
-: List of packaged benchmark task-pack paths. Empty for the current profile.
+: List of packaged benchmark task-pack paths. Entries must be safe vault-relative `.yml` or
+  `.yaml` paths. Empty for the current profile.
 
 `policy_defaults`
 : Mapping reserved for profile-level defaults such as retention, governance, and generated-output
@@ -100,8 +101,9 @@ folder when `tools/repos.yml` does not declare `settings.notes_dir`.
 - scalar identity fields are non-empty strings;
 - mapping fields are YAML mappings;
 - list fields are YAML lists;
-- path/list entries for required properties, optional properties, templates, views, skills, and
-  benchmark tasks are strings;
+- path/list entries for required properties, optional properties, templates, views, and skills are
+  strings;
+- benchmark task entries are safe vault-relative `.yml` or `.yaml` paths;
 - every domain definition includes a non-empty vault-relative `folder`;
 - `folder_plan` contains mapping entries with vault-relative POSIX `path` values and non-empty
   `domain` values;
@@ -110,8 +112,11 @@ folder when `tools/repos.yml` does not declare `settings.notes_dir`.
 - duplicate `folder_plan` paths are rejected.
 
 `vaultwright lint`, `vaultwright catalog`, and `vaultwright overlap` read `_meta/profile.yml` for
-domain folders. Lint also reads allowed note types, statuses, and required properties. GitHub repo
-mirror sync and lint read
+domain folders. Lint also reads allowed note types, statuses, and required properties.
+`vaultwright benchmark` and the aggregate `vaultwright pilot` evidence report read profile-declared
+`benchmark_tasks`, while an explicit `--tasks` argument still takes precedence and the legacy
+`_meta/agent-readiness-tasks.yml` path remains a compatibility fallback. GitHub repo mirror sync
+and lint read
 `policy_defaults.repo_notes_dir` for the default repository-mirror folder and derive repo-mirror
 frontmatter domains from the profile's domain/folder mapping. Microsoft 365 handoff, sandbox
 preflight, recovery, and review-ledger reporting also resolve repo mirror folders from the active

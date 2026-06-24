@@ -222,21 +222,63 @@ def overlap_summary(root: Path) -> tuple[dict[str, Any], list[str], list[str]]:
 
 
 def benchmark_summary(root: Path) -> tuple[dict[str, Any], list[str], list[str]]:
-    task_path = root / BENCHMARK_TASKS
-    if not task_path.exists():
-        return {"available": False, "summary": {}}, [f"{BENCHMARK_TASKS.as_posix()}: missing"], []
     try:
         benchmark_module.configure_root(root)
-        summary, errors, warnings = benchmark_module.validate_task_pack(task_path, require_generated=False)
-        summary = dict(summary)
+        task_paths, discovery_warnings, task_source = benchmark_module.resolved_task_paths(None)
+        missing_task_paths = [path for path in task_paths if not path.exists()]
+        if missing_task_paths:
+            missing = missing_task_paths[0]
+            message_path = benchmark_module.display_task_arg(missing)
+            if task_source == "legacy":
+                message_path = BENCHMARK_TASKS.as_posix()
+            return {"available": False, "summary": {}}, [*discovery_warnings, f"{message_path}: missing"], []
+
+        summaries: list[dict[str, Any]] = []
+        errors: list[str] = []
+        warnings: list[str] = list(discovery_warnings)
+        for task_path in task_paths:
+            pack_summary, pack_errors, pack_warnings = benchmark_module.validate_task_pack(
+                task_path,
+                require_generated=False,
+            )
+            if pack_summary:
+                summaries.append(dict(pack_summary))
+            errors.extend(pack_errors)
+            warnings.extend(pack_warnings)
+        if not summaries:
+            return {"available": False, "summary": {}}, warnings or [f"{BENCHMARK_TASKS.as_posix()}: missing"], errors
+        if len(summaries) == 1:
+            summary = dict(summaries[0])
+        else:
+            families = sorted(
+                {
+                    family
+                    for pack_summary in summaries
+                    for family in pack_summary.get("families", [])
+                    if isinstance(family, str)
+                }
+            )
+            summary = {
+                "path": "profile benchmark task packs",
+                "corpus": "multiple",
+                "task_packs": len(summaries),
+                "tasks": sum(int(pack_summary.get("tasks", 0)) for pack_summary in summaries),
+                "families": families,
+                "source_paths": sum(int(pack_summary.get("source_paths", 0)) for pack_summary in summaries),
+                "generated_mirror_paths": sum(
+                    int(pack_summary.get("generated_mirror_paths", 0)) for pack_summary in summaries
+                ),
+                "curated_paths": sum(int(pack_summary.get("curated_paths", 0)) for pack_summary in summaries),
+                "require_generated": False,
+            }
         summary["warnings"] = len(warnings)
         summary["errors"] = len(errors)
         result_summary: dict[str, Any] = {"available": False}
         result_path = root / BENCHMARK_RESULTS
-        if result_path.exists():
+        if result_path.exists() and len(task_paths) == 1:
             results, result_errors, result_warnings = benchmark_module.validate_result_pack(
                 result_path,
-                task_path,
+                task_paths[0],
                 require_complete=False,
             )
             result_summary = {
@@ -247,6 +289,10 @@ def benchmark_summary(root: Path) -> tuple[dict[str, Any], list[str], list[str]]
             }
             warnings.extend(result_warnings)
             errors.extend(result_errors)
+        elif result_path.exists():
+            warnings.append(
+                f"{BENCHMARK_RESULTS.as_posix()}: skipped because the active profile declares multiple task packs"
+            )
         summary["results"] = result_summary
         messages = [f"benchmark report has {len(warnings)} warnings; run `vaultwright benchmark`"] if warnings else []
         failures = [f"benchmark report has {len(errors)} errors; run `vaultwright benchmark`"] if errors else []

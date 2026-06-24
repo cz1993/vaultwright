@@ -135,6 +135,22 @@ def test_profile_contract_rejects_unsafe_domain_folder_paths() -> None:
         validate_profile_mapping(data)
 
 
+def test_profile_contract_rejects_unsafe_benchmark_task_paths() -> None:
+    data = minimal_profile()
+    data["benchmark_tasks"] = ["../private/tasks.yml"]
+
+    with pytest.raises(ProfileValidationError, match="benchmark_tasks entry must stay inside the vault"):
+        validate_profile_mapping(data)
+
+
+def test_profile_contract_requires_benchmark_task_yaml_paths() -> None:
+    data = minimal_profile()
+    data["benchmark_tasks"] = ["_meta/tasks.json"]
+
+    with pytest.raises(ProfileValidationError, match="benchmark_tasks entries must be .yml or .yaml"):
+        validate_profile_mapping(data)
+
+
 def test_profile_migration_directory_plan_uses_folder_plan_paths() -> None:
     data = minimal_profile()
     data["domains"]["archive"] = {"folder": "90_archive"}
