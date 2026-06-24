@@ -28,6 +28,9 @@ All notable changes to Vaultwright are documented here. Format loosely follows
   that creates missing shared/profile-planned directories and copies missing packaged
   profile/template files without overwriting existing files, source documents, generated mirrors,
   or annotation sidecars.
+- Profile validation now requires domain, note-type, and status identifiers to be lowercase
+  kebab-case, and required/optional frontmatter property names to be lowercase frontmatter keys
+  without duplicates.
 - Profile validation now enforces safe domain folders plus non-empty `folder_plan` records whose
   paths stay inside declared profile domains, and profile migration creates directories from that
   validated folder plan.

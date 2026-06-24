@@ -53,26 +53,32 @@ vaultwright --root <vault> profile views --write
 : Optional human-readable summary.
 
 `domains`
-: Mapping of domain IDs to domain definitions. Each domain must define `folder`.
+: Mapping of domain IDs to domain definitions. Domain IDs must be lowercase kebab-case
+  identifiers. Each domain must define `folder`.
 
 `note_types`
-: Mapping of allowed note type IDs to definitions. A note type definition may include
-  `machine_owned: true` when notes of that type are regenerated artifacts rather than curated
-  human notes; overlap calibration and migration frontmatter cleanup exclude those note types.
+: Mapping of allowed note type IDs to definitions. Note type IDs must be lowercase kebab-case
+  identifiers. A note type definition may include `machine_owned: true` when notes of that type are
+  regenerated artifacts rather than curated human notes; overlap calibration and migration
+  frontmatter cleanup exclude those note types.
 
 `statuses`
-: Mapping of allowed workflow status IDs to definitions. A status definition may include
-  `attention: true` when notes in that state should appear in generated review-attention views, and
-  `inactive: true` when notes in that state should be excluded from active overlap calibration.
+: Mapping of allowed workflow status IDs to definitions. Status IDs must be lowercase kebab-case
+  identifiers. A status definition may include `attention: true` when notes in that state should
+  appear in generated review-attention views, and `inactive: true` when notes in that state should
+  be excluded from active overlap calibration.
 
 `required_properties`
-: List of frontmatter keys required on curated notes and managed notes where applicable.
+: List of frontmatter keys required on curated notes and managed notes where applicable. Entries
+  must be lowercase frontmatter keys using letters, numbers, and underscores, and must not contain
+  duplicates.
 
 `optional_properties`
 : List of frontmatter keys accepted by the profile but not required. GitHub repo mirror sync,
   lint, and annotation migration treat optional properties other than universal fields such as
   `owner`, `tags`, and `related` as profile-specific repo context fields when they appear in
-  `tools/repos.yml`.
+  `tools/repos.yml`. Entries must follow the same lowercase frontmatter-key and duplicate rules as
+  `required_properties`.
 
 `folder_plan`
 : Non-empty list of starter folder records. Each current record uses `path` and `domain`; the
@@ -111,9 +117,11 @@ vaultwright --root <vault> profile views --write
 - scalar identity fields are non-empty strings;
 - mapping fields are YAML mappings;
 - list fields are YAML lists;
-- path/list entries for required properties, optional properties, templates, views, and skills are
-  strings;
+- required and optional frontmatter property entries are lowercase frontmatter keys and do not
+  contain duplicates;
+- path/list entries for templates, views, and skills are strings;
 - benchmark task entries are safe vault-relative `.yml` or `.yaml` paths;
+- domain, note-type, and status identifiers are lowercase kebab-case;
 - every domain definition includes a non-empty vault-relative `folder`;
 - `folder_plan` contains mapping entries with vault-relative POSIX `path` values and non-empty
   `domain` values;

@@ -105,6 +105,46 @@ def test_profile_contract_requires_domain_folders() -> None:
         validate_profile_mapping(data)
 
 
+def test_profile_contract_rejects_non_slug_domain_keys() -> None:
+    data = minimal_profile()
+    data["domains"] = {"Research Area": {"folder": "00_inbox"}}
+
+    with pytest.raises(ProfileValidationError, match="domain key must be lowercase kebab-case"):
+        validate_profile_mapping(data)
+
+
+def test_profile_contract_rejects_non_slug_note_type_keys() -> None:
+    data = minimal_profile()
+    data["note_types"] = {"Research Note": {"purpose": "bad key"}}
+
+    with pytest.raises(ProfileValidationError, match="note_types key must be lowercase kebab-case"):
+        validate_profile_mapping(data)
+
+
+def test_profile_contract_rejects_non_slug_status_keys() -> None:
+    data = minimal_profile()
+    data["statuses"] = {"Needs Review": {"purpose": "bad key"}}
+
+    with pytest.raises(ProfileValidationError, match="status key must be lowercase kebab-case"):
+        validate_profile_mapping(data)
+
+
+def test_profile_contract_rejects_invalid_frontmatter_property_keys() -> None:
+    data = minimal_profile()
+    data["required_properties"] = ["title", "Research Project"]
+
+    with pytest.raises(ProfileValidationError, match="required_properties entries must be a lowercase frontmatter key"):
+        validate_profile_mapping(data)
+
+
+def test_profile_contract_rejects_duplicate_frontmatter_property_keys() -> None:
+    data = minimal_profile()
+    data["optional_properties"] = ["owner", "owner"]
+
+    with pytest.raises(ProfileValidationError, match="optional_properties entries must not contain duplicates"):
+        validate_profile_mapping(data)
+
+
 def test_profile_contract_requires_folder_plan_entries() -> None:
     data = minimal_profile()
     data["folder_plan"] = []

@@ -12,6 +12,8 @@ import yaml
 
 PROFILE_SCHEMA_VERSION = 1
 PROFILE_ID_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+PROFILE_KEY_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+FRONTMATTER_KEY_RE = re.compile(r"^[a-z][a-z0-9_]*$")
 REQUIRED_FIELDS = {
     "schema_version",
     "id",
@@ -127,6 +129,22 @@ def validate_string(value: Any, field: str) -> None:
         raise ProfileValidationError(f"{field} must be a non-empty string")
 
 
+def validate_profile_key(value: Any, field: str) -> str:
+    validate_string(value, field)
+    text = str(value).strip()
+    if not PROFILE_KEY_RE.fullmatch(text):
+        raise ProfileValidationError(f"{field} must be lowercase kebab-case")
+    return text
+
+
+def validate_frontmatter_key(value: Any, field: str) -> str:
+    validate_string(value, field)
+    text = str(value).strip()
+    if not FRONTMATTER_KEY_RE.fullmatch(text):
+        raise ProfileValidationError(f"{field} must be a lowercase frontmatter key")
+    return text
+
+
 def validate_profile_path(value: Any, field: str) -> PurePosixPath:
     validate_string(value, field)
     text = str(value).strip()
@@ -165,8 +183,7 @@ def validate_folder_plan(folder_plan: Any, domain_folders: dict[str, PurePosixPa
             raise ProfileValidationError(f"{field} must be a mapping")
         path = validate_profile_path(entry.get("path"), f"{field}.path")
         domain = entry.get("domain")
-        validate_string(domain, f"{field}.domain")
-        domain_name = str(domain).strip()
+        domain_name = validate_profile_key(domain, f"{field}.domain")
         if domain_name not in domain_folders:
             raise ProfileValidationError(f"{field}.domain must reference a declared domain")
         if not path_is_under(path, domain_folders[domain_name]):
@@ -211,6 +228,13 @@ def validate_profile_mapping(data: Any) -> None:
         for value in data[field]:
             if not isinstance(value, str):
                 raise ProfileValidationError(f"{field} entries must be strings")
+    for field in ("required_properties", "optional_properties"):
+        seen_properties: set[str] = set()
+        for value in data[field]:
+            name = validate_frontmatter_key(value, f"{field} entries")
+            if name in seen_properties:
+                raise ProfileValidationError(f"{field} entries must not contain duplicates")
+            seen_properties.add(name)
     for value in data["benchmark_tasks"]:
         path = validate_profile_path(value, "benchmark_tasks entry")
         if path.suffix not in {".yml", ".yaml"}:
@@ -218,29 +242,29 @@ def validate_profile_mapping(data: Any) -> None:
 
     domain_folders: dict[str, PurePosixPath] = {}
     for domain, definition in data["domains"].items():
-        validate_string(domain, "domain key")
+        domain_name = validate_profile_key(domain, "domain key")
         if not isinstance(definition, dict):
             raise ProfileValidationError(f"domains.{domain} must be a mapping")
-        domain_folders[str(domain)] = validate_profile_path(
+        domain_folders[domain_name] = validate_profile_path(
             definition.get("folder"),
             f"domains.{domain}.folder",
         )
 
     for note_type, definition in data["note_types"].items():
-        validate_string(note_type, "note_types key")
+        note_type_name = validate_profile_key(note_type, "note_types key")
         if not isinstance(definition, dict):
             raise ProfileValidationError(f"note_types.{note_type} must be a mapping")
         for field in NOTE_TYPE_BOOLEAN_FIELDS:
             if field in definition and not isinstance(definition[field], bool):
-                raise ProfileValidationError(f"note_types.{note_type}.{field} must be true or false")
+                raise ProfileValidationError(f"note_types.{note_type_name}.{field} must be true or false")
 
     for status, definition in data["statuses"].items():
-        validate_string(status, "status key")
+        status_name = validate_profile_key(status, "status key")
         if not isinstance(definition, dict):
             raise ProfileValidationError(f"statuses.{status} must be a mapping")
         for field in STATUS_BOOLEAN_FIELDS:
             if field in definition and not isinstance(definition[field], bool):
-                raise ProfileValidationError(f"statuses.{status}.{field} must be true or false")
+                raise ProfileValidationError(f"statuses.{status_name}.{field} must be true or false")
 
     for field in POLICY_STATUS_DEFAULT_FIELDS:
         if field not in data["policy_defaults"]:
