@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pytest
 
+from vaultwright.profile_migration import target_dir_paths
 from vaultwright.profiles import ProfileContract, ProfileValidationError, load_profile, validate_profile_mapping
 from vaultwright.views import profile_views_plan, render_documents_base
 
@@ -92,6 +93,60 @@ def test_profile_contract_requires_domain_folders() -> None:
 
     with pytest.raises(ProfileValidationError, match="domains.research.folder"):
         validate_profile_mapping(data)
+
+
+def test_profile_contract_requires_folder_plan_entries() -> None:
+    data = minimal_profile()
+    data["folder_plan"] = []
+
+    with pytest.raises(ProfileValidationError, match="folder_plan must contain at least one starter folder"):
+        validate_profile_mapping(data)
+
+
+def test_profile_contract_requires_folder_plan_mapping_entries() -> None:
+    data = minimal_profile()
+    data["folder_plan"] = ["00_inbox"]
+
+    with pytest.raises(ProfileValidationError, match=r"folder_plan\[0\] must be a mapping"):
+        validate_profile_mapping(data)
+
+
+def test_profile_contract_requires_folder_plan_declared_domain() -> None:
+    data = minimal_profile()
+    data["folder_plan"] = [{"path": "00_inbox", "domain": "missing"}]
+
+    with pytest.raises(ProfileValidationError, match=r"folder_plan\[0\]\.domain must reference"):
+        validate_profile_mapping(data)
+
+
+def test_profile_contract_requires_folder_plan_paths_under_domain_folder() -> None:
+    data = minimal_profile()
+    data["folder_plan"] = [{"path": "90_archive", "domain": "inbox"}]
+
+    with pytest.raises(ProfileValidationError, match=r"folder_plan\[0\]\.path must be inside domains.inbox.folder"):
+        validate_profile_mapping(data)
+
+
+def test_profile_contract_rejects_unsafe_domain_folder_paths() -> None:
+    data = minimal_profile()
+    data["domains"]["inbox"]["folder"] = "../outside"
+
+    with pytest.raises(ProfileValidationError, match="domains.inbox.folder must stay inside the vault"):
+        validate_profile_mapping(data)
+
+
+def test_profile_migration_directory_plan_uses_folder_plan_paths() -> None:
+    data = minimal_profile()
+    data["domains"]["archive"] = {"folder": "90_archive"}
+    data["folder_plan"].append({"path": "00_inbox/questions", "domain": "inbox"})
+    profile = ProfileContract.from_mapping(data)
+
+    paths = {path.as_posix() for path in target_dir_paths(profile)}
+
+    assert "00_inbox" in paths
+    assert "00_inbox/questions" in paths
+    assert "90_archive" not in paths
+    assert "_meta" in paths
 
 
 def test_profile_cli_lists_built_in_profile() -> None:
@@ -364,7 +419,7 @@ def minimal_profile() -> dict:
         "statuses": {},
         "required_properties": [],
         "optional_properties": [],
-        "folder_plan": [],
+        "folder_plan": [{"path": "00_inbox", "domain": "inbox"}],
         "templates": [],
         "views": [],
         "skills": [],

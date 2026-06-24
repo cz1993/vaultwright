@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import asdict, dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 import yaml
@@ -40,6 +40,7 @@ LIST_FIELDS = {
     "benchmark_tasks",
 }
 MAPPING_FIELDS = {"domains", "note_types", "statuses", "policy_defaults"}
+FORBIDDEN_PROFILE_PATH_PARTS = {".git", ".githooks", ".github", "node_modules"}
 
 
 class ProfileValidationError(ValueError):
@@ -109,6 +110,49 @@ def validate_string(value: Any, field: str) -> None:
         raise ProfileValidationError(f"{field} must be a non-empty string")
 
 
+def validate_profile_path(value: Any, field: str) -> PurePosixPath:
+    validate_string(value, field)
+    text = str(value).strip()
+    if "\\" in text:
+        raise ProfileValidationError(f"{field} must use POSIX-style '/' separators")
+    path = PurePosixPath(text)
+    if path.is_absolute() or ".." in path.parts or not path.parts or path.as_posix() == ".":
+        raise ProfileValidationError(f"{field} must stay inside the vault")
+    if any(part.startswith(".") or part in FORBIDDEN_PROFILE_PATH_PARTS for part in path.parts):
+        raise ProfileValidationError(f"{field} contains a reserved path component")
+    return path
+
+
+def path_is_under(path: PurePosixPath, directory: PurePosixPath) -> bool:
+    return path == directory or (
+        len(path.parts) > len(directory.parts)
+        and path.parts[: len(directory.parts)] == directory.parts
+    )
+
+
+def validate_folder_plan(folder_plan: Any, domain_folders: dict[str, PurePosixPath]) -> None:
+    if not folder_plan:
+        raise ProfileValidationError("folder_plan must contain at least one starter folder")
+
+    seen_paths: set[str] = set()
+    for index, entry in enumerate(folder_plan):
+        field = f"folder_plan[{index}]"
+        if not isinstance(entry, dict):
+            raise ProfileValidationError(f"{field} must be a mapping")
+        path = validate_profile_path(entry.get("path"), f"{field}.path")
+        domain = entry.get("domain")
+        validate_string(domain, f"{field}.domain")
+        domain_name = str(domain).strip()
+        if domain_name not in domain_folders:
+            raise ProfileValidationError(f"{field}.domain must reference a declared domain")
+        if not path_is_under(path, domain_folders[domain_name]):
+            raise ProfileValidationError(f"{field}.path must be inside domains.{domain_name}.folder")
+        path_text = path.as_posix()
+        if path_text in seen_paths:
+            raise ProfileValidationError(f"{field}.path duplicates another folder_plan path")
+        seen_paths.add(path_text)
+
+
 def validate_profile_mapping(data: Any) -> None:
     if not isinstance(data, dict):
         raise ProfileValidationError("profile must be a mapping")
@@ -144,11 +188,17 @@ def validate_profile_mapping(data: Any) -> None:
             if not isinstance(value, str):
                 raise ProfileValidationError(f"{field} entries must be strings")
 
+    domain_folders: dict[str, PurePosixPath] = {}
     for domain, definition in data["domains"].items():
         validate_string(domain, "domain key")
         if not isinstance(definition, dict):
             raise ProfileValidationError(f"domains.{domain} must be a mapping")
-        validate_string(definition.get("folder"), f"domains.{domain}.folder")
+        domain_folders[str(domain)] = validate_profile_path(
+            definition.get("folder"),
+            f"domains.{domain}.folder",
+        )
+
+    validate_folder_plan(data["folder_plan"], domain_folders)
 
 
 def load_profile(path: Path) -> ProfileContract:
@@ -159,3 +209,20 @@ def load_profile(path: Path) -> ProfileContract:
     except OSError as exc:
         raise ProfileValidationError(f"cannot read profile: {path}: {exc}") from exc
     return ProfileContract.from_mapping(raw)
+
+
+def profile_folder_paths(profile: ProfileContract) -> list[Path]:
+    paths: list[Path] = []
+    seen: set[str] = set()
+    for entry in profile.folder_plan:
+        if not isinstance(entry, dict):
+            continue
+        value = entry.get("path")
+        if not isinstance(value, str) or not value.strip():
+            continue
+        rel = PurePosixPath(value.strip()).as_posix()
+        if rel in seen:
+            continue
+        seen.add(rel)
+        paths.append(Path(rel))
+    return paths

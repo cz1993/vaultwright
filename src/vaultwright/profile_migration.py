@@ -7,7 +7,7 @@ import shutil
 from pathlib import Path
 from typing import Any
 
-from vaultwright.profiles import ProfileContract
+from vaultwright.profiles import ProfileContract, profile_folder_paths
 
 
 SHARED_TEMPLATE_FILES = (
@@ -48,6 +48,10 @@ def string_set(values: Any) -> set[str]:
     if isinstance(values, list):
         return {str(value) for value in values}
     return set()
+
+
+def path_set(values: list[Path]) -> set[str]:
+    return {value.as_posix() for value in values}
 
 
 def profile_differences(current: ProfileContract, target: ProfileContract) -> list[dict[str, Any]]:
@@ -93,6 +97,15 @@ def profile_differences(current: ProfileContract, target: ProfileContract) -> li
         if extra:
             differences.append({"field": field, "kind": "extra", "items": extra})
 
+    current_folder_plan = path_set(profile_folder_paths(current))
+    target_folder_plan = path_set(profile_folder_paths(target))
+    missing_folder_plan = sorted(target_folder_plan - current_folder_plan)
+    extra_folder_plan = sorted(current_folder_plan - target_folder_plan)
+    if missing_folder_plan:
+        differences.append({"field": "folder_plan", "kind": "missing", "items": missing_folder_plan})
+    if extra_folder_plan:
+        differences.append({"field": "folder_plan", "kind": "extra", "items": extra_folder_plan})
+
     for domain, target_definition in target.domains.items():
         current_definition = current.domains.get(domain)
         if not isinstance(current_definition, dict) or not isinstance(target_definition, dict):
@@ -120,9 +133,7 @@ def target_file_paths(target: ProfileContract) -> list[Path]:
 
 def target_dir_paths(target: ProfileContract) -> list[Path]:
     rels = {Path(rel) for rel in SHARED_TEMPLATE_DIRS}
-    for definition in target.domains.values():
-        if isinstance(definition, dict) and definition.get("folder"):
-            rels.add(Path(str(definition["folder"])))
+    rels.update(profile_folder_paths(target))
     return sorted(rels, key=lambda path: path.as_posix())
 
 

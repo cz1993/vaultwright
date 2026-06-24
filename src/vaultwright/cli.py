@@ -614,7 +614,7 @@ def build_parser() -> argparse.ArgumentParser:
     profile_migrate_mode.add_argument(
         "--write",
         action="store_true",
-        help="Create missing profile directories and copy missing packaged profile files without overwriting.",
+        help="Create missing shared/folder-plan directories and copy missing packaged profile files without overwriting.",
     )
     profile_migrate.add_argument(
         "--profile",

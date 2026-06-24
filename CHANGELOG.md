@@ -25,8 +25,12 @@ All notable changes to Vaultwright are documented here. Format loosely follows
   version drift, missing profile files, and template drift can be reviewed before any write-mode
   profile migration.
 - Added `docs/PROFILE_SCHEMA.md` and conservative package-owned `profile migrate --write` support
-  that creates missing profile directories and copies missing packaged profile/template files
-  without overwriting existing files, source documents, generated mirrors, or annotation sidecars.
+  that creates missing shared/profile-planned directories and copies missing packaged
+  profile/template files without overwriting existing files, source documents, generated mirrors,
+  or annotation sidecars.
+- Profile validation now enforces safe domain folders plus non-empty `folder_plan` records whose
+  paths stay inside declared profile domains, and profile migration creates directories from that
+  validated folder plan.
 - Added package-owned `profile views --check` and `profile views --write` commands that generate
   the profile-owned `Documents.base` file from `_meta/profile.yml`, with CI smoke coverage for
   source and wheel installs.

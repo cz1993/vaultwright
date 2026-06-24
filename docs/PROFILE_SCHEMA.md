@@ -68,7 +68,9 @@ vaultwright --root <vault> profile views --write
 : List of frontmatter keys accepted by the profile but not required.
 
 `folder_plan`
-: List of starter folder records. Each current record uses `path` and `domain`.
+: Non-empty list of starter folder records. Each current record uses `path` and `domain`; the
+  `domain` must reference `domains`, and the `path` must stay inside that domain's declared
+  folder.
 
 `templates`
 : List of template file paths expected in the vault.
@@ -100,7 +102,12 @@ folder when `tools/repos.yml` does not declare `settings.notes_dir`.
 - list fields are YAML lists;
 - path/list entries for required properties, optional properties, templates, views, skills, and
   benchmark tasks are strings;
-- every domain definition includes a non-empty `folder`.
+- every domain definition includes a non-empty vault-relative `folder`;
+- `folder_plan` contains mapping entries with vault-relative POSIX `path` values and non-empty
+  `domain` values;
+- every `folder_plan` domain references a declared profile domain;
+- every `folder_plan` path stays inside its declared domain folder;
+- duplicate `folder_plan` paths are rejected.
 
 `vaultwright lint` and `vaultwright catalog` read `_meta/profile.yml` for domain folders, allowed
 note types, statuses, and required properties. GitHub repo mirror sync and lint read
@@ -135,7 +142,7 @@ notes.
 `vaultwright profile migrate --plan` is read-only. It reports:
 
 - missing profile contract files;
-- missing profile directories;
+- missing shared and `folder_plan` directories;
 - missing packaged template/view files;
 - profile version or vocabulary drift;
 - existing template/view files that differ from the packaged target;
@@ -143,7 +150,7 @@ notes.
 
 `vaultwright profile migrate --write` is intentionally conservative. It may:
 
-- create missing profile directories;
+- create missing shared and `folder_plan` directories;
 - copy missing packaged template/view files;
 - copy `_meta/profile.yml` into older vaults that do not yet have a profile contract.
 

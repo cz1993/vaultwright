@@ -117,7 +117,9 @@ note_types: {}
 statuses: {}
 required_properties: []
 optional_properties: []
-folder_plan: []
+folder_plan:
+  - path: 00_inbox
+    domain: inbox
 templates: []
 views: []
 skills: []
