@@ -36,6 +36,9 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 - Microsoft 365 handoff, sandbox preflight, recovery, and review-ledger reporting now resolve repo
   mirror folders from the active profile or `tools/repos.yml`, and the vault-local report scripts
   delegate to the package runtime to prevent implementation drift.
+- Vault-local catalog, conversion, migration, overlap, benchmark, and pilot tools now also delegate
+  to the package runtime, leaving copied vault scripts as compatibility shims for package-owned
+  behavior.
 - Added package-owned `migrate annotations --plan` and `migrate annotations --write` commands that
   move above-sentinel mirror notes and preserved frontmatter into `_meta/mirror-annotations/`
   sidecars keyed by `source_id` or `repo_id`, without editing original sources or generated mirrors.
