@@ -74,6 +74,19 @@ FORBIDDEN_REPO_NOTES_DIR_PARTS = {
     "node_modules",
     "tools",
 }
+FORBIDDEN_PROFILE_ARTIFACT_PATH_PARTS = {
+    ".git",
+    ".githooks",
+    ".github",
+    ".obsidian",
+    "_archive",
+    "_fixtures",
+    "_meta",
+    "_mirrors",
+    "_tmp",
+    "node_modules",
+    "tools",
+}
 
 
 class ProfileValidationError(ValueError):
@@ -195,6 +208,23 @@ def validate_repo_notes_dir(
     return path
 
 
+def validate_profile_artifact_path(value: Any, field: str) -> PurePosixPath:
+    path = validate_profile_path(value, field)
+    if any(part.startswith(".") or part in FORBIDDEN_PROFILE_ARTIFACT_PATH_PARTS for part in path.parts):
+        raise ProfileValidationError(f"{field} contains a reserved path component")
+    return path
+
+
+def validate_profile_artifact_list(values: list[Any], field: str) -> None:
+    seen_paths: set[str] = set()
+    for value in values:
+        path = validate_profile_artifact_path(value, f"{field} entry")
+        path_text = path.as_posix()
+        if path_text in seen_paths:
+            raise ProfileValidationError(f"{field} entries must not contain duplicates")
+        seen_paths.add(path_text)
+
+
 def path_is_under(path: PurePosixPath, directory: PurePosixPath) -> bool:
     return path == directory or (
         len(path.parts) > len(directory.parts)
@@ -265,6 +295,8 @@ def validate_profile_mapping(data: Any) -> None:
             if name in seen_properties:
                 raise ProfileValidationError(f"{field} entries must not contain duplicates")
             seen_properties.add(name)
+    for field in ("templates", "views", "skills"):
+        validate_profile_artifact_list(data[field], field)
     for value in data["benchmark_tasks"]:
         path = validate_profile_path(value, "benchmark_tasks entry")
         if path.suffix not in {".yml", ".yaml"}:

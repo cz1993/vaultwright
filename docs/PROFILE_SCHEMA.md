@@ -86,13 +86,16 @@ vaultwright --root <vault> profile views --write
   folder.
 
 `templates`
-: List of template file paths expected in the vault.
+: List of template file paths expected in the vault. Entries must be safe vault-relative artifact
+  paths and must not contain duplicates.
 
 `views`
-: List of view files expected in the vault, such as `Documents.base`.
+: List of view files expected in the vault, such as `Documents.base`. Entries must be safe
+  vault-relative artifact paths and must not contain duplicates.
 
 `skills`
-: List of profile-specific agent skill paths. Empty for the current profile.
+: List of profile-specific agent skill paths. Empty for the current profile. Entries must be safe
+  vault-relative artifact paths and must not contain duplicates.
 
 `benchmark_tasks`
 : List of packaged benchmark task-pack paths. Entries must be safe vault-relative `.yml` or
@@ -121,7 +124,8 @@ vaultwright --root <vault> profile views --write
 - list fields are YAML lists;
 - required and optional frontmatter property entries are lowercase frontmatter keys and do not
   contain duplicates;
-- path/list entries for templates, views, and skills are strings;
+- template, view, and skill entries are safe vault-relative artifact paths and do not contain
+  duplicates;
 - benchmark task entries are safe vault-relative `.yml` or `.yaml` paths;
 - domain, note-type, and status identifiers are lowercase kebab-case;
 - every domain definition includes a non-empty vault-relative `folder`;

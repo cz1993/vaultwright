@@ -10,7 +10,7 @@ import pytest
 
 from vaultwright.profile_migration import target_dir_paths
 from vaultwright.profiles import ProfileContract, ProfileValidationError, load_profile, validate_profile_mapping
-from vaultwright.views import profile_views_plan, render_documents_base
+from vaultwright.views import render_documents_base
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -280,6 +280,39 @@ def test_profile_contract_requires_benchmark_task_yaml_paths() -> None:
         validate_profile_mapping(data)
 
 
+def test_profile_contract_accepts_safe_profile_artifact_paths() -> None:
+    data = minimal_profile()
+    data["templates"] = ["_templates/base-note.md"]
+    data["views"] = ["Documents.base"]
+    data["skills"] = ["skills/review.md"]
+
+    validate_profile_mapping(data)
+
+
+def test_profile_contract_rejects_unsafe_template_paths() -> None:
+    data = minimal_profile()
+    data["templates"] = ["../private/template.md"]
+
+    with pytest.raises(ProfileValidationError, match="templates entry must stay inside the vault"):
+        validate_profile_mapping(data)
+
+
+def test_profile_contract_rejects_reserved_view_paths() -> None:
+    data = minimal_profile()
+    data["views"] = ["_meta/private.base"]
+
+    with pytest.raises(ProfileValidationError, match="views entry contains a reserved path component"):
+        validate_profile_mapping(data)
+
+
+def test_profile_contract_rejects_duplicate_skill_paths() -> None:
+    data = minimal_profile()
+    data["skills"] = ["skills/review.md", "skills/review.md"]
+
+    with pytest.raises(ProfileValidationError, match="skills entries must not contain duplicates"):
+        validate_profile_mapping(data)
+
+
 def test_profile_migration_directory_plan_uses_folder_plan_paths() -> None:
     data = minimal_profile()
     data["domains"]["archive"] = {"folder": "90_archive"}
@@ -403,15 +436,12 @@ def test_profile_view_generation_uses_status_attention_flags() -> None:
     assert 'status == "done"' not in rendered
 
 
-def test_profile_views_plan_blocks_unsafe_view_paths(tmp_path: Path) -> None:
+def test_profile_contract_rejects_unsafe_view_paths() -> None:
     data = minimal_profile()
     data["views"] = ["../Documents.base"]
-    profile = ProfileContract.from_mapping(data)
 
-    plan = profile_views_plan(tmp_path, profile)
-
-    assert plan["summary"]["blockers"] == 1
-    assert plan["blockers"][0]["code"] == "unsafe-view-path"
+    with pytest.raises(ProfileValidationError, match="views entry must stay inside the vault"):
+        validate_profile_mapping(data)
 
 
 def test_profile_cli_diff_and_migrate_plan_clean_initialized_vault(tmp_path: Path) -> None:
