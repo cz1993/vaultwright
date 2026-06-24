@@ -43,7 +43,10 @@ LIST_FIELDS = {
 }
 MAPPING_FIELDS = {"domains", "note_types", "statuses", "policy_defaults"}
 FORBIDDEN_PROFILE_PATH_PARTS = {".git", ".githooks", ".github", "node_modules"}
+DOMAIN_DEFINITION_FIELDS = {"folder", "purpose"}
+NOTE_TYPE_DEFINITION_FIELDS = {"purpose", "machine_owned"}
 NOTE_TYPE_BOOLEAN_FIELDS = {"machine_owned"}
+STATUS_DEFINITION_FIELDS = {"purpose", "attention", "inactive"}
 STATUS_BOOLEAN_FIELDS = {"attention", "inactive"}
 POLICY_STATUS_DEFAULT_FIELDS = {"mirror_status", "repo_stub_status"}
 POLICY_BOOLEAN_DEFAULT_FIELDS = {"original_sources_authoritative", "real_data_in_repo"}
@@ -165,6 +168,12 @@ def validate_profile_key(value: Any, field: str) -> str:
     if not PROFILE_KEY_RE.fullmatch(text):
         raise ProfileValidationError(f"{field} must be lowercase kebab-case")
     return text
+
+
+def validate_known_mapping_fields(data: dict[str, Any], allowed: set[str], field: str) -> None:
+    unknown = sorted(set(data) - allowed)
+    if unknown:
+        raise ProfileValidationError(f"{field} has unknown fields: {', '.join(unknown)}")
 
 
 def validate_frontmatter_key(value: Any, field: str) -> str:
@@ -340,6 +349,9 @@ def validate_profile_mapping(data: Any) -> None:
         domain_name = validate_profile_key(domain, "domain key")
         if not isinstance(definition, dict):
             raise ProfileValidationError(f"domains.{domain} must be a mapping")
+        validate_known_mapping_fields(definition, DOMAIN_DEFINITION_FIELDS, f"domains.{domain_name}")
+        if "purpose" in definition:
+            validate_string(definition["purpose"], f"domains.{domain_name}.purpose")
         domain_folders[domain_name] = validate_profile_path(
             definition.get("folder"),
             f"domains.{domain}.folder",
@@ -350,6 +362,9 @@ def validate_profile_mapping(data: Any) -> None:
         note_type_name = validate_profile_key(note_type, "note_types key")
         if not isinstance(definition, dict):
             raise ProfileValidationError(f"note_types.{note_type} must be a mapping")
+        validate_known_mapping_fields(definition, NOTE_TYPE_DEFINITION_FIELDS, f"note_types.{note_type_name}")
+        if "purpose" in definition:
+            validate_string(definition["purpose"], f"note_types.{note_type_name}.purpose")
         for field in NOTE_TYPE_BOOLEAN_FIELDS:
             if field in definition and not isinstance(definition[field], bool):
                 raise ProfileValidationError(f"note_types.{note_type_name}.{field} must be true or false")
@@ -358,6 +373,9 @@ def validate_profile_mapping(data: Any) -> None:
         status_name = validate_profile_key(status, "status key")
         if not isinstance(definition, dict):
             raise ProfileValidationError(f"statuses.{status} must be a mapping")
+        validate_known_mapping_fields(definition, STATUS_DEFINITION_FIELDS, f"statuses.{status_name}")
+        if "purpose" in definition:
+            validate_string(definition["purpose"], f"statuses.{status_name}.purpose")
         for field in STATUS_BOOLEAN_FIELDS:
             if field in definition and not isinstance(definition[field], bool):
                 raise ProfileValidationError(f"statuses.{status_name}.{field} must be true or false")

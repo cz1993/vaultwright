@@ -107,6 +107,22 @@ def test_profile_contract_requires_domain_folders() -> None:
         validate_profile_mapping(data)
 
 
+def test_profile_contract_rejects_unknown_domain_definition_fields() -> None:
+    data = minimal_profile()
+    data["domains"]["inbox"]["script"] = "python arbitrary.py"
+
+    with pytest.raises(ProfileValidationError, match="domains.inbox has unknown fields: script"):
+        validate_profile_mapping(data)
+
+
+def test_profile_contract_rejects_empty_domain_purpose() -> None:
+    data = minimal_profile()
+    data["domains"]["inbox"]["purpose"] = ""
+
+    with pytest.raises(ProfileValidationError, match=r"domains\.inbox\.purpose must be a non-empty string"):
+        validate_profile_mapping(data)
+
+
 def test_profile_contract_rejects_non_slug_domain_keys() -> None:
     data = minimal_profile()
     data["domains"] = {"Research Area": {"folder": "00_inbox"}}
@@ -123,11 +139,43 @@ def test_profile_contract_rejects_non_slug_note_type_keys() -> None:
         validate_profile_mapping(data)
 
 
+def test_profile_contract_rejects_unknown_note_type_definition_fields() -> None:
+    data = minimal_profile()
+    data["note_types"] = {"machine-note": {"purpose": "generated note", "hook": "python arbitrary.py"}}
+
+    with pytest.raises(ProfileValidationError, match="note_types.machine-note has unknown fields: hook"):
+        validate_profile_mapping(data)
+
+
+def test_profile_contract_rejects_empty_note_type_purpose() -> None:
+    data = minimal_profile()
+    data["note_types"] = {"machine-note": {"purpose": ""}}
+
+    with pytest.raises(ProfileValidationError, match=r"note_types\.machine-note\.purpose must be a non-empty string"):
+        validate_profile_mapping(data)
+
+
 def test_profile_contract_rejects_non_slug_status_keys() -> None:
     data = minimal_profile()
     data["statuses"] = {"Needs Review": {"purpose": "bad key"}}
 
     with pytest.raises(ProfileValidationError, match="status key must be lowercase kebab-case"):
+        validate_profile_mapping(data)
+
+
+def test_profile_contract_rejects_unknown_status_definition_fields() -> None:
+    data = minimal_profile()
+    data["statuses"] = {"queued": {"purpose": "pending", "handler": "python arbitrary.py"}}
+
+    with pytest.raises(ProfileValidationError, match="statuses.queued has unknown fields: handler"):
+        validate_profile_mapping(data)
+
+
+def test_profile_contract_rejects_empty_status_purpose() -> None:
+    data = minimal_profile()
+    data["statuses"] = {"queued": {"purpose": ""}}
+
+    with pytest.raises(ProfileValidationError, match=r"statuses\.queued\.purpose must be a non-empty string"):
         validate_profile_mapping(data)
 
 

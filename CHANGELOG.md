@@ -31,6 +31,8 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 - Profile validation now requires domain, note-type, and status identifiers to be lowercase
   kebab-case, and required/optional frontmatter property names to be lowercase frontmatter keys
   without duplicates.
+- Profile validation now rejects unknown fields inside domain, note-type, and status definitions,
+  and validates optional `purpose` strings so profile data stays declarative.
 - Profile validation now rejects frontmatter keys that are listed as both required and optional,
   keeping generated views, lint, and repo-context inference aligned with one profile-owned field
   contract.

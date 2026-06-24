@@ -54,21 +54,24 @@ vaultwright --root <vault> profile views --write
 
 `domains`
 : Mapping of domain IDs to domain definitions. Domain IDs must be lowercase kebab-case
-  identifiers. Each domain must define `folder`. Domain folders must be safe vault-relative POSIX
-  paths, and they must be unique and non-overlapping so profile-driven routing can map each vault
-  path to one canonical domain without ambiguity.
+  identifiers. Domain definitions may only contain `folder` and optional `purpose`. Each domain
+  must define `folder`. Domain folders must be safe vault-relative POSIX paths, and they must be
+  unique and non-overlapping so profile-driven routing can map each vault path to one canonical
+  domain without ambiguity. When present, `purpose` must be a non-empty string.
 
 `note_types`
 : Mapping of allowed note type IDs to definitions. Note type IDs must be lowercase kebab-case
-  identifiers. A note type definition may include `machine_owned: true` when notes of that type are
-  regenerated artifacts rather than curated human notes; overlap calibration and migration
-  frontmatter cleanup exclude those note types.
+  identifiers. Note type definitions may only contain optional `purpose` and `machine_owned`.
+  A note type definition may include `machine_owned: true` when notes of that type are regenerated
+  artifacts rather than curated human notes; overlap calibration and migration frontmatter cleanup
+  exclude those note types. When present, `purpose` must be a non-empty string.
 
 `statuses`
 : Mapping of allowed workflow status IDs to definitions. Status IDs must be lowercase kebab-case
-  identifiers. A status definition may include `attention: true` when notes in that state should
-  appear in generated review-attention views, and `inactive: true` when notes in that state should
-  be excluded from active overlap calibration.
+  identifiers. Status definitions may only contain optional `purpose`, `attention`, and `inactive`.
+  A status definition may include `attention: true` when notes in that state should appear in
+  generated review-attention views, and `inactive: true` when notes in that state should be
+  excluded from active overlap calibration. When present, `purpose` must be a non-empty string.
 
 `required_properties`
 : List of frontmatter keys required on curated notes and managed notes where applicable. Entries
@@ -132,6 +135,8 @@ vaultwright --root <vault> profile views --write
   duplicates;
 - benchmark task entries are safe vault-relative `.yml` or `.yaml` paths;
 - domain, note-type, and status identifiers are lowercase kebab-case;
+- domain, note-type, and status definitions only use schema-declared fields;
+- optional domain, note-type, and status `purpose` values are non-empty strings;
 - every domain definition includes a non-empty vault-relative `folder`;
 - domain folders are unique and non-overlapping;
 - `folder_plan` contains mapping entries with vault-relative POSIX `path` values and non-empty
