@@ -112,11 +112,16 @@ vaultwright --root <vault> profile views --write
   folder when `tools/repos.yml` does not declare `settings.notes_dir`, `mirror_mode` and
   `mirror_root` for Office mirror placement when `_meta/mirror-config.yml` does not override them,
   `mirror_status` for refreshed machine-owned source/repo mirrors, and `repo_stub_status` for
-  repository mirrors that have not been successfully fetched yet. The current profile also declares
+  repository mirrors that have not been successfully fetched yet. The current profile also uses
+  `context_aliases` to declare compatibility aliases between optional frontmatter context fields;
+  for example, `client: account` means `client` is treated as an alias of canonical `account` in
+  repo-mirror frontmatter generation and lint checks. The current profile also declares
   `original_sources_authoritative: true` and `real_data_in_repo: false`, which preserve the
   Vaultwright policy that source systems remain authoritative and real/private data stays outside
   the repository. `repo_notes_dir`, when present, must be a safe vault-relative folder inside a
-  declared profile domain and must not overlap the profile's Office mirror root.
+  declared profile domain and must not overlap the profile's Office mirror root. `context_aliases`,
+  when present, must be a mapping whose keys and targets are distinct optional frontmatter
+  properties declared by the profile.
 
 ## Validation Rules
 
@@ -150,6 +155,8 @@ vaultwright --root <vault> profile views --write
 - optional `policy_defaults.mirror_root` is a safe vault-relative generated-output folder.
 - optional `policy_defaults.repo_notes_dir` is a safe vault-relative folder inside a declared
   profile domain and does not overlap `policy_defaults.mirror_root`.
+- optional `policy_defaults.context_aliases` is a mapping of distinct optional frontmatter
+  property aliases to optional frontmatter property targets.
 - optional `policy_defaults.mirror_status` and `policy_defaults.repo_stub_status` values reference
   declared statuses.
 - optional `policy_defaults.original_sources_authoritative` and
@@ -168,9 +175,10 @@ statuses, required properties, and inactive status roles.
 validation, result citation validation, and `benchmark --init-tasks` scaffolding also resolve
 generated source-mirror evidence against the active Office mirror root. GitHub repo mirror sync and
 lint read
-`policy_defaults.repo_notes_dir` for the default repository-mirror folder and derive repo-mirror
-frontmatter domains from the profile's domain/folder mapping. Office mirror sync derives canonical
-source domains and canonical mirror paths from the active profile's domain folders, while
+`policy_defaults.repo_notes_dir` for the default repository-mirror folder, derive repo-mirror
+frontmatter domains from the profile's domain/folder mapping, and normalize repo context aliases
+from `policy_defaults.context_aliases`. Office mirror sync derives canonical source domains and
+canonical mirror paths from the active profile's domain folders, while
 `_meta/domain-map.yml` remains a legacy alias layer for old source-folder names. Office mirror sync,
 lint, catalog, Microsoft 365 handoff, sandbox preflight, doctor, migration guidance, and
 review-ledger classification read `policy_defaults.mirror_mode` and `policy_defaults.mirror_root`
@@ -180,12 +188,14 @@ Source/repo mirror sync and annotation migration read `policy_defaults.mirror_st
 machine metadata rather than human annotations. Repo mirror context frontmatter also comes from the
 active profile's optional
 properties, so the `business-operations` profile keeps `account`/`client` compatibility while other
-profiles can declare fields such as `research_project` or `component`. Microsoft 365 handoff,
-sandbox preflight, recovery, and review-ledger reporting also resolve repo mirror folders from the
-active profile, while honoring an explicit `tools/repos.yml` `settings.notes_dir` override. The
-`vaultwright migration` command uses `_meta/profile.yml` for canonical domain folders and
-`_meta/domain-map.yml` for legacy aliases. `_meta/domain-map.yml` remains a legacy alias and
-operator guidance layer; it must not contradict the profile's canonical domain folders.
+profiles can declare fields such as `research_project` or `component` without inheriting that
+business-specific alias unless they opt in. Lint also reads `context_aliases` when checking context
+frontmatter consistency. Microsoft 365 handoff, sandbox preflight, recovery, and review-ledger
+reporting also resolve repo mirror folders from the active profile, while honoring an explicit
+`tools/repos.yml` `settings.notes_dir` override. The `vaultwright migration` command uses
+`_meta/profile.yml` for canonical domain folders and `_meta/domain-map.yml` for legacy aliases.
+`_meta/domain-map.yml` remains a legacy alias and operator guidance layer; it must not contradict
+the profile's canonical domain folders.
 
 ## Profile-Generated Views
 

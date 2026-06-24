@@ -77,6 +77,9 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 - GitHub repo mirror sync and lint now read the profile's `policy_defaults.repo_notes_dir` as the
   default repo-mirror location, and generated repo-mirror frontmatter derives its domain from the
   profile's domain/folder mapping.
+- GitHub repo mirror sync and lint now read `policy_defaults.context_aliases`, so the
+  `business-operations` profile can declare `client` as an alias of `account` without forcing that
+  business-specific rule onto future profiles.
 - Profile validation now requires `policy_defaults.repo_notes_dir`, when present, to be a safe
   vault-relative folder inside a declared profile domain and separate from the Office mirror root.
 - Profile validation now enforces boolean source-authority/no-real-data policy defaults, requiring

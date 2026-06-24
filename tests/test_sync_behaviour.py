@@ -7311,6 +7311,34 @@ def test_repo_frontmatter_prefers_account_and_supports_legacy_client() -> None:
     assert normalized["client"] == "[[Acme]]"
 
 
+def test_repo_frontmatter_does_not_infer_context_aliases_for_other_profiles(tmp_path: Path, monkeypatch) -> None:
+    sync = load_sync_module()
+    vault = tmp_path / "vault"
+    profile_dir = vault / "_meta"
+    profile_dir.mkdir(parents=True)
+    profile_dir.joinpath("profile.yml").write_text(
+        "schema_version: 1\n"
+        "id: research-learning\n"
+        "name: Research Learning\n"
+        "profile_version: 0.1.0\n"
+        "optional_properties:\n"
+        "  - account\n"
+        "  - client\n"
+        "policy_defaults: {}\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(sync, "ROOT", vault)
+
+    fm = sync.base_fm(
+        {"account": "[[Account Context]]", "client": "[[Client Context]]"},
+        {"repo": "local/repo", "note": "repo.md"},
+        "local/repo",
+    )
+
+    assert fm["account"] == "[[Account Context]]"
+    assert fm["client"] == "[[Client Context]]"
+
+
 def test_repo_sync_marks_manifest_record_unconfigured_when_config_entry_removed(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     tools = vault / "tools"

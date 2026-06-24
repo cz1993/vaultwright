@@ -137,5 +137,7 @@ policy_defaults:
   mirror_status: active
   repo_stub_status: draft
   repo_notes_dir: 80_sources/repos
+  context_aliases:
+    client: account
   original_sources_authoritative: true
   real_data_in_repo: false

@@ -37,6 +37,7 @@ except ImportError:
     sys.exit("Missing dependency: pip install pyyaml")
 
 from vaultwright.runtime_profile import (
+    profile_context_aliases as runtime_profile_context_aliases,
     profile_context_keys as runtime_profile_context_keys,
     profile_generated_mirror_statuses,
     profile_mirror_status,
@@ -59,6 +60,7 @@ ANNOTATION_MIGRATION_REQUIRED_WARNING = (
 )
 DEFAULT_ANNOTATION_FRONTMATTER_KEYS = {"title", "domain", "owner", "created", "updated"}
 LEGACY_PROFILE_CONTEXT_KEYS = {"account", "client", "program", "vendor"}
+LEGACY_PROFILE_CONTEXT_ALIASES = {"client": "account"}
 LIFECYCLE_CONTRACT_REL = Path("_meta/lifecycle-states.yml")
 MANAGED = {"type", "repo_id", "repo_manifest", "repo", "repo_url", "default_branch", "last_commit",
            "last_commit_date", "open_issues", "synced", "updated"}
@@ -320,22 +322,38 @@ def active_profile_context_keys(root: Path | None = None) -> set[str]:
         return set(LEGACY_PROFILE_CONTEXT_KEYS)
 
 
-def repo_context_values(entry: dict, context_keys: set[str] | None = None) -> dict[str, str]:
+def active_profile_context_aliases(root: Path | None = None) -> dict[str, str]:
+    try:
+        return dict(runtime_profile_context_aliases(root or ROOT))
+    except Exception:
+        return dict(LEGACY_PROFILE_CONTEXT_ALIASES)
+
+
+def normalize_context_alias_values(values: dict[str, str], aliases: dict[str, str]) -> dict[str, str]:
+    out = dict(values)
+    for alias, target in aliases.items():
+        if alias not in out and target not in out:
+            continue
+        canonical_value = out.get(target) or out.get(alias)
+        if canonical_value:
+            out[target] = canonical_value
+            out[alias] = canonical_value
+    return out
+
+
+def repo_context_values(
+    entry: dict,
+    context_keys: set[str] | None = None,
+    context_aliases: dict[str, str] | None = None,
+) -> dict[str, str]:
     keys = set(context_keys) if context_keys is not None else active_profile_context_keys()
+    aliases = dict(context_aliases) if context_aliases is not None else active_profile_context_aliases()
     values: dict[str, str] = {}
-    if "account" in keys:
-        account = entry.get("account") or entry.get("client")
-        if account:
-            values["account"] = str(account)
-    if "client" in keys:
-        client = entry.get("client") or values.get("account") or entry.get("account")
-        if client:
-            values["client"] = str(client)
-    for key in sorted(keys - {"account", "client"}):
+    for key in sorted(keys):
         value = entry.get(key)
         if isinstance(value, str) and value.strip():
             values[key] = value.strip()
-    return values
+    return normalize_context_alias_values(values, aliases)
 
 
 def default_repo_notes_dir(root: Path | None = None) -> str:
@@ -900,13 +918,17 @@ def base_fm(existing, entry, slug, domain="sources"):
     if not fm.get("related"):
         fm["related"] = entry.get("related", [])
     context_keys = active_profile_context_keys()
-    for key, value in repo_context_values(entry, context_keys).items():
-        if key == "client" and {"account", "client"} <= context_keys and fm.get("account"):
-            fm[key] = fm["account"]
-        elif not fm.get(key):
+    context_aliases = active_profile_context_aliases()
+    for key, value in repo_context_values(entry, context_keys, context_aliases).items():
+        if not fm.get(key):
             fm[key] = value
-    if {"account", "client"} <= context_keys and fm.get("account"):
-        fm["client"] = fm["account"]
+    for alias, target in sorted(context_aliases.items()):
+        if alias not in context_keys or target not in context_keys:
+            continue
+        canonical_value = fm.get(target) or fm.get(alias)
+        if canonical_value:
+            fm[target] = canonical_value
+            fm[alias] = canonical_value
     fm["type"] = "repo-mirror"
     fm["repo_id"] = repo_id
     fm["repo_manifest"] = REPO_MANIFEST_REL.as_posix()

@@ -286,6 +286,24 @@ def validate_domain_folders(domain_folders: dict[str, PurePosixPath]) -> None:
                 )
 
 
+def validate_context_aliases(value: Any, optional_properties: set[str]) -> None:
+    if not isinstance(value, dict):
+        raise ProfileValidationError("policy_defaults.context_aliases must be a mapping")
+    for alias, target in value.items():
+        alias_key = validate_frontmatter_key(alias, "policy_defaults.context_aliases key")
+        target_key = validate_frontmatter_key(target, f"policy_defaults.context_aliases.{alias_key}")
+        if alias_key == target_key:
+            raise ProfileValidationError(f"policy_defaults.context_aliases.{alias_key} must not reference itself")
+        if alias_key not in optional_properties:
+            raise ProfileValidationError(
+                f"policy_defaults.context_aliases.{alias_key} must reference optional_properties"
+            )
+        if target_key not in optional_properties:
+            raise ProfileValidationError(
+                f"policy_defaults.context_aliases.{alias_key} target must reference optional_properties"
+            )
+
+
 def validate_profile_mapping(data: Any) -> None:
     if not isinstance(data, dict):
         raise ProfileValidationError("profile must be a mapping")
@@ -398,6 +416,9 @@ def validate_profile_mapping(data: Any) -> None:
             raise ProfileValidationError(f"policy_defaults.{field} must be true")
         if field in POLICY_REQUIRED_FALSE_DEFAULT_FIELDS and value is not False:
             raise ProfileValidationError(f"policy_defaults.{field} must be false")
+
+    if "context_aliases" in data["policy_defaults"]:
+        validate_context_aliases(data["policy_defaults"]["context_aliases"], frontmatter_properties["optional_properties"])
 
     if "mirror_mode" in data["policy_defaults"]:
         mirror_mode = data["policy_defaults"]["mirror_mode"]

@@ -51,6 +51,7 @@ def test_template_business_operations_profile_validates() -> None:
     assert profile.policy_defaults["mirror_root"] == "_mirrors"
     assert profile.policy_defaults["mirror_status"] == "active"
     assert profile.policy_defaults["repo_stub_status"] == "draft"
+    assert profile.policy_defaults["context_aliases"] == {"client": "account"}
     assert profile.policy_defaults["original_sources_authoritative"] is True
     assert profile.policy_defaults["real_data_in_repo"] is False
     assert "Documents.base" in profile.views
@@ -245,6 +246,56 @@ def test_profile_contract_requires_policy_default_statuses_to_be_declared() -> N
     data["policy_defaults"] = {"mirror_status": "current"}
 
     with pytest.raises(ProfileValidationError, match=r"policy_defaults\.mirror_status must reference a declared status"):
+        validate_profile_mapping(data)
+
+
+def test_profile_contract_accepts_context_aliases_for_optional_properties() -> None:
+    data = minimal_profile()
+    data["optional_properties"] = ["account", "client"]
+    data["policy_defaults"] = {"context_aliases": {"client": "account"}}
+
+    validate_profile_mapping(data)
+
+
+def test_profile_contract_rejects_non_mapping_context_aliases() -> None:
+    data = minimal_profile()
+    data["optional_properties"] = ["account", "client"]
+    data["policy_defaults"] = {"context_aliases": ["client", "account"]}
+
+    with pytest.raises(ProfileValidationError, match=r"policy_defaults\.context_aliases must be a mapping"):
+        validate_profile_mapping(data)
+
+
+def test_profile_contract_rejects_context_alias_self_reference() -> None:
+    data = minimal_profile()
+    data["optional_properties"] = ["client"]
+    data["policy_defaults"] = {"context_aliases": {"client": "client"}}
+
+    with pytest.raises(ProfileValidationError, match=r"policy_defaults\.context_aliases\.client must not reference itself"):
+        validate_profile_mapping(data)
+
+
+def test_profile_contract_requires_context_alias_keys_to_be_optional_properties() -> None:
+    data = minimal_profile()
+    data["optional_properties"] = ["account"]
+    data["policy_defaults"] = {"context_aliases": {"client": "account"}}
+
+    with pytest.raises(
+        ProfileValidationError,
+        match=r"policy_defaults\.context_aliases\.client must reference optional_properties",
+    ):
+        validate_profile_mapping(data)
+
+
+def test_profile_contract_requires_context_alias_targets_to_be_optional_properties() -> None:
+    data = minimal_profile()
+    data["optional_properties"] = ["client"]
+    data["policy_defaults"] = {"context_aliases": {"client": "account"}}
+
+    with pytest.raises(
+        ProfileValidationError,
+        match=r"policy_defaults\.context_aliases\.client target must reference optional_properties",
+    ):
         validate_profile_mapping(data)
 
 

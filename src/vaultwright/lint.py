@@ -18,6 +18,7 @@ except ImportError:
     sys.exit("pip install pyyaml")
 
 from vaultwright.runtime_profile import (
+    profile_context_aliases as runtime_profile_context_aliases,
     profile_context_keys as runtime_profile_context_keys,
     profile_generated_mirror_statuses,
     profile_mirror_mode,
@@ -73,6 +74,7 @@ REPO_MANAGED_KEYS = {
 }
 DEFAULT_ANNOTATION_FRONTMATTER_KEYS = {"title", "domain", "owner", "created", "updated"}
 PROFILE_CONTEXT_KEYS = {"account", "client", "program", "vendor"}
+PROFILE_CONTEXT_ALIASES = {"client": "account"}
 INACTIVE_STATUSES = list(DEFAULT_INACTIVE_STATUSES)
 GENERATED_MIRROR_STATUSES = {"active", "draft"}
 STOPWORDS = {
@@ -315,21 +317,29 @@ def default_repo_notes_dir() -> str:
         return f"{source_folder}/repos"
     return DEFAULT_REPO_NOTES_DIR
 
-def repo_context_values(entry: dict[str, object], context_keys: set[str]) -> dict[str, str]:
+def normalize_context_alias_values(values: dict[str, str], aliases: dict[str, str]) -> dict[str, str]:
+    out = dict(values)
+    for alias, target in aliases.items():
+        if alias not in out and target not in out:
+            continue
+        canonical_value = out.get(target) or out.get(alias)
+        if canonical_value:
+            out[target] = canonical_value
+            out[alias] = canonical_value
+    return out
+
+
+def repo_context_values(
+    entry: dict[str, object],
+    context_keys: set[str],
+    context_aliases: dict[str, str] | None = None,
+) -> dict[str, str]:
     values: dict[str, str] = {}
-    if "account" in context_keys:
-        account = entry.get("account") or entry.get("client")
-        if isinstance(account, str) and account.strip():
-            values["account"] = account.strip()
-    if "client" in context_keys:
-        client = entry.get("client") or values.get("account") or entry.get("account")
-        if isinstance(client, str) and client.strip():
-            values["client"] = client.strip()
-    for key in sorted(context_keys - {"account", "client"}):
+    for key in sorted(context_keys):
         value = entry.get(key)
         if isinstance(value, str) and value.strip():
             values[key] = value.strip()
-    return values
+    return normalize_context_alias_values(values, context_aliases or {})
 
 def repo_id_for(repo: str, note: str) -> str:
     digest = hashlib.sha256(f"{repo}\0{note}".encode("utf-8")).hexdigest()[:20]
@@ -397,7 +407,7 @@ def repo_config() -> tuple[list[dict[str, object]], list[tuple[str, str]]]:
                 value = entry.get(key)
                 if isinstance(value, list):
                     item[key] = [str(part).strip() for part in value if str(part).strip()]
-            item.update(repo_context_values(entry, PROFILE_CONTEXT_KEYS))
+            item.update(repo_context_values(entry, PROFILE_CONTEXT_KEYS, PROFILE_CONTEXT_ALIASES))
             configured.append(item)
     return configured, errors
 
@@ -513,7 +523,7 @@ def local_tree_sha(repodir: Path) -> str:
     return "local-" + h.hexdigest()[:40]
 
 def main(root: Path | None = None) -> int:
-    global ROOT, CONTENT_ROOTS, PROFILE_DOMAIN_FOLDERS, PROFILE_POLICY_DEFAULTS, PROFILE_CONTEXT_KEYS, INACTIVE_STATUSES, GENERATED_MIRROR_STATUSES
+    global ROOT, CONTENT_ROOTS, PROFILE_DOMAIN_FOLDERS, PROFILE_POLICY_DEFAULTS, PROFILE_CONTEXT_KEYS, PROFILE_CONTEXT_ALIASES, INACTIVE_STATUSES, GENERATED_MIRROR_STATUSES
     ROOT = (root or Path.cwd()).resolve()
     # inventory
     all_files = sorted(
@@ -578,6 +588,7 @@ def main(root: Path | None = None) -> int:
     }
     PROFILE_POLICY_DEFAULTS = dict(PROFILE_SETTINGS["policy_defaults"])
     PROFILE_CONTEXT_KEYS = set(runtime_profile_context_keys(ROOT))
+    PROFILE_CONTEXT_ALIASES = dict(runtime_profile_context_aliases(ROOT))
     GENERATED_MIRROR_STATUSES = profile_generated_mirror_statuses(ROOT)
     DOMAIN_FOLDERS, DOMAIN_FOLDER_ALIASES, domain_map_errors = domain_folders(PROFILE_DOMAIN_FOLDERS)
     DOMAIN_BY_FOLDER = {folder: domain for domain, folder in DOMAIN_FOLDERS.items()}
@@ -599,7 +610,7 @@ def main(root: Path | None = None) -> int:
     overlap_content_threshold = float(LINT_CONFIG["overlap_content_threshold"])
     overlap_title_threshold = float(LINT_CONFIG["overlap_title_threshold"])
     DOMAINS = set(DOMAIN_FOLDERS)
-    missing_fm, bad_type, bad_status, bad_domain, bad_domain_folder, bad_account_client, bad_mirror_layout, unresolved = [], [], [], [], [], [], [], []
+    missing_fm, bad_type, bad_status, bad_domain, bad_domain_folder, bad_context_alias, bad_mirror_layout, unresolved = [], [], [], [], [], [], [], []
     mirror_annotations_need_migration: list[tuple[str, str]] = []
     stale_office_mirrors: list[tuple[str, str]] = []
     stale_repo_mirrors: list[tuple[str, str]] = []
@@ -699,7 +710,7 @@ def main(root: Path | None = None) -> int:
         seed: dict[str, object] = {}
         seed["tags"] = entry.get("tags", ["repo"])
         seed["related"] = entry.get("related", [])
-        seed.update(repo_context_values(entry, PROFILE_CONTEXT_KEYS))
+        seed.update(repo_context_values(entry, PROFILE_CONTEXT_KEYS, PROFILE_CONTEXT_ALIASES))
         return seed
 
     def annotation_frontmatter_has_content(fm: dict, note_type: str, rel: Path | None = None) -> bool:
@@ -990,11 +1001,15 @@ def main(root: Path | None = None) -> int:
                     bad_mirror_layout.append((rels, "repo-mirror requires generated sentinel and manifest metadata"))
                 else:
                     bad_mirror_layout.append((rels, "repo-mirror notes belong under configured tools/repos.yml notes_dir or profile policy_defaults.repo_notes_dir"))
-            if {"account", "client"} <= PROFILE_CONTEXT_KEYS:
-                if fm.get("client") and not fm.get("account"):
-                    bad_account_client.append((rels, "client requires account"))
-                elif fm.get("account") and fm.get("client") and str(fm["account"]).strip() != str(fm["client"]).strip():
-                    bad_account_client.append((rels, "client must match account"))
+            for alias, target in sorted(PROFILE_CONTEXT_ALIASES.items()):
+                if alias not in PROFILE_CONTEXT_KEYS or target not in PROFILE_CONTEXT_KEYS:
+                    continue
+                alias_value = str(fm.get(alias, "") or "").strip()
+                target_value = str(fm.get(target, "") or "").strip()
+                if alias_value and not target_value:
+                    bad_context_alias.append((rels, f"{alias} requires {target}"))
+                elif alias_value and target_value and alias_value != target_value:
+                    bad_context_alias.append((rels, f"{alias} must match {target}"))
             if (
                 not managed_generated_mirror
                 and fm.get("status") not in set(INACTIVE_STATUSES)
@@ -1128,7 +1143,7 @@ def main(root: Path | None = None) -> int:
     section("Repo config errors", repo_config_errors)
     section("Manifest errors", manifest_errors)
     section("Domain/folder mismatch", bad_domain_folder)
-    section("Account/client mismatch", bad_account_client)
+    section("Context alias mismatch", bad_context_alias)
     section("Mirror layout errors", bad_mirror_layout)
     section("Mirror annotations needing migration", mirror_annotations_need_migration)
     section("Stale Office mirrors", stale_office_mirrors)
@@ -1143,7 +1158,7 @@ def main(root: Path | None = None) -> int:
     blocking = (
         missing_fm or bad_type or bad_status or bad_domain or profile_errors or domain_map_errors or mirror_config_errors
         or lint_config_errors
-        or repo_config_errors or manifest_errors or bad_domain_folder or bad_account_client or bad_mirror_layout
+        or repo_config_errors or manifest_errors or bad_domain_folder or bad_context_alias or bad_mirror_layout
         or mirror_annotations_need_migration or stale_office_mirrors or stale_repo_mirrors
         or markdown_case or mirror_gap or repo_mirror_gap or repo_unconfigured
     )

@@ -338,7 +338,7 @@ def assert_clean_lint(lint_output: str) -> None:
     assert "Mirror config errors: 0" in lint_output
     assert "Repo config errors: 0" in lint_output
     assert "Domain/folder mismatch: 0" in lint_output
-    assert "Account/client mismatch: 0" in lint_output
+    assert "Context alias mismatch: 0" in lint_output
     assert "Mirror layout errors: 0" in lint_output
     assert "Non-lowercase markdown extension: 0" in lint_output
     assert "Unresolved wikilinks: 0" in lint_output

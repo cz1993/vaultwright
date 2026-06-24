@@ -13,6 +13,7 @@ REPO_CONFIG_REL = Path("tools/repos.yml")
 MIRROR_CONFIG_REL = Path("_meta/mirror-config.yml")
 LEGACY_REPO_NOTES_DIR = "80_sources/repos"
 LEGACY_CONTEXT_KEYS = {"account", "client", "program", "vendor"}
+LEGACY_CONTEXT_ALIASES = {"client": "account"}
 LEGACY_INACTIVE_STATUSES = {"archived", "superseded"}
 LEGACY_MACHINE_OWNED_NOTE_TYPES = {"source-mirror", "repo-mirror"}
 LEGACY_MIRROR_MODE = "dedicated"
@@ -123,6 +124,39 @@ def profile_context_keys(root: Path) -> set[str]:
         for key in profile_optional_properties(root)
         if key not in NON_CONTEXT_PROPERTIES
     }
+
+
+def profile_context_aliases(root: Path) -> dict[str, str]:
+    profile = load_profile_mapping(root)
+    context_keys = profile_context_keys(root)
+    if not profile:
+        return dict(LEGACY_CONTEXT_ALIASES)
+
+    raw_aliases = profile_policy_defaults(root).get("context_aliases")
+    if isinstance(raw_aliases, dict):
+        aliases: dict[str, str] = {}
+        for alias, target in raw_aliases.items():
+            if not isinstance(alias, str) or not isinstance(target, str):
+                continue
+            alias_key = alias.strip()
+            target_key = target.strip()
+            if (
+                alias_key
+                and target_key
+                and alias_key != target_key
+                and alias_key in context_keys
+                and target_key in context_keys
+            ):
+                aliases[alias_key] = target_key
+        return aliases
+
+    if (
+        profile.get("id") == "business-operations"
+        and set(LEGACY_CONTEXT_ALIASES).issubset(context_keys)
+        and set(LEGACY_CONTEXT_ALIASES.values()).issubset(context_keys)
+    ):
+        return dict(LEGACY_CONTEXT_ALIASES)
+    return {}
 
 
 def profile_frontmatter_link_keys(root: Path) -> set[str]:
