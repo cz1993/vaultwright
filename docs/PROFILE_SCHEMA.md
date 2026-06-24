@@ -201,6 +201,10 @@ folders, while
 lint, catalog, Microsoft 365 handoff, sandbox preflight, doctor, migration guidance, and
 review-ledger classification read `policy_defaults.mirror_mode` and `policy_defaults.mirror_root`
 as generated-output defaults while honoring `_meta/mirror-config.yml` as an operator override.
+`vaultwright doctor` validates `_meta/profile.yml` first; when that profile contract is present and
+valid, missing `_meta/domain-map.yml` and `_meta/mirror-config.yml` are reported as legacy
+alias/override posture instead of required-file failures. Profile-less legacy vaults keep the older
+required-file checks for those files.
 Review-ledger classification also reads profile-defined `machine_owned` note type roles when
 deciding whether a Markdown artifact is generated and reviewable.
 Source/repo mirror sync and annotation migration read `policy_defaults.mirror_status` and

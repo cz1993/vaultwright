@@ -75,6 +75,9 @@ def test_vaultwright_cli_doctor_passes_on_template() -> None:
     assert "info: repo-manifest.json: not generated yet" in result.stdout
     assert "info: sync-audit.jsonl: not generated yet" in result.stdout
     assert "info: lifecycle contract: office=13 states, repo=11 states" in result.stdout
+    assert "info: profile contract: business-operations 0.1.0" in result.stdout
+    assert "info: legacy domain map: present" in result.stdout
+    assert "info: Office mirror config: present" in result.stdout
     assert "info: recovery: no action items" in result.stdout
     assert "info: review ledger: no reviewed artifacts yet" in result.stdout
     assert "info: profile view: Documents.base current" in result.stdout
@@ -277,6 +280,63 @@ def test_vaultwright_cli_doctor_does_not_assume_documents_base_when_profile_omit
     assert result.returncode == 0, result.stderr or result.stdout
     assert "info: profile views: none declared" in result.stdout
     assert "Documents.base missing" not in result.stdout
+
+
+def test_vaultwright_cli_doctor_uses_profile_defaults_without_legacy_alias_files(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    (vault / "_meta" / "domain-map.yml").unlink()
+    (vault / "_meta" / "mirror-config.yml").unlink()
+
+    result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "vaultwright.py"), "doctor"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+    assert "info: profile contract: business-operations 0.1.0" in result.stdout
+    assert "warning: legacy domain map: missing; legacy aliases unavailable." in result.stdout
+    assert "info: Office mirror config: absent; using profile policy defaults" in result.stdout
+    assert "Missing required vault file: _meta/domain-map.yml" not in result.stderr
+    assert "Missing required vault file: _meta/mirror-config.yml" not in result.stderr
+
+
+def test_vaultwright_cli_doctor_requires_legacy_files_without_profile(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    (vault / "_meta" / "profile.yml").unlink()
+    (vault / "_meta" / "domain-map.yml").unlink()
+    (vault / "_meta" / "mirror-config.yml").unlink()
+
+    result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "vaultwright.py"), "doctor"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 1
+    assert "warning: profile contract: _meta/profile.yml missing; using legacy domain-map/mirror-config checks." in result.stdout
+    assert "error: Missing required vault file: _meta/domain-map.yml" in result.stderr
+    assert "error: Missing required vault file: _meta/mirror-config.yml" in result.stderr
+
+
+def test_vaultwright_cli_doctor_fails_invalid_profile_contract(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    (vault / "_meta" / "profile.yml").write_text("schema_version: nope\n", encoding="utf-8")
+
+    result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "vaultwright.py"), "doctor"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 1
+    assert "error: profile contract: invalid _meta/profile.yml" in result.stderr
 
 
 def test_vaultwright_cli_doctor_does_not_trust_commented_gitignore_patterns(tmp_path: Path) -> None:

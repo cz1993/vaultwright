@@ -72,11 +72,12 @@ python3.11 tools/vaultwright.py benchmark
 python3.11 tools/vaultwright.py doctor
 ```
 
-`doctor` is read-only. It checks required files and copied tools, Python dependencies, the
-machine-readable `_meta/lifecycle-states.yml` contract, source/repo manifest lifecycle counts, sync
-audit presence, profile-declared generated view health, recovery action counts, review-ledger
-approval posture, git backup posture, and GitHub auth posture. It also reports optional Obsidian
-config/plugin posture and `.gitignore` backup guard coverage. A fresh vault may warn that
+`doctor` is read-only. It checks required files and copied tools, Python dependencies, the active
+profile contract, the machine-readable `_meta/lifecycle-states.yml` contract, source/repo manifest
+lifecycle counts, sync audit presence, profile-declared generated view health, recovery action
+counts, review-ledger approval posture, git backup posture, and GitHub auth posture. It also reports
+legacy domain-map alias posture, optional mirror-config override posture, optional Obsidian
+config/plugin posture, and `.gitignore` backup guard coverage. A fresh vault may warn that
 manifests, audit logs, repo config, generated views, git history, or Obsidian UI config are not
 generated yet; those warnings are preflight context, not sync failures.
 

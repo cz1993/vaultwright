@@ -34,12 +34,14 @@ GITIGNORE_REQUIRED_PATTERNS = {
     "*.pem": "vaultwright-doctor-check.pem",
     ".obsidian/workspace*.json": ".obsidian/workspace.json",
 }
-REQUIRED_VAULT_FILES = (
+COMMON_REQUIRED_VAULT_FILES = (
     "CLAUDE.md",
     "INDEX.md",
+    LIFECYCLE_CONTRACT.as_posix(),
+)
+LEGACY_REQUIRED_VAULT_FILES = (
     "_meta/domain-map.yml",
     "_meta/mirror-config.yml",
-    LIFECYCLE_CONTRACT.as_posix(),
 )
 REQUIRED_TOOL_FILES = (
     "sync_office_md.py",
@@ -454,6 +456,40 @@ def review_preflight(root: Path) -> tuple[list[str], list[str]]:
     return info, warnings
 
 
+def profile_contract_preflight(root: Path) -> tuple[list[str], list[str], list[str]]:
+    info: list[str] = []
+    warnings: list[str] = []
+    errors: list[str] = []
+    profile_path = root / PROFILE_REL
+    if not profile_path.exists():
+        warnings.append(
+            f"profile contract: {PROFILE_REL.as_posix()} missing; using legacy domain-map/mirror-config checks."
+        )
+        for rel in LEGACY_REQUIRED_VAULT_FILES:
+            if not (root / rel).exists():
+                errors.append(f"Missing required vault file: {rel}")
+        return info, warnings, errors
+
+    try:
+        profile = load_profile(profile_path)
+    except ProfileValidationError as exc:
+        errors.append(f"profile contract: invalid {PROFILE_REL.as_posix()} ({exc})")
+        return info, warnings, errors
+
+    info.append(f"profile contract: {profile.id} {profile.profile_version}")
+    domain_map = root / "_meta" / "domain-map.yml"
+    if domain_map.exists():
+        info.append("legacy domain map: present")
+    else:
+        warnings.append("legacy domain map: missing; legacy aliases unavailable.")
+    mirror_config = root / "_meta" / "mirror-config.yml"
+    if mirror_config.exists():
+        info.append("Office mirror config: present")
+    else:
+        info.append("Office mirror config: absent; using profile policy defaults")
+    return info, warnings, errors
+
+
 def main(root: Path | None = None) -> int:
     root = (root or Path.cwd()).expanduser().resolve()
     info: list[str] = []
@@ -465,9 +501,13 @@ def main(root: Path | None = None) -> int:
         errors.append("Python 3.11+ is required.")
     else:
         info.append(f"Python: {sys.version.split()[0]}")
-    for rel in REQUIRED_VAULT_FILES:
+    for rel in COMMON_REQUIRED_VAULT_FILES:
         if not (root / rel).exists():
             errors.append(f"Missing required vault file: {rel}")
+    profile_info, profile_warnings, profile_errors = profile_contract_preflight(root)
+    info.extend(profile_info)
+    warnings.extend(profile_warnings)
+    errors.extend(profile_errors)
     mirror_root = configured_office_mirror_root(root)
     mirror_root_text = mirror_root.as_posix()
     if (root / mirror_root).exists():

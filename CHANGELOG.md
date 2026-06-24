@@ -88,6 +88,9 @@ All notable changes to Vaultwright are documented here. Format loosely follows
   `attention: true` status roles instead of inferring business-oriented status names.
 - `vaultwright doctor` now reports profile-declared generated view health through the profile view
   planner, warning on missing or stale views without assuming every profile owns `Documents.base`.
+- `vaultwright doctor` now validates the active profile contract first and treats
+  `_meta/domain-map.yml` and `_meta/mirror-config.yml` as legacy alias/override files for
+  profile-driven vaults, while preserving legacy required-file checks for profile-less vaults.
 - `vaultwright benchmark` and the aggregate `vaultwright pilot` report now read profile-declared
   `benchmark_tasks` paths, while explicit `--tasks` and the legacy `_meta/agent-readiness-tasks.yml`
   path remain supported.
