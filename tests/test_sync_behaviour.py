@@ -5412,6 +5412,35 @@ def test_office_sync_routes_domain_aliases_to_canonical_mirror_folder(tmp_path: 
     assert fm["source"] == "clients/acme/brief.docx"
 
 
+def test_office_sync_uses_profile_domains_when_domain_map_missing(tmp_path: Path) -> None:
+    sync = load_office_sync_module()
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    (vault / "_meta" / "domain-map.yml").unlink()
+    profile_path = vault / "_meta" / "profile.yml"
+    profile = yaml.safe_load(profile_path.read_text(encoding="utf-8"))
+    profile["domains"]["literature"] = {
+        "folder": "library",
+        "purpose": "Profile-defined literature sources.",
+    }
+    profile["folder_plan"].append({"path": "library", "domain": "literature"})
+    profile_path.write_text(yaml.safe_dump(profile, sort_keys=False), encoding="utf-8")
+    source = vault / "library" / "paper.docx"
+    source.parent.mkdir()
+    source.write_bytes(b"synthetic literature source")
+    config = sync.load_mirror_config(vault)
+    routing = sync.load_domain_routing(vault)
+
+    mirror, collision = sync.mirror_path_for(source, vault, config, routing)
+    fm = sync.managed_frontmatter({}, source, vault, "abc123", routing)
+
+    assert routing["domain_for"]["library"] == "literature"
+    assert mirror == vault / "_mirrors" / "library" / "paper.md"
+    assert collision is False
+    assert fm["domain"] == "literature"
+    assert fm["source"] == "library/paper.docx"
+
+
 def test_office_sync_alias_to_canonical_mirror_is_idempotent(tmp_path: Path) -> None:
     sync = load_office_sync_module()
     vault = tmp_path / "vault"

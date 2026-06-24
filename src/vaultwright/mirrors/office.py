@@ -50,6 +50,7 @@ except ImportError:
     sys.exit("Missing dependency: pip install markitdown")
 
 from vaultwright.runtime_profile import (
+    profile_domain_folders,
     profile_generated_mirror_statuses,
     profile_mirror_mode,
     profile_mirror_root,
@@ -326,6 +327,20 @@ def load_domain_routing(root: Path) -> dict[str, dict[str, str]]:
     domain_map = root / "_meta" / "domain-map.yml"
     domain_for: dict[str, str] = {}
     canonical_folder_for: dict[str, str] = {}
+
+    def add_route(key: str, domain_name: str, folder: str, *, replace: bool = False) -> None:
+        if not key or not domain_name or not folder:
+            return
+        if replace or key not in domain_for:
+            domain_for[key] = domain_name
+        if replace or key not in canonical_folder_for:
+            canonical_folder_for[key] = folder
+
+    profile_folders = profile_domain_folders(root)
+    for domain_name, folder in profile_folders.items():
+        add_route(folder, domain_name, folder, replace=True)
+        add_route(domain_name, domain_name, folder, replace=True)
+
     if not domain_map.exists():
         return {"domain_for": domain_for, "canonical_folder_for": canonical_folder_for}
     try:
@@ -340,14 +355,13 @@ def load_domain_routing(root: Path) -> dict[str, dict[str, str]]:
             continue
         folder = str(info["folder"])
         domain_name = str(domain)
-        domain_for[folder] = domain_name
-        domain_for[domain_name] = domain_name
-        canonical_folder_for[folder] = folder
-        canonical_folder_for[domain_name] = folder
+        canonical_folder = profile_folders.get(domain_name, folder)
+        add_route(domain_name, domain_name, canonical_folder)
+        if domain_name not in profile_folders or folder == canonical_folder:
+            add_route(folder, domain_name, canonical_folder)
         for alias in info.get("aliases", []) or []:
             alias_name = str(alias)
-            domain_for[alias_name] = domain_name
-            canonical_folder_for[alias_name] = folder
+            add_route(alias_name, domain_name, canonical_folder)
     return {"domain_for": domain_for, "canonical_folder_for": canonical_folder_for}
 
 

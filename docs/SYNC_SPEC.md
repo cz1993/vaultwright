@@ -45,7 +45,8 @@ Current implementation status:
   lifecycle state is no longer current, plus Office sync/status detection and repair for managed
   source frontmatter metadata drift, plus conservative `.xlsx` mirror cleanup for obvious `NaN`
   placeholders and empty `Unnamed:*` table columns, plus ambiguous same-hash move detection that
-  blocks sync as `conflict` when multiple missing manifest records could match one new source;
+  blocks sync as `conflict` when multiple missing manifest records could match one new source, plus
+  profile-first source-domain routing with `_meta/domain-map.yml` retained as a legacy alias layer;
 - implemented for repo mirrors: stable repo IDs, configured/resolved repo, note path, local-tree or
   remote HEAD hash, lifecycle state, warnings/errors, non-mutating plan/status reports, and
   generated-region manual-edit detection, plus contract-backed lifecycle next-action guidance in plan/status
