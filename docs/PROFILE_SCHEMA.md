@@ -115,7 +115,9 @@ folder when `tools/repos.yml` does not declare `settings.notes_dir`.
 - duplicate `folder_plan` paths are rejected.
 
 `vaultwright lint`, `vaultwright catalog`, and `vaultwright overlap` read `_meta/profile.yml` for
-domain folders. Lint also reads allowed note types, statuses, and required properties.
+domain folders. Overlap calibration also reads `related` plus the active profile's context
+frontmatter fields when counting inbound wikilinks for candidate ranking. Lint also reads allowed
+note types, statuses, and required properties.
 `vaultwright benchmark` and the aggregate `vaultwright pilot` evidence report read profile-declared
 `benchmark_tasks`, while an explicit `--tasks` argument still takes precedence and the legacy
 `_meta/agent-readiness-tasks.yml` path remains a compatibility fallback. GitHub repo mirror sync

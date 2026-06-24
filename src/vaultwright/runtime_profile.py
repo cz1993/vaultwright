@@ -96,6 +96,10 @@ def profile_context_keys(root: Path) -> set[str]:
     }
 
 
+def profile_frontmatter_link_keys(root: Path) -> set[str]:
+    return {"related", *profile_context_keys(root)}
+
+
 def profile_repo_notes_dir(root: Path) -> str:
     configured = _safe_relative_path(profile_policy_defaults(root).get("repo_notes_dir"))
     if configured:

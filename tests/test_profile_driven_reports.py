@@ -405,6 +405,83 @@ def test_package_cli_overlap_reads_profile_content_roots(tmp_path: Path) -> None
     assert "Research calibration synthesis" not in result.stdout
 
 
+def test_package_cli_overlap_reads_profile_context_links(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    add_research_context_profile(vault)
+    profile_path = vault / "_meta" / "profile.yml"
+    profile = yaml.safe_load(profile_path.read_text(encoding="utf-8"))
+    profile["optional_properties"] = [
+        value
+        for value in profile["optional_properties"]
+        if value not in {"account", "client", "program", "vendor"}
+    ]
+    profile_path.write_text(yaml.safe_dump(profile, sort_keys=False), encoding="utf-8")
+
+    research = vault / "25_research"
+    research.mkdir()
+    body = (
+        "Research calibration synthesis source-backed citation provenance lifecycle review "
+        "question concept experiment literature method evidence archive context retrieval "
+        "profile workspace governance refresh agent handoff."
+    )
+    (research / "canonical.md").write_text(
+        "---\n"
+        "title: Canonical Concept\n"
+        "type: note\n"
+        "status: active\n"
+        "domain: research\n"
+        "created: 2026-06-24\n"
+        "updated: 2026-06-24\n"
+        "---\n"
+        f"# Canonical Concept\n\n{body}\n",
+        encoding="utf-8",
+    )
+    (research / "duplicate.md").write_text(
+        "---\n"
+        "title: Duplicate Concept\n"
+        "type: note\n"
+        "status: active\n"
+        "domain: research\n"
+        "created: 2026-06-24\n"
+        "updated: 2026-06-24\n"
+        "---\n"
+        f"# Duplicate Concept\n\n{body}\n",
+        encoding="utf-8",
+    )
+    (research / "linker.md").write_text(
+        "---\n"
+        "title: Linker Note\n"
+        "type: note\n"
+        "status: active\n"
+        "domain: research\n"
+        "created: 2026-06-24\n"
+        "updated: 2026-06-24\n"
+        "research_project: \"[[canonical]]\"\n"
+        "account: \"[[duplicate]]\"\n"
+        "---\n"
+        "# Linker Note\n\nUnique profile context link evidence.\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "overlap", "--json", "--max-pairs", "1"],
+        cwd=ROOT,
+        env=package_cli_env(),
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+    payload = json.loads(result.stdout)
+    candidate = payload["report"]["current_candidates"][0]
+    assert candidate["left_path"] == "25_research/canonical.md"
+    assert candidate["right_path"] == "25_research/duplicate.md"
+    assert candidate["left_inbound_links"] == 1
+    assert candidate["right_inbound_links"] == 0
+    assert "Research calibration synthesis" not in result.stdout
+
+
 def test_package_cli_benchmark_reads_profile_task_pack(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     shutil.copytree(ROOT / "template", vault)

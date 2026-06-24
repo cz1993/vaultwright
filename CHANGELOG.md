@@ -34,6 +34,9 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 - `vaultwright overlap` now reads the active profile's domain folders when choosing curated notes
   for calibration, so profile-defined content roots participate without hard-coded business
   folders.
+- `vaultwright overlap` now also reads profile-defined context frontmatter fields when counting
+  inbound wikilinks, so non-business profiles can use fields such as `research_project` without
+  inheriting `account`/`client` assumptions.
 - `vaultwright benchmark` and the aggregate `vaultwright pilot` report now read profile-declared
   `benchmark_tasks` paths, while explicit `--tasks` and the legacy `_meta/agent-readiness-tasks.yml`
   path remain supported.

@@ -16,7 +16,7 @@ try:
 except ImportError:
     sys.exit("pip install pyyaml")
 
-from vaultwright.runtime_profile import profile_domain_folders
+from vaultwright.runtime_profile import profile_domain_folders, profile_frontmatter_link_keys
 
 
 DEFAULT_ROOT = Path.cwd()
@@ -209,6 +209,7 @@ def target_paths(root: Path, target: str, by_name: dict[str, list[Path]], by_ste
 def collect_notes(root: Path) -> tuple[list[dict[str, Any]], dict[Path, int]]:
     files = markdown_files(root)
     content_roots = active_content_roots(root)
+    frontmatter_link_keys = profile_frontmatter_link_keys(root)
     by_name: dict[str, list[Path]] = {}
     by_stem: dict[str, list[Path]] = {}
     for path in files:
@@ -224,7 +225,7 @@ def collect_notes(root: Path) -> tuple[list[dict[str, Any]], dict[Path, int]]:
         parsed.append((path, rel, fm, body))
         body_clean = re.sub(r"`+[^`]*`+", "", body)
         targets = list(LINK_RE.findall(body_clean))
-        for key in ("related", "account", "client", "program", "vendor"):
+        for key in sorted(frontmatter_link_keys):
             value = fm.get(key)
             if isinstance(value, str):
                 targets.extend(LINK_RE.findall(value))

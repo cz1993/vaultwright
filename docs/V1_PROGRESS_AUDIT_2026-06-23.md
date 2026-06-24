@@ -105,6 +105,19 @@ This audit maps the current implementation to `docs/VAULTWRIGHT_WHITEPAPER_2026-
     `migrate annotations --plan --json` against a profile-declared repo context field set:
     OK.
   - no `build/`, `dist/`, `.egg-info`, or `__pycache__` residue remains in the repo.
+- Local validation after profile-aware overlap context links:
+  - focused profile-driven overlap, lint-overlap, copied-wrapper overlap, and package overlap tests:
+    17 passed.
+  - `pytest -p no:cacheprovider -q`: 296 passed.
+  - `python3.11 -m py_compile` over template tools, package modules, and release scripts with
+    bytecode redirected outside the repo: OK.
+  - `scripts/no_data_scan.py`: OK.
+  - `scripts/sync_template_copies.py --check`: clean.
+  - `bash -n scripts/init.sh template/tools/sync_all.sh .githooks/pre-commit`: OK.
+  - fresh wheel install smoke, built with `pip wheel --no-deps`, ran `overlap --json` against a
+    profile-declared `research_project` frontmatter link and confirmed legacy `account` links did
+    not count when the active profile omitted that context field: OK.
+  - no `build/`, `dist/`, `.egg-info`, or `__pycache__` residue remains in the repo.
 
 ## Whitepaper Progress
 
@@ -116,7 +129,7 @@ Stage 1 remains the active lane. Current status:
 | Requirement | Status |
 | --- | --- |
 | V1-C1 package-owned runtime | In progress. Package CLI exists; `plan`, `sync`, `status`, `doctor`, `catalog`, `lint`, `conversion`, `m365`, `migration`, `overlap`, `benchmark`, `pilot`, `sandbox`, `recovery`, and `review` are package-owned; Office mirror planning/sync/status lives in `vaultwright.mirrors.office`; GitHub repo mirror planning/sync/status lives in `vaultwright.mirrors.github_repos`; copied sync, lint, catalog, conversion, m365, migration, overlap, benchmark, pilot, sandbox, recovery, review-ledger, and operator-wrapper scripts are compatibility shims. |
-| V1-C2 versioned profile contract | In progress. Schema validation, schema documentation, read-only profile commands, conservative write-mode profile migration, profile-generated `Documents.base` check/write support, profile-driven migration domain routing, profile-owned repo mirror defaults, profile/config-aware repo mirror report surfaces, profile-derived repo context frontmatter, safe domain-folder validation, validated `folder_plan` paths/domains, safe profile benchmark-task paths, profile-aware overlap content roots, and profile-declared benchmark task discovery exist; remaining profile-driven behavior is not done. |
+| V1-C2 versioned profile contract | In progress. Schema validation, schema documentation, read-only profile commands, conservative write-mode profile migration, profile-generated `Documents.base` check/write support, profile-driven migration domain routing, profile-owned repo mirror defaults, profile/config-aware repo mirror report surfaces, profile-derived repo context frontmatter, safe domain-folder validation, validated `folder_plan` paths/domains, safe profile benchmark-task paths, profile-aware overlap content roots/context links, and profile-declared benchmark task discovery exist; remaining profile-driven behavior is not done. |
 | V1-C4 safe migration path | In progress. Reports, frontmatter-domain normalization, read-only plans, and conservative write-mode profile migration exist; migration reports now use profile-defined canonical domains with domain-map aliases, and profile migration creates directories from validated `folder_plan` records; broader workspace/profile migration coverage will be needed as profile-driven behavior expands. |
 | V1-C5 machine-owned mirrors | Stage 1 closed by this batch. Fresh mirrors are machine-owned, sync blocks unmigrated mirror annotations, sidecar-aware sync rewrites migrated mirrors as machine-owned, and lint blocks unmigrated annotations. |
 
@@ -151,8 +164,8 @@ should remain gated until Stage 1 exits.
 Move the next Stage 1 gap deeper into profile-driven behavior: keep removing hard-coded business
 folder/type/status assumptions from docs, report copy, validation checks, and migration guidance,
 and make those paths read active profile data consistently. Repo mirror sync/lint, repo-context
-frontmatter, benchmark/pilot task discovery, and the Microsoft 365, sandbox, recovery, and
-review-ledger report surfaces now resolve their profile-controlled paths from profile/config.
-Preserve the example regeneration gates and require no-data, lifecycle, recovery, catalog,
-package-install, benchmark/pilot, and profile-validation coverage before treating the slice as
-closed.
+frontmatter, overlap context links, benchmark/pilot task discovery, and the Microsoft 365,
+sandbox, recovery, and review-ledger report surfaces now resolve their profile-controlled paths
+from profile/config. Preserve the example regeneration gates and require no-data, lifecycle,
+recovery, catalog, package-install, benchmark/pilot, and profile-validation coverage before
+treating the slice as closed.
