@@ -16,6 +16,8 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
+from vaultwright.runtime_profile import is_repo_notes_path
+
 try:
     import yaml
 except ImportError:
@@ -128,7 +130,7 @@ def classify_artifact(root: Path, rel: Path, fm: dict[str, Any] | None) -> str:
         return "catalog-html"
     if rel.parts[:1] == ("_mirrors",):
         return "generated-source-mirror"
-    if rel.parts[:2] == ("80_sources", "repos") and rel.suffix.lower() == ".md":
+    if is_repo_notes_path(root, rel) and rel.suffix.lower() == ".md":
         return "repo-mirror"
     if rel.parts[:1] == ("_meta",) and (rel.name in META_REVIEWABLE_NAMES or "report" in rel.name):
         return "meta-report"

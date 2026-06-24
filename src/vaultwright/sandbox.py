@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from vaultwright import recovery as recovery_module
+from vaultwright.runtime_profile import is_repo_notes_path
 
 DEFAULT_ROOT = Path.cwd()
 SOURCE_MANIFEST = Path("_meta/source-manifest.json")
@@ -135,6 +136,14 @@ def managed_source_mirror(path: Path) -> bool:
     return "type: source-mirror" in head
 
 
+def managed_repo_mirror(path: Path) -> bool:
+    try:
+        head = path.read_text(encoding="utf-8", errors="ignore")[:600]
+    except OSError:
+        return False
+    return "type: repo-mirror" in head
+
+
 def workspace_inventory(root: Path) -> dict[str, Any]:
     content_files = 0
     source_candidates = 0
@@ -154,7 +163,7 @@ def workspace_inventory(root: Path) -> dict[str, Any]:
                 dedicated_generated_mirrors += 1
             elif not excluded:
                 raw_folder_generated_mirrors += 1
-        if rel.parts[:2] == ("80_sources", "repos") and suffix == ".md":
+        if is_repo_notes_path(root, rel) and suffix == ".md" and managed_repo_mirror(path):
             repo_mirrors += 1
         if excluded:
             continue

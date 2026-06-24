@@ -105,10 +105,12 @@ folder when `tools/repos.yml` does not declare `settings.notes_dir`.
 `vaultwright lint` and `vaultwright catalog` read `_meta/profile.yml` for domain folders, allowed
 note types, statuses, and required properties. GitHub repo mirror sync and lint read
 `policy_defaults.repo_notes_dir` for the default repository-mirror folder and derive repo-mirror
-frontmatter domains from the profile's domain/folder mapping. `vaultwright migration` uses
-`_meta/profile.yml` for canonical domain folders and `_meta/domain-map.yml` for legacy aliases.
-`_meta/domain-map.yml` remains a legacy alias and operator guidance layer; it must not contradict
-the profile's canonical domain folders.
+frontmatter domains from the profile's domain/folder mapping. Microsoft 365 handoff, sandbox
+preflight, recovery, and review-ledger reporting also resolve repo mirror folders from the active
+profile, while honoring an explicit `tools/repos.yml` `settings.notes_dir` override. The
+`vaultwright migration` command uses `_meta/profile.yml` for canonical domain folders and
+`_meta/domain-map.yml` for legacy aliases. `_meta/domain-map.yml` remains a legacy alias and
+operator guidance layer; it must not contradict the profile's canonical domain folders.
 
 ## Profile-Generated Views
 

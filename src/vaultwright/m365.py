@@ -10,6 +10,8 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
+from vaultwright.runtime_profile import is_repo_notes_path, repo_notes_dirs
+
 try:
     import yaml
 except ImportError:  # pragma: no cover - installed environments should have PyYAML
@@ -200,7 +202,7 @@ def workspace_inventory(root: Path) -> dict[str, Any]:
         suffix = path.suffix.lower() or "[no extension]"
         if rel.parts[:1] == ("_mirrors",) and suffix == ".md" and managed_mirror(path, "type: source-mirror"):
             source_mirrors += 1
-        if rel.parts[:2] == ("80_sources", "repos") and suffix == ".md" and managed_mirror(path, "type: repo-mirror"):
+        if is_repo_notes_path(root, rel) and suffix == ".md" and managed_mirror(path, "type: repo-mirror"):
             repo_mirrors += 1
         if any(part in EXCLUDED_PARTS for part in rel.parts):
             continue
@@ -294,6 +296,7 @@ def build_report(root: Path) -> tuple[dict[str, Any], list[str], list[str]]:
     if not readiness:
         readiness.append({"level": "ok", "message": "Core Vaultwright handoff artifacts are present; review Microsoft 365 permissions and tenant settings next."})
 
+    repo_bundle_dirs = [f"{path}/" for path in repo_notes_dirs(root)]
     report = {
         "catalogs": catalogs,
         "inventory": inventory,
@@ -316,7 +319,7 @@ def build_report(root: Path) -> tuple[dict[str, Any], list[str], list[str]]:
             "CATALOG.html",
             "CATALOG.md",
             "_mirrors/",
-            "80_sources/repos/",
+            *repo_bundle_dirs,
             "_meta/source-manifest.json",
             "_meta/repo-manifest.json",
             "_meta/sync-audit.jsonl",

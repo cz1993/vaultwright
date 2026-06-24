@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -20,6 +21,23 @@ def package_cli_env() -> dict[str, str]:
     )
     env["PYTHONDONTWRITEBYTECODE"] = "1"
     return env
+
+
+def repo_id_for(repo: str, note: str) -> str:
+    digest = hashlib.sha256(f"{repo}\0{note}".encode("utf-8")).hexdigest()[:20]
+    return f"repo_{digest}"
+
+
+def add_research_repo_profile(vault: Path) -> None:
+    profile_path = vault / "_meta" / "profile.yml"
+    profile = yaml.safe_load(profile_path.read_text(encoding="utf-8"))
+    profile["domains"]["research"] = {
+        "folder": "25_research",
+        "purpose": "Profile-defined research material.",
+    }
+    profile["folder_plan"].append({"path": "25_research", "domain": "research"})
+    profile["policy_defaults"]["repo_notes_dir"] = "25_research/repos"
+    profile_path.write_text(yaml.safe_dump(profile, sort_keys=False), encoding="utf-8")
 
 
 def test_catalog_reads_profile_domains_for_canonical_folders(tmp_path: Path) -> None:
@@ -216,3 +234,157 @@ def test_package_cli_repo_sync_uses_profile_repo_notes_dir(tmp_path: Path) -> No
     assert "domain: research\n" in note_text
     manifest = json.loads((vault / "_meta" / "repo-manifest.json").read_text(encoding="utf-8"))
     assert manifest["records"][0]["note_path"] == "25_research/repos/research-fixture.md"
+
+
+def test_package_cli_reports_use_profile_repo_notes_dir(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    source_root = tmp_path / "source-root"
+    shutil.copytree(ROOT / "template", vault)
+    source_root.mkdir()
+    add_research_repo_profile(vault)
+    repo = "local/research-fixture"
+    note = "research-fixture.md"
+    repo_id = repo_id_for(repo, note)
+    repo_notes = vault / "25_research" / "repos"
+    repo_notes.mkdir(parents=True)
+    (repo_notes / note).write_text(
+        "---\n"
+        "title: Research Fixture\n"
+        "type: repo-mirror\n"
+        f"repo_id: {repo_id}\n"
+        f"repo: {repo}\n"
+        "domain: research\n"
+        "---\n"
+        "Synthetic repo mirror body.\n",
+        encoding="utf-8",
+    )
+    (repo_notes / "untyped-review-target.md").write_text(
+        "# Review Target\n\nSynthetic generated metadata fixture.\n",
+        encoding="utf-8",
+    )
+    (vault / "tools" / "repos.yml").write_text(
+        "repos:\n"
+        f"  - repo: {repo}\n"
+        f"    note: {note}\n",
+        encoding="utf-8",
+    )
+    (vault / "_meta" / "source-manifest.json").write_text(
+        json.dumps({"version": 1, "records": []}),
+        encoding="utf-8",
+    )
+    (vault / "_meta" / "repo-manifest.json").write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "records": [
+                    {
+                        "repo_id": repo_id,
+                        "configured_repo": repo,
+                        "note_path": f"25_research/repos/{note}",
+                        "lifecycle_state": "clean",
+                        "warnings": [],
+                        "errors": [],
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (vault / "_meta" / "sync-audit.jsonl").write_text(
+        json.dumps({"tool": "sync_github_repos", "status": "unchanged", "lifecycle_state": "clean"}) + "\n",
+        encoding="utf-8",
+    )
+
+    m365 = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "m365", "--json"],
+        cwd=ROOT,
+        env=package_cli_env(),
+        text=True,
+        capture_output=True,
+    )
+    sandbox = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "vaultwright.cli",
+            "--root",
+            str(vault),
+            "sandbox",
+            "--source-root",
+            str(source_root),
+            "--json",
+        ],
+        cwd=ROOT,
+        env=package_cli_env(),
+        text=True,
+        capture_output=True,
+    )
+    review = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "vaultwright.cli",
+            "--root",
+            str(vault),
+            "review",
+            "--artifact",
+            "25_research/repos/untyped-review-target.md",
+            "--status",
+            "approved",
+            "--reviewer",
+            "CodeX",
+            "--json",
+        ],
+        cwd=ROOT,
+        env=package_cli_env(),
+        text=True,
+        capture_output=True,
+    )
+
+    assert m365.returncode == 0, m365.stderr or m365.stdout
+    m365_report = json.loads(m365.stdout)["report"]
+    assert m365_report["inventory"]["repo_mirrors"] == 1
+    assert "25_research/repos/" in m365_report["handoff_bundle"]
+    assert "80_sources/repos/" not in m365_report["handoff_bundle"]
+
+    assert sandbox.returncode == 0, sandbox.stderr or sandbox.stdout
+    sandbox_report = json.loads(sandbox.stdout)["report"]
+    assert sandbox_report["inventory"]["repo_mirrors"] == 1
+
+    assert review.returncode == 0, review.stderr or review.stdout
+    review_event = json.loads(review.stdout)["recorded"]
+    assert review_event["artifact_kind"] == "repo-mirror"
+    assert review_event["artifact_path"] == "25_research/repos/untyped-review-target.md"
+
+
+def test_recovery_warns_for_profile_repo_notes_dir_without_manifest(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    add_research_repo_profile(vault)
+    repo_notes = vault / "25_research" / "repos"
+    repo_notes.mkdir(parents=True)
+    (repo_notes / "orphan.md").write_text(
+        "---\n"
+        "title: Orphan Repo Mirror\n"
+        "type: repo-mirror\n"
+        "repo_id: repo_orphan\n"
+        "domain: research\n"
+        "---\n"
+        "Synthetic repo mirror body.\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "recovery", "--json"],
+        cwd=ROOT,
+        env=package_cli_env(),
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+    payload = json.loads(result.stdout)
+    assert (
+        "_meta/repo-manifest.json not found; repo recovery has no manifest evidence yet."
+        in payload["warnings"]
+    )

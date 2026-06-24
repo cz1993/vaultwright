@@ -10,6 +10,8 @@ import re
 import sys
 from pathlib import Path
 
+from vaultwright.runtime_profile import repo_notes_dirs
+
 try:
     import yaml
 except ImportError:  # pragma: no cover - exercised in installed vaults, not unit env
@@ -228,9 +230,10 @@ def has_source_evidence(root: Path) -> bool:
 
 
 def has_repo_evidence(root: Path) -> bool:
-    repo_notes = root / "80_sources" / "repos"
-    if repo_notes.exists() and any(repo_notes.glob("*.md")):
-        return True
+    for notes_dir in repo_notes_dirs(root):
+        repo_notes = root / notes_dir
+        if repo_notes.exists() and any(repo_notes.glob("*.md")):
+            return True
     repos_yml = root / REPO_CONFIG
     if not repos_yml.exists():
         return False
