@@ -41,6 +41,10 @@ def test_template_business_operations_profile_validates() -> None:
     assert profile.domains["customers"]["folder"] == "30_customers"
     assert "source-mirror" in profile.note_types
     assert "active" in profile.statuses
+    assert profile.statuses["draft"]["attention"] is True
+    assert profile.statuses["in-review"]["attention"] is True
+    assert profile.statuses["superseded"]["inactive"] is True
+    assert profile.statuses["archived"]["inactive"] is True
     assert "Documents.base" in profile.views
 
 
@@ -108,6 +112,14 @@ def test_profile_contract_requires_folder_plan_mapping_entries() -> None:
     data["folder_plan"] = ["00_inbox"]
 
     with pytest.raises(ProfileValidationError, match=r"folder_plan\[0\] must be a mapping"):
+        validate_profile_mapping(data)
+
+
+def test_profile_contract_rejects_non_boolean_status_roles() -> None:
+    data = minimal_profile()
+    data["statuses"] = {"queued": {"purpose": "pending", "attention": "yes"}}
+
+    with pytest.raises(ProfileValidationError, match=r"statuses\.queued\.attention must be true or false"):
         validate_profile_mapping(data)
 
 
@@ -252,6 +264,26 @@ def test_profile_view_generation_omits_absent_mirror_views() -> None:
     assert "Office mirrors" not in rendered
     assert "Repos" not in rendered
     assert "queued" not in rendered
+
+
+def test_profile_view_generation_uses_status_attention_flags() -> None:
+    data = minimal_profile()
+    data["required_properties"] = ["title", "type", "status", "domain", "updated"]
+    data["note_types"] = {"note": {"purpose": "general note"}}
+    data["statuses"] = {
+        "queued": {"purpose": "pending review", "attention": True},
+        "draft": {"purpose": "ordinary draft, not an attention state"},
+        "done": {"purpose": "complete", "inactive": True},
+    }
+    data["views"] = ["Documents.base"]
+    profile = ProfileContract.from_mapping(data)
+
+    rendered = render_documents_base(profile)
+
+    assert "Needs attention" in rendered
+    assert 'status == "queued"' in rendered
+    assert 'status == "draft"' not in rendered
+    assert 'status == "done"' not in rendered
 
 
 def test_profile_views_plan_blocks_unsafe_view_paths(tmp_path: Path) -> None:

@@ -25,6 +25,7 @@ META = {"CLAUDE.md", "AGENTS.md", "INDEX.md", "RETENTION.md", "CATALOG.md", "log
 LINK_SRC_SKIP = {"CLAUDE.md", "AGENTS.md", "_meta/conventions.md"}  # docs full of illustrative links
 DEFAULT_TYPES = {"moc", "entity", "note", "guide", "policy", "record", "source-mirror", "source-ref", "repo-mirror"}
 DEFAULT_STATUSES = {"draft", "active", "in-review", "sent", "signed", "submitted", "awarded", "superseded", "archived"}
+DEFAULT_INACTIVE_STATUSES = ("superseded", "archived")
 EXCLUDE_PREFIX = ("_archive", "_backup", "_deprecated")
 EXCLUDE_EXACT = {"_fixtures", "_meta", "_templates", "_tmp", "tools", "node_modules"}
 SOURCE_EXTS = {".docx", ".pptx", ".xlsx", ".doc"}
@@ -67,6 +68,7 @@ REPO_MANAGED_KEYS = {
 }
 DEFAULT_ANNOTATION_FRONTMATTER_KEYS = {"title", "domain", "owner", "created", "updated"}
 PROFILE_CONTEXT_KEYS = {"account", "client", "program", "vendor"}
+INACTIVE_STATUSES = list(DEFAULT_INACTIVE_STATUSES)
 STOPWORDS = {
     "about", "after", "again", "against", "also", "because", "before", "being", "between",
     "could", "during", "each", "from", "have", "into", "more", "must", "need", "only",
@@ -85,6 +87,7 @@ def profile_contract() -> tuple[dict[str, object], list[tuple[str, str]]]:
         "required": list(DEFAULT_REQUIRED),
         "types": set(DEFAULT_TYPES),
         "statuses": set(DEFAULT_STATUSES),
+        "inactive_statuses": list(DEFAULT_INACTIVE_STATUSES),
         "content_roots": set(DEFAULT_CONTENT_ROOTS),
         "domain_folders": {},
         "policy_defaults": {},
@@ -110,6 +113,18 @@ def profile_contract() -> tuple[dict[str, object], list[tuple[str, str]]]:
         values = data.get(field)
         if isinstance(values, dict) and values:
             settings[setting] = {str(key) for key in values}
+            if field == "statuses":
+                saw_inactive = any(isinstance(definition, dict) and "inactive" in definition for definition in values.values())
+                if saw_inactive:
+                    settings["inactive_statuses"] = [
+                        str(status)
+                        for status, definition in values.items()
+                        if isinstance(definition, dict) and definition.get("inactive") is True
+                    ]
+                else:
+                    settings["inactive_statuses"] = [
+                        status for status in DEFAULT_INACTIVE_STATUSES if status in {str(key) for key in values}
+                    ]
         else:
             errors.append((f"{PROFILE_REL}:{field}", "must be a non-empty mapping"))
 
@@ -448,7 +463,7 @@ def overlap_consolidation_suggestion(left: dict[str, object], right: dict[str, o
         return (
             f"suggestion: keep {keep} ({keep_inbound} inbound link{'s' if keep_inbound != 1 else ''} "
             f"vs {merge_inbound}); merge unique details from {merge_from}, then mark the duplicate "
-            f"superseded/archived after review"
+            f"{inactive_status_label()} after review"
         )
 
     if left_type and right_type and left_type != right_type:
@@ -459,8 +474,12 @@ def overlap_consolidation_suggestion(left: dict[str, object], right: dict[str, o
 
     return (
         f"suggestion: choose one canonical note, merge unique details, then mark one note "
-        f"superseded/archived after review"
+        f"{inactive_status_label()} after review"
     )
+
+def inactive_status_label() -> str:
+    values = [status for status in INACTIVE_STATUSES if isinstance(status, str) and status.strip()]
+    return "/".join(values) if values else "with an inactive profile status"
 
 def sha256_of(p: Path) -> str:
     h = hashlib.sha256()
@@ -482,7 +501,7 @@ def local_tree_sha(repodir: Path) -> str:
     return "local-" + h.hexdigest()[:40]
 
 def main(root: Path | None = None) -> int:
-    global ROOT, CONTENT_ROOTS, PROFILE_DOMAIN_FOLDERS, PROFILE_POLICY_DEFAULTS, PROFILE_CONTEXT_KEYS
+    global ROOT, CONTENT_ROOTS, PROFILE_DOMAIN_FOLDERS, PROFILE_POLICY_DEFAULTS, PROFILE_CONTEXT_KEYS, INACTIVE_STATUSES
     ROOT = (root or Path.cwd()).resolve()
     # inventory
     all_files = sorted(
@@ -539,6 +558,7 @@ def main(root: Path | None = None) -> int:
     REQUIRED = list(PROFILE_SETTINGS["required"])
     TYPES = set(PROFILE_SETTINGS["types"])
     STATUSES = set(PROFILE_SETTINGS["statuses"])
+    INACTIVE_STATUSES = list(PROFILE_SETTINGS["inactive_statuses"])
     CONTENT_ROOTS = set(PROFILE_SETTINGS["content_roots"])
     PROFILE_DOMAIN_FOLDERS = {
         str(domain): str(folder)
@@ -964,7 +984,7 @@ def main(root: Path | None = None) -> int:
                     bad_account_client.append((rels, "client must match account"))
             if (
                 not managed_generated_mirror
-                and fm.get("status") not in {"archived", "superseded"}
+                and fm.get("status") not in set(INACTIVE_STATUSES)
             ):
                 title_words = normalized_words(str(fm.get("title", "")))
                 body_words = normalized_words(body)

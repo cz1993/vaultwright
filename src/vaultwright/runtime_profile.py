@@ -12,6 +12,7 @@ PROFILE_REL = Path("_meta/profile.yml")
 REPO_CONFIG_REL = Path("tools/repos.yml")
 LEGACY_REPO_NOTES_DIR = "80_sources/repos"
 LEGACY_CONTEXT_KEYS = {"account", "client", "program", "vendor"}
+LEGACY_INACTIVE_STATUSES = {"archived", "superseded"}
 NON_CONTEXT_PROPERTIES = {
     "title",
     "type",
@@ -98,6 +99,31 @@ def profile_context_keys(root: Path) -> set[str]:
 
 def profile_frontmatter_link_keys(root: Path) -> set[str]:
     return {"related", *profile_context_keys(root)}
+
+
+def _profile_statuses_with_flag(root: Path, flag: str, legacy: set[str]) -> set[str]:
+    profile = load_profile_mapping(root)
+    statuses = profile.get("statuses")
+    if not isinstance(statuses, dict):
+        return set(legacy)
+
+    flagged: set[str] = set()
+    saw_flag = False
+    for status, definition in statuses.items():
+        if not isinstance(definition, dict):
+            continue
+        if flag not in definition:
+            continue
+        saw_flag = True
+        if definition.get(flag) is True:
+            flagged.add(str(status))
+    if saw_flag:
+        return flagged
+    return {str(status) for status in statuses if str(status) in legacy}
+
+
+def profile_inactive_statuses(root: Path) -> set[str]:
+    return _profile_statuses_with_flag(root, "inactive", LEGACY_INACTIVE_STATUSES)
 
 
 def profile_repo_notes_dir(root: Path) -> str:

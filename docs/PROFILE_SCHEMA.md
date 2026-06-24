@@ -59,7 +59,9 @@ vaultwright --root <vault> profile views --write
 : Mapping of allowed note type IDs to definitions.
 
 `statuses`
-: Mapping of allowed workflow status IDs to definitions.
+: Mapping of allowed workflow status IDs to definitions. A status definition may include
+  `attention: true` when notes in that state should appear in generated review-attention views, and
+  `inactive: true` when notes in that state should be excluded from active overlap calibration.
 
 `required_properties`
 : List of frontmatter keys required on curated notes and managed notes where applicable.
@@ -113,11 +115,13 @@ folder when `tools/repos.yml` does not declare `settings.notes_dir`.
 - every `folder_plan` domain references a declared profile domain;
 - every `folder_plan` path stays inside its declared domain folder;
 - duplicate `folder_plan` paths are rejected.
+- optional `statuses.<status>.attention` and `statuses.<status>.inactive` values are booleans.
 
 `vaultwright lint`, `vaultwright catalog`, and `vaultwright overlap` read `_meta/profile.yml` for
 domain folders. Overlap calibration also reads `related` plus the active profile's context
-frontmatter fields when counting inbound wikilinks for candidate ranking. Lint also reads allowed
-note types, statuses, and required properties.
+frontmatter fields when counting inbound wikilinks for candidate ranking, and it excludes notes in
+profile-defined inactive statuses. Lint also reads allowed note types, statuses, required
+properties, and inactive status roles.
 `vaultwright benchmark` and the aggregate `vaultwright pilot` evidence report read profile-declared
 `benchmark_tasks`, while an explicit `--tasks` argument still takes precedence and the legacy
 `_meta/agent-readiness-tasks.yml` path remains a compatibility fallback. GitHub repo mirror sync
@@ -145,7 +149,8 @@ profile's required properties, optional properties, note types, and statuses:
 
 - core document tables use profile-defined frontmatter keys;
 - source mirror and repo mirror tables are emitted only when the profile declares those note types;
-- review-attention filters are emitted only when the profile declares supported review statuses.
+- review-attention filters are emitted from statuses marked `attention: true`, with legacy
+  name-based fallback only for older profiles that have not yet declared status roles.
 
 Generated view writes are explicit and may replace stale generated view files. They do not move,
 delete, or rewrite source documents, generated mirrors, annotation sidecars, or curated markdown
@@ -219,6 +224,9 @@ Allowed statuses are:
 ```text
 draft, active, in-review, sent, signed, submitted, awarded, superseded, archived
 ```
+
+The packaged business profile marks `draft` and `in-review` as attention states, and marks
+`superseded` and `archived` as inactive states for overlap/lint calibration.
 
 These values belong to the `business-operations` profile, not the long-term core. Future
 `research-learning`, `software-project`, and `blank` profiles must define their own domains, note

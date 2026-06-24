@@ -482,6 +482,64 @@ def test_package_cli_overlap_reads_profile_context_links(tmp_path: Path) -> None
     assert "Research calibration synthesis" not in result.stdout
 
 
+def test_package_cli_overlap_uses_profile_inactive_status_flags(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    add_research_repo_profile(vault)
+    profile_path = vault / "_meta" / "profile.yml"
+    profile = yaml.safe_load(profile_path.read_text(encoding="utf-8"))
+    profile["statuses"] = {
+        "active": {"purpose": "current"},
+        "archived": {"purpose": "archive name without inactive role"},
+        "retired": {"purpose": "profile-defined inactive status", "inactive": True},
+    }
+    profile_path.write_text(yaml.safe_dump(profile, sort_keys=False), encoding="utf-8")
+
+    research = vault / "25_research"
+    research.mkdir()
+    body = (
+        "Research calibration synthesis source-backed citation provenance lifecycle review "
+        "question concept experiment literature method evidence archive context retrieval "
+        "profile workspace governance refresh agent handoff."
+    )
+    for filename, status in (
+        ("active-note.md", "active"),
+        ("archived-note.md", "archived"),
+        ("retired-note.md", "retired"),
+    ):
+        (research / filename).write_text(
+            "---\n"
+            f"title: {filename.removesuffix('.md').replace('-', ' ').title()}\n"
+            "type: note\n"
+            f"status: {status}\n"
+            "domain: research\n"
+            "created: 2026-06-24\n"
+            "updated: 2026-06-24\n"
+            "---\n"
+            f"# {filename}\n\n{body}\n",
+            encoding="utf-8",
+        )
+
+    result = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "overlap", "--json", "--max-pairs", "3"],
+        cwd=ROOT,
+        env=package_cli_env(),
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+    payload = json.loads(result.stdout)
+    assert payload["report"]["summary"]["curated_notes"] == 2
+    candidate_paths = {
+        payload["report"]["current_candidates"][0]["left_path"],
+        payload["report"]["current_candidates"][0]["right_path"],
+    }
+    assert candidate_paths == {"25_research/active-note.md", "25_research/archived-note.md"}
+    assert "retired-note.md" not in result.stdout
+    assert "Research calibration synthesis" not in result.stdout
+
+
 def test_package_cli_benchmark_reads_profile_task_pack(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     shutil.copytree(ROOT / "template", vault)

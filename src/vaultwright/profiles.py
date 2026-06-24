@@ -41,6 +41,7 @@ LIST_FIELDS = {
 }
 MAPPING_FIELDS = {"domains", "note_types", "statuses", "policy_defaults"}
 FORBIDDEN_PROFILE_PATH_PARTS = {".git", ".githooks", ".github", "node_modules"}
+STATUS_BOOLEAN_FIELDS = {"attention", "inactive"}
 
 
 class ProfileValidationError(ValueError):
@@ -201,6 +202,14 @@ def validate_profile_mapping(data: Any) -> None:
             definition.get("folder"),
             f"domains.{domain}.folder",
         )
+
+    for status, definition in data["statuses"].items():
+        validate_string(status, "status key")
+        if not isinstance(definition, dict):
+            raise ProfileValidationError(f"statuses.{status} must be a mapping")
+        for field in STATUS_BOOLEAN_FIELDS:
+            if field in definition and not isinstance(definition[field], bool):
+                raise ProfileValidationError(f"statuses.{status}.{field} must be true or false")
 
     validate_folder_plan(data["folder_plan"], domain_folders)
 

@@ -37,6 +37,9 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 - `vaultwright overlap` now also reads profile-defined context frontmatter fields when counting
   inbound wikilinks, so non-business profiles can use fields such as `research_project` without
   inheriting `account`/`client` assumptions.
+- Profile status definitions can now declare `attention: true` and `inactive: true`; generated
+  Bases use the attention role for review views, and lint/overlap use inactive statuses instead of
+  hard-coded business status names when skipping retired notes.
 - `vaultwright benchmark` and the aggregate `vaultwright pilot` report now read profile-declared
   `benchmark_tasks` paths, while explicit `--tasks` and the legacy `_meta/agent-readiness-tasks.yml`
   path remain supported.

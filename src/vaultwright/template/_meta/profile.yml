@@ -58,10 +58,12 @@ note_types:
 statuses:
   draft:
     purpose: Agent- or human-drafted material not yet promoted.
+    attention: true
   active:
     purpose: Current reviewed working knowledge.
   in-review:
     purpose: Awaiting human review.
+    attention: true
   sent:
     purpose: Sent externally.
   signed:
@@ -72,8 +74,10 @@ statuses:
     purpose: Awarded or approved.
   superseded:
     purpose: Replaced by newer material.
+    inactive: true
   archived:
     purpose: Retained but no longer active.
+    inactive: true
 
 required_properties:
   - title
