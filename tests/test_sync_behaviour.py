@@ -5810,6 +5810,33 @@ def test_office_sync_rejects_symlinked_source_files(tmp_path: Path) -> None:
     assert not (vault / "_mirrors" / "40_delivery" / "linked.md").exists()
 
 
+def test_office_sync_unsafe_profile_mirror_root_reports_profile_path(tmp_path: Path) -> None:
+    sync = load_office_sync_module()
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    (vault / "_meta" / "mirror-config.yml").unlink()
+    profile_path = vault / "_meta" / "profile.yml"
+    profile = yaml.safe_load(profile_path.read_text(encoding="utf-8"))
+    profile["policy_defaults"]["mirror_root"] = "_generated"
+    profile_path.write_text(yaml.safe_dump(profile, sort_keys=False), encoding="utf-8")
+    outside_generated = tmp_path / "outside-generated"
+    outside_generated.mkdir()
+    (vault / "_generated").symlink_to(outside_generated, target_is_directory=True)
+    source = vault / "40_delivery" / "unsafe.docx"
+    source.write_bytes(b"synthetic source bytes")
+    config = sync.load_mirror_config(vault)
+    manifest = sync.empty_manifest()
+
+    plan = sync.plan_one(source, vault, config, {}, manifest, "markitdown", "test")
+
+    assert plan["action"] == "error"
+    assert plan["record"]["lifecycle_state"] == "error"
+    assert plan["record"]["mirror_root"] == "_generated"
+    assert plan["record"]["mirror_path"] == "_generated/40_delivery/unsafe.md"
+    assert any("Mirror path is unsafe" in error for error in plan["record"]["errors"])
+    assert not (vault / "_mirrors" / "40_delivery" / "unsafe.md").exists()
+
+
 def test_office_sync_plan_is_non_mutating(tmp_path: Path) -> None:
     sync = load_office_sync_module()
     vault = tmp_path / "vault"

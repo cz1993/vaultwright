@@ -622,8 +622,9 @@ excludes the active Office mirror root, and profile
 migration now plans the target profile's Office mirror root instead of a fixed `_mirrors/`
 directory. Recovery missing-manifest warnings now also exclude the active Office mirror root from
 source-evidence checks. Office sync now derives source domains and canonical mirror paths from
-active profile domain folders while keeping `_meta/domain-map.yml` as the legacy alias layer, and
-migration runbooks/worksheets now print the active profile identity plus canonical domain folders
+active profile domain folders, keeps unsafe mirror-output plan records rooted in the active
+profile/configured mirror root, and keeps `_meta/domain-map.yml` as the legacy alias layer.
+Migration runbooks/worksheets now print the active profile identity plus canonical domain folders
 before routing unknown folder/domain decisions back to `_meta/profile.yml`. Profile validation
 now rejects unsafe or ambiguous domain folders, undeclared nested
 domain/note-type/status/folder-plan fields, undeclared policy-default fields,

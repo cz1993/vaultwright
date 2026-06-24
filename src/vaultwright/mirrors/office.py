@@ -1132,6 +1132,19 @@ def mirror_path_for(src: Path, root: Path, mirror_config: dict[str, Path | str],
     return collision_safe_path(preferred)
 
 
+def mirror_record_path(
+    src: Path,
+    root: Path,
+    mirror_config: dict[str, Path | str],
+    routing: dict[str, dict[str, str]] | None = None,
+) -> Path:
+    if mirror_config["mode"] == "sibling":
+        return src.with_suffix(".md")
+    mirror_root = mirror_config["root"]
+    assert isinstance(mirror_root, Path)
+    return root / mirror_root / canonical_source_rel(src, root, routing).with_suffix(".md")
+
+
 def plan_one(
     src: Path,
     root: Path,
@@ -1164,7 +1177,7 @@ def plan_one(
         mirror, collision = mirror_path_for(src, root, mirror_config, routing)
         assert_output_safe(root, mirror)
     except ValueError as exc:
-        mirror = root / "_mirrors" / src.relative_to(root).with_suffix(".md")
+        mirror = mirror_record_path(src, root, mirror_config, routing)
         collision = False
         errors.append(f"Mirror path is unsafe: {exc}")
 

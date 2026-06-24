@@ -337,6 +337,10 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 - CI and release smoke checks now exercise `overlap --json` and `overlap --worksheet` through the
   packaged CLI.
 
+### Fixed
+- Office mirror planning now reports unsafe mirror-output errors against the active
+  profile/configured mirror root instead of falling back to a legacy `_mirrors/` record path.
+
 ### Known TODO before stable release hardening
 - Decide CLA vs DCO; secure the "Vaultwright" name; draft the commercial agreement.
 - Calibrate the default near-duplicate/overlap thresholds with design-partner corpora.

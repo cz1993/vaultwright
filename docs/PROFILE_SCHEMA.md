@@ -210,6 +210,9 @@ folders, while
 lint, catalog, Microsoft 365 handoff, sandbox preflight, doctor, migration guidance, and
 review-ledger classification read `policy_defaults.mirror_mode` and `policy_defaults.mirror_root`
 as generated-output defaults while honoring `_meta/mirror-config.yml` as an operator override.
+Office mirror planning also keeps unsafe mirror-output diagnostics rooted in that active
+profile/configured mirror root, so error records do not drift back to the legacy `_mirrors/`
+layout.
 `vaultwright doctor` validates `_meta/profile.yml` first; when that profile contract is present and
 valid, missing `_meta/domain-map.yml` and `_meta/mirror-config.yml` are reported as legacy
 alias/override posture instead of required-file failures. `vaultwright lint` uses the same
