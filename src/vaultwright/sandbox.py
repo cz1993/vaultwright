@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from vaultwright import recovery as recovery_module
+from vaultwright.profiles import ProfileValidationError, load_profile
 from vaultwright.runtime_profile import (
     configured_office_mirror_root,
     is_repo_notes_path,
@@ -24,18 +25,21 @@ except ImportError:  # pragma: no cover - installed environments should have PyY
     yaml = None
 
 DEFAULT_ROOT = Path.cwd()
+PROFILE_REL = Path("_meta/profile.yml")
 SOURCE_MANIFEST = Path("_meta/source-manifest.json")
 REPO_MANIFEST = Path("_meta/repo-manifest.json")
 AUDIT_LOG = Path("_meta/sync-audit.jsonl")
 BENCHMARK_TASKS = Path("_meta/agent-readiness-tasks.yml")
 BENCHMARK_RESULTS = Path("_meta/agent-readiness-results.yml")
-REQUIRED_FILES = (
+COMMON_REQUIRED_FILES = (
     "CLAUDE.md",
     "INDEX.md",
     "RETENTION.md",
+    "_meta/lint-config.yml",
+)
+LEGACY_REQUIRED_FILES = (
     "_meta/domain-map.yml",
     "_meta/mirror-config.yml",
-    "_meta/lint-config.yml",
 )
 REQUIRED_TOOLS = (
     "sync_office_md.py",
@@ -297,21 +301,38 @@ def benchmark_presence(root: Path) -> dict[str, bool]:
     }
 
 
-def required_file_report(root: Path) -> tuple[dict[str, Any], list[str]]:
-    missing_files = [rel for rel in REQUIRED_FILES if not (root / rel).exists()]
-    missing_tools = [f"tools/{rel}" for rel in REQUIRED_TOOLS if not (root / "tools" / rel).exists()]
+def required_file_report(root: Path) -> tuple[dict[str, Any], list[str], list[str]]:
+    missing_files = [rel for rel in COMMON_REQUIRED_FILES if not (root / rel).exists()]
+    warnings: list[str] = []
     errors = [f"missing required vault file: {rel}" for rel in missing_files]
+    profile_path = root / PROFILE_REL
+    if profile_path.exists():
+        try:
+            load_profile(profile_path)
+        except ProfileValidationError as exc:
+            errors.append(f"invalid profile contract: {PROFILE_REL.as_posix()} ({exc})")
+        else:
+            if not (root / "_meta/domain-map.yml").exists():
+                warnings.append("_meta/domain-map.yml: missing; legacy aliases unavailable")
+    else:
+        warnings.append(
+            f"profile contract: {PROFILE_REL.as_posix()} missing; using legacy domain-map/mirror-config checks."
+        )
+        legacy_missing = [rel for rel in LEGACY_REQUIRED_FILES if not (root / rel).exists()]
+        missing_files.extend(legacy_missing)
+        errors.extend(f"missing required vault file: {rel}" for rel in legacy_missing)
+    missing_tools = [f"tools/{rel}" for rel in REQUIRED_TOOLS if not (root / "tools" / rel).exists()]
     errors.extend(f"missing required tool: {rel}" for rel in missing_tools)
     return {
         "missing_files": missing_files,
         "missing_tools": missing_tools,
-    }, errors
+    }, warnings, errors
 
 
 def build_report(root: Path, source_root: Path | None = None) -> tuple[dict[str, Any], list[str], list[str]]:
     warnings: list[str] = []
     errors: list[str] = []
-    required, required_errors = required_file_report(root)
+    required, required_warnings, required_errors = required_file_report(root)
     boundary, boundary_warnings, boundary_errors = source_boundary(root, source_root)
     source_records, source_warnings, source_errors = load_json_records(root, SOURCE_MANIFEST)
     repo_records, repo_warnings, repo_errors = load_json_records(root, REPO_MANIFEST)
@@ -327,6 +348,7 @@ def build_report(root: Path, source_root: Path | None = None) -> tuple[dict[str,
     if recovery.get("items", 0):
         warnings.append("recovery has operator-action items; run `vaultwright recovery` before relying on mirrors.")
     warnings.extend([
+        *required_warnings,
         *boundary_warnings,
         *source_warnings,
         *repo_warnings,

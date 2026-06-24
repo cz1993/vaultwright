@@ -340,6 +340,8 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 ### Fixed
 - Office mirror planning now reports unsafe mirror-output errors against the active
   profile/configured mirror root instead of falling back to a legacy `_mirrors/` record path.
+- `vaultwright sandbox` no longer treats `_meta/domain-map.yml` and `_meta/mirror-config.yml` as
+  required files when a valid profile contract can provide canonical domains and mirror defaults.
 
 ### Known TODO before stable release hardening
 - Decide CLA vs DCO; secure the "Vaultwright" name; draft the commercial agreement.

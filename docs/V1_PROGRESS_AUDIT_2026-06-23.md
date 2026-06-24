@@ -609,12 +609,14 @@ catalog/m365/sandbox/doctor/review/migration reporting classifies generated sour
 active Office mirror root, doctor now reports profile-declared generated view state instead of
 assuming every profile owns `Documents.base`, doctor now treats `_meta/domain-map.yml` plus
 `_meta/mirror-config.yml` as legacy alias/override posture when a valid profile contract is present,
-and lint now treats a missing `_meta/domain-map.yml` as a non-blocking legacy-alias warning when
-the active profile provides canonical domains and loads `_meta/profile.yml` through the package
-profile validator before applying profile-derived lint settings. Shared runtime profile helpers
-now expose profile-derived sync/report defaults only from a validated profile contract, GitHub repo
-sync uses those shared helpers instead of a duplicate parser, and catalog/migration domain routing
-now validates the whole profile contract before using profile-declared canonical folders.
+`vaultwright sandbox` now follows the same profile-first required-file posture for those legacy
+files, and lint now treats a missing `_meta/domain-map.yml` as a non-blocking legacy-alias warning
+when the active profile provides canonical domains and loads `_meta/profile.yml` through the
+package profile validator before applying profile-derived lint settings. Shared runtime profile
+helpers now expose profile-derived sync/report defaults only from a validated profile contract,
+GitHub repo sync uses those shared helpers instead of a duplicate parser, and catalog/migration
+domain routing now validates the whole profile contract before using profile-declared canonical
+folders.
 Benchmark/pilot task discovery now validates the whole profile contract before using
 profile-declared `benchmark_tasks`, and benchmark task/result validation plus task scaffolding also
 use the active Office mirror root for generated mirror evidence. Pilot workspace inventory now

@@ -215,10 +215,13 @@ profile/configured mirror root, so error records do not drift back to the legacy
 layout.
 `vaultwright doctor` validates `_meta/profile.yml` first; when that profile contract is present and
 valid, missing `_meta/domain-map.yml` and `_meta/mirror-config.yml` are reported as legacy
-alias/override posture instead of required-file failures. `vaultwright lint` uses the same
-profile-first domain posture: missing `_meta/domain-map.yml` is a non-blocking warning when the
-active profile provides canonical domain folders, while malformed or contradictory domain-map
-content remains blocking and profile-less legacy vaults keep the older required-file check.
+alias/override posture instead of required-file failures. `vaultwright sandbox` uses the same
+profile-first required-file posture: a valid profile makes those legacy alias/config files
+optional, while profile-less legacy vaults keep the older required-file check. `vaultwright lint`
+uses the same profile-first domain posture: missing `_meta/domain-map.yml` is a non-blocking
+warning when the active profile provides canonical domain folders, while malformed or
+contradictory domain-map content remains blocking and profile-less legacy vaults keep the older
+required-file check.
 Review-ledger classification also reads profile-defined `machine_owned` note type roles when
 deciding whether a Markdown artifact is generated and reviewable.
 Source/repo mirror sync and annotation migration read `policy_defaults.mirror_status` and

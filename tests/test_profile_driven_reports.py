@@ -468,6 +468,79 @@ def test_package_cli_sandbox_separates_profile_machine_owned_markdown(tmp_path: 
     assert "Generated research synthesis body" not in json_result.stdout
 
 
+def test_package_cli_sandbox_uses_profile_defaults_without_legacy_alias_files(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    source_root = tmp_path / "source-root"
+    source_root.mkdir()
+    shutil.copytree(ROOT / "template", vault)
+    (vault / "_meta" / "domain-map.yml").unlink()
+    (vault / "_meta" / "mirror-config.yml").unlink()
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "vaultwright.cli",
+            "--root",
+            str(vault),
+            "sandbox",
+            "--source-root",
+            str(source_root),
+            "--json",
+        ],
+        cwd=ROOT,
+        env=package_cli_env(),
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+    payload = json.loads(result.stdout)
+    assert payload["errors"] == []
+    assert "_meta/domain-map.yml" not in payload["report"]["required"]["missing_files"]
+    assert "_meta/mirror-config.yml" not in payload["report"]["required"]["missing_files"]
+    assert "_meta/domain-map.yml: missing; legacy aliases unavailable" in payload["warnings"]
+
+
+def test_package_cli_sandbox_requires_legacy_alias_files_without_profile(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    source_root = tmp_path / "source-root"
+    source_root.mkdir()
+    shutil.copytree(ROOT / "template", vault)
+    (vault / "_meta" / "profile.yml").unlink()
+    (vault / "_meta" / "domain-map.yml").unlink()
+    (vault / "_meta" / "mirror-config.yml").unlink()
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "vaultwright.cli",
+            "--root",
+            str(vault),
+            "sandbox",
+            "--source-root",
+            str(source_root),
+            "--json",
+        ],
+        cwd=ROOT,
+        env=package_cli_env(),
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 1
+    payload = json.loads(result.stdout)
+    assert (
+        "profile contract: _meta/profile.yml missing; using legacy domain-map/mirror-config checks."
+        in payload["warnings"]
+    )
+    assert "_meta/domain-map.yml" in payload["report"]["required"]["missing_files"]
+    assert "_meta/mirror-config.yml" in payload["report"]["required"]["missing_files"]
+    assert "missing required vault file: _meta/domain-map.yml" in payload["errors"]
+    assert "missing required vault file: _meta/mirror-config.yml" in payload["errors"]
+
+
 def test_package_cli_catalog_does_not_delegate_to_vault_local_script(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     shutil.copytree(ROOT / "template", vault)

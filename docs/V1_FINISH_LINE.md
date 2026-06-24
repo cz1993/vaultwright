@@ -49,8 +49,10 @@ benchmark/pilot task discovery validates the active profile before using profile
 `benchmark_tasks`. Office source-mirror and GitHub repo-mirror frontmatter ordering now read the
 active profile's context fields instead of privileging business-only context keys for every
 profile, Office mirror planning reports unsafe output paths against the active profile/configured
-mirror root instead of a legacy `_mirrors/` fallback, and runtime helpers no longer infer business
-context aliases from the profile ID when `policy_defaults.context_aliases` is absent.
+mirror root instead of a legacy `_mirrors/` fallback, sandbox preflight now treats legacy
+domain-map/mirror-config files as optional when a valid profile contract is present, and runtime
+helpers no longer infer business context aliases from the profile ID when
+`policy_defaults.context_aliases` is absent.
 
 ## Conditional V1 Explorer Finish Line
 
