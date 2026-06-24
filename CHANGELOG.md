@@ -108,6 +108,8 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 - `vaultwright lint` now loads `_meta/profile.yml` through the package profile validator before
   deriving allowed domains, note types, statuses, policy defaults, and content roots, so invalid
   profile contracts block lint before unsafe profile data can drive checks.
+- `vaultwright lint` now reuses the shared runtime profile context helpers directly for context
+  fields and aliases, preserving profile-less legacy fallback without local duplicate defaults.
 - Shared runtime profile helpers now load `_meta/profile.yml` through the package profile
   validator before exposing domains, status roles, mirror defaults, repo context fields, or repo
   mirror folders to sync/report code; invalid contracts fall back to legacy defaults instead of

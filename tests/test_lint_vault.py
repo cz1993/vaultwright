@@ -311,6 +311,39 @@ def test_template_linter_blocks_missing_profile_contract(tmp_path: Path) -> None
     assert "_meta/profile.yml  [missing]" in result.stdout
 
 
+def test_template_linter_uses_profileless_legacy_context_aliases(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    (vault / "_meta" / "profile.yml").unlink()
+    note = vault / "30_customers" / "client-only.md"
+    note.write_text(
+        "---\n"
+        "title: Client Only\n"
+        "type: note\n"
+        "status: active\n"
+        "domain: customers\n"
+        "client: \"[[Acme]]\"\n"
+        "created: 2026-01-01\n"
+        "updated: 2026-01-01\n"
+        "---\n"
+        "# Client Only\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "lint_vault.py")],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 1
+    assert "Profile errors: 1" in result.stdout
+    assert "_meta/profile.yml  [missing]" in result.stdout
+    assert "Context alias mismatch: 1" in result.stdout
+    assert "client requires account" in result.stdout
+
+
 def test_template_linter_warns_missing_domain_map_when_profile_valid(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     shutil.copytree(ROOT / "template", vault)

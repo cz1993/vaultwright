@@ -20,8 +20,8 @@ except ImportError:
 from vaultwright.profiles import ProfileValidationError, load_profile
 from vaultwright.runtime_profile import (
     profile_content_roots,
-    profile_context_aliases as runtime_profile_context_aliases,
-    profile_context_keys as runtime_profile_context_keys,
+    profile_context_aliases,
+    profile_context_keys,
     profile_generated_mirror_statuses,
     profile_mirror_mode,
     profile_mirror_root,
@@ -71,8 +71,8 @@ REPO_MANAGED_KEYS = {
     "last_commit_date", "open_issues", "synced", "updated",
 }
 DEFAULT_ANNOTATION_FRONTMATTER_KEYS = {"title", "domain", "owner", "created", "updated"}
-PROFILE_CONTEXT_KEYS = {"account", "client", "program", "vendor"}
-PROFILE_CONTEXT_ALIASES = {"client": "account"}
+PROFILE_CONTEXT_KEYS = profile_context_keys(ROOT)
+PROFILE_CONTEXT_ALIASES = profile_context_aliases(ROOT)
 INACTIVE_STATUSES = list(DEFAULT_INACTIVE_STATUSES)
 GENERATED_MIRROR_STATUSES = {"active", "draft"}
 STOPWORDS = {
@@ -567,8 +567,8 @@ def main(root: Path | None = None) -> int:
         for domain, folder in dict(PROFILE_SETTINGS["domain_folders"]).items()
     }
     PROFILE_POLICY_DEFAULTS = dict(PROFILE_SETTINGS["policy_defaults"])
-    PROFILE_CONTEXT_KEYS = set(runtime_profile_context_keys(ROOT))
-    PROFILE_CONTEXT_ALIASES = dict(runtime_profile_context_aliases(ROOT))
+    PROFILE_CONTEXT_KEYS = profile_context_keys(ROOT)
+    PROFILE_CONTEXT_ALIASES = profile_context_aliases(ROOT)
     GENERATED_MIRROR_STATUSES = profile_generated_mirror_statuses(ROOT)
     DOMAIN_FOLDERS, DOMAIN_FOLDER_ALIASES, domain_map_warnings, domain_map_errors = domain_folders(
         PROFILE_DOMAIN_FOLDERS
