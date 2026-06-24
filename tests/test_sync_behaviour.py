@@ -345,6 +345,24 @@ def test_vaultwright_cli_root_uses_target_vault_tools(tmp_path: Path) -> None:
     assert not (vault / "80_sources" / "repos" / "fixture.md").exists()
 
 
+def test_vaultwright_cli_wrapper_defaults_to_own_vault_root(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    elsewhere = tmp_path / "elsewhere"
+    shutil.copytree(ROOT / "template", vault)
+    elsewhere.mkdir()
+
+    result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "vaultwright.py"), "doctor"],
+        cwd=elsewhere,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+    assert f"vaultwright doctor: {vault.resolve()}" in result.stdout
+    assert "vaultwright doctor: OK" in result.stdout
+
+
 def test_packaged_plan_sync_status_do_not_require_vault_wrapper(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     shutil.copytree(ROOT / "template", vault)

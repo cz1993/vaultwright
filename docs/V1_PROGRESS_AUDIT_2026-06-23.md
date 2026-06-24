@@ -39,6 +39,19 @@ This audit maps the current implementation to `docs/VAULTWRIGHT_WHITEPAPER_2026-
   - focused wheel install smoke ran copied catalog, conversion, migration, overlap, benchmark,
     pilot, m365, recovery, sandbox, and review-ledger scripts against an installed wheel: OK.
   - no `build/`, `dist/`, `.egg-info`, or `__pycache__` residue remains in the repo.
+- Local validation after operator-wrapper shim convergence:
+  - focused packaged-template and wrapper root-default tests: OK.
+  - `pytest -p no:cacheprovider -q`: 283 passed.
+  - `python3.11 -m py_compile` over template tools, package modules, and release scripts with
+    bytecode redirected outside the repo: OK.
+  - `scripts/no_data_scan.py`: OK.
+  - `scripts/sync_template_copies.py --check`: clean.
+  - `bash -n scripts/init.sh template/tools/sync_all.sh .githooks/pre-commit`: OK.
+  - fresh wheel install smoke ran copied `tools/vaultwright.py doctor` from another working
+    directory and copied `tools/vaultwright.py --root ... plan` against an initialized vault: OK.
+  - copied `tools/vaultwright.py` delegates to the package CLI while preserving its own vault as
+    default `--root` when invoked from another working directory.
+  - no `build/`, `dist/`, `.egg-info`, or `__pycache__` residue remains in the repo.
 
 ## Whitepaper Progress
 
@@ -49,7 +62,7 @@ Stage 1 remains the active lane. Current status:
 
 | Requirement | Status |
 | --- | --- |
-| V1-C1 package-owned runtime | In progress. Package CLI exists; `plan`, `sync`, `status`, `doctor`, `catalog`, `lint`, `conversion`, `m365`, `migration`, `overlap`, `benchmark`, `pilot`, `sandbox`, `recovery`, and `review` are package-owned; Office mirror planning/sync/status lives in `vaultwright.mirrors.office`; GitHub repo mirror planning/sync/status lives in `vaultwright.mirrors.github_repos`; copied sync, lint, catalog, conversion, m365, migration, overlap, benchmark, pilot, sandbox, recovery, and review-ledger scripts are compatibility shims; the operator wrapper remains compatibility glue. |
+| V1-C1 package-owned runtime | In progress. Package CLI exists; `plan`, `sync`, `status`, `doctor`, `catalog`, `lint`, `conversion`, `m365`, `migration`, `overlap`, `benchmark`, `pilot`, `sandbox`, `recovery`, and `review` are package-owned; Office mirror planning/sync/status lives in `vaultwright.mirrors.office`; GitHub repo mirror planning/sync/status lives in `vaultwright.mirrors.github_repos`; copied sync, lint, catalog, conversion, m365, migration, overlap, benchmark, pilot, sandbox, recovery, review-ledger, and operator-wrapper scripts are compatibility shims. |
 | V1-C2 versioned profile contract | In progress. Schema validation, schema documentation, read-only profile commands, conservative write-mode profile migration, profile-generated `Documents.base` check/write support, profile-driven migration domain routing, profile-owned repo mirror defaults, and profile/config-aware repo mirror report surfaces exist; remaining profile-driven behavior is not done. |
 | V1-C4 safe migration path | In progress. Reports, frontmatter-domain normalization, read-only plans, and conservative write-mode profile migration exist; migration reports now use profile-defined canonical domains with domain-map aliases; broader workspace/profile migration coverage will be needed as profile-driven behavior expands. |
 | V1-C5 machine-owned mirrors | Stage 1 closed by this batch. Fresh mirrors are machine-owned, sync blocks unmigrated mirror annotations, sidecar-aware sync rewrites migrated mirrors as machine-owned, and lint blocks unmigrated annotations. |

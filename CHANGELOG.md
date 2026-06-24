@@ -39,6 +39,8 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 - Vault-local catalog, conversion, migration, overlap, benchmark, and pilot tools now also delegate
   to the package runtime, leaving copied vault scripts as compatibility shims for package-owned
   behavior.
+- The vault-local `tools/vaultwright.py` operator wrapper now delegates to the package CLI while
+  preserving the copied vault root as the default `--root`.
 - Added package-owned `migrate annotations --plan` and `migrate annotations --write` commands that
   move above-sentinel mirror notes and preserved frontmatter into `_meta/mirror-annotations/`
   sidecars keyed by `source_id` or `repo_id`, without editing original sources or generated mirrors.

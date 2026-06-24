@@ -17,6 +17,7 @@ PACKAGE_OWNED_TOOL_MODULES = {
     "recovery_report.py": ("vaultwright.recovery", True),
     "review_ledger.py": ("vaultwright.review_ledger", True),
     "sandbox_report.py": ("vaultwright.sandbox", True),
+    "vaultwright.py": ("vaultwright.cli", False),
 }
 
 
