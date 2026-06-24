@@ -215,6 +215,69 @@ def test_package_cli_catalog_separates_profile_machine_owned_markdown(tmp_path: 
     assert report["summary"]["machine_owned_markdown"] == 1
 
 
+def test_package_cli_m365_separates_profile_machine_owned_markdown(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    add_research_repo_profile(vault)
+    profile_path = vault / "_meta" / "profile.yml"
+    profile = yaml.safe_load(profile_path.read_text(encoding="utf-8"))
+    profile["note_types"]["research-synthesis"] = {
+        "purpose": "Generated research synthesis artifact.",
+        "machine_owned": True,
+    }
+    profile_path.write_text(yaml.safe_dump(profile, sort_keys=False), encoding="utf-8")
+
+    baseline = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "m365", "--json"],
+        cwd=ROOT,
+        env=package_cli_env(),
+        text=True,
+        capture_output=True,
+    )
+    assert baseline.returncode == 0, baseline.stderr or baseline.stdout
+    baseline_inventory = json.loads(baseline.stdout)["report"]["inventory"]
+
+    target = vault / "25_research" / "generated-synthesis.md"
+    target.parent.mkdir()
+    target.write_text(
+        "---\n"
+        "title: Generated Synthesis\n"
+        "type: research-synthesis\n"
+        "status: active\n"
+        "domain: research\n"
+        "created: 2026-06-24\n"
+        "updated: 2026-06-24\n"
+        "---\n"
+        "Generated research synthesis body that must not appear in handoff output.\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "m365"],
+        cwd=ROOT,
+        env=package_cli_env(),
+        text=True,
+        capture_output=True,
+    )
+    json_result = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "m365", "--json"],
+        cwd=ROOT,
+        env=package_cli_env(),
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+    assert "machine-owned markdown files: 1" in result.stdout
+    assert "Generated research synthesis body" not in result.stdout
+
+    assert json_result.returncode == 0, json_result.stderr or json_result.stdout
+    inventory = json.loads(json_result.stdout)["report"]["inventory"]
+    assert inventory["markdown_files"] == baseline_inventory["markdown_files"]
+    assert inventory["machine_owned_markdown"] == baseline_inventory["machine_owned_markdown"] + 1
+    assert "Generated research synthesis body" not in json_result.stdout
+
+
 def test_package_cli_catalog_does_not_delegate_to_vault_local_script(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     shutil.copytree(ROOT / "template", vault)

@@ -18,7 +18,8 @@ For a reviewed pilot or enterprise handoff, use:
 
 - `CATALOG.html` for browser-based inventory review.
 - `CATALOG.md` for agent-readable inventory review.
-- `_mirrors/` for generated markdown mirrors of Office/PDF-like source records.
+- the active Office mirror root (`_mirrors/` in the packaged business-operations profile) for
+  generated markdown mirrors of Office/PDF-like source records.
 - the active profile's `repo_notes_dir` (`80_sources/repos/` in the packaged business-operations
   profile) for generated repository mirrors, if configured.
 - `_meta/source-manifest.json`, `_meta/repo-manifest.json`, and `_meta/sync-audit.jsonl` for
@@ -126,6 +127,8 @@ Before handoff:
 `vaultwright catalog`, `vaultwright catalog --html`, `vaultwright recovery`, and `vaultwright m365`
 compare `_meta/repo-manifest.json` with `tools/repos.yml`; retained repo mirrors whose config entry
 was removed are reported as `repo_unconfigured` even before another repo sync updates the manifest.
+The `vaultwright m365` inventory separates profile-declared machine-owned Markdown, including repo
+mirrors, from curated Markdown so generated artifacts are not mistaken for human-authored notes.
 
 ## Agent Prompt-Safety Boundary
 

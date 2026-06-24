@@ -59,6 +59,8 @@ All notable changes to Vaultwright are documented here. Format loosely follows
   without relying only on hard-coded mirror type names.
 - `vaultwright catalog` now separates profile-defined machine-owned Markdown artifacts from curated
   Markdown/domain counts, while surfacing them as their own inventory metric.
+- `vaultwright m365` now separates profile-defined machine-owned Markdown artifacts, including
+  repo mirrors, from curated Markdown counts in handoff inventory.
 - Profiles now own generated mirror status defaults with `policy_defaults.mirror_status` and
   `policy_defaults.repo_stub_status`; Office/repo sync, lint, and annotation migration use those
   values instead of hard-coded `active`/`draft` checks for generated mirror metadata.

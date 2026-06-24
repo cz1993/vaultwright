@@ -10,7 +10,12 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
-from vaultwright.runtime_profile import configured_office_mirror_root, is_repo_notes_path, repo_notes_dirs
+from vaultwright.runtime_profile import (
+    configured_office_mirror_root,
+    is_repo_notes_path,
+    profile_machine_owned_note_types,
+    repo_notes_dirs,
+)
 
 try:
     import yaml
@@ -169,12 +174,25 @@ def count_record_lists(records: list[dict[str, Any]], key: str) -> int:
     return total
 
 
-def managed_mirror(path: Path, marker: str) -> bool:
+def markdown_note_type(path: Path) -> str:
+    if yaml is None:
+        return ""
     try:
-        head = path.read_text(encoding="utf-8", errors="ignore")[:800]
+        text = path.read_text(encoding="utf-8", errors="ignore")
     except OSError:
-        return False
-    return marker in head
+        return ""
+    if not text.startswith("---"):
+        return ""
+    end = text.find("\n---", 3)
+    if end == -1:
+        return ""
+    try:
+        data = yaml.safe_load(text[3:end].lstrip("\n")) or {}
+    except yaml.YAMLError:
+        return ""
+    if not isinstance(data, dict):
+        return ""
+    return str(data.get("type", "") or "")
 
 
 def catalog_state(root: Path, rel: Path) -> dict[str, Any]:
@@ -193,18 +211,21 @@ def workspace_inventory(root: Path) -> dict[str, Any]:
     source_mirrors = 0
     repo_mirrors = 0
     markdown_files = 0
+    machine_owned_markdown = 0
     html_files = 0
     extensions: Counter[str] = Counter()
     mirror_root = configured_office_mirror_root(root)
+    machine_owned_note_types = profile_machine_owned_note_types(root)
     for path in root.rglob("*"):
         if not path.is_file() or path.is_symlink():
             continue
         rel = path.relative_to(root)
         suffix = path.suffix.lower() or "[no extension]"
+        note_type = markdown_note_type(path) if suffix == ".md" else ""
         office_mirror = bool(mirror_root.parts) and rel.parts[: len(mirror_root.parts)] == mirror_root.parts
-        if office_mirror and suffix == ".md" and managed_mirror(path, "type: source-mirror"):
+        if office_mirror and note_type == "source-mirror":
             source_mirrors += 1
-        if is_repo_notes_path(root, rel) and suffix == ".md" and managed_mirror(path, "type: repo-mirror"):
+        if is_repo_notes_path(root, rel) and note_type == "repo-mirror":
             repo_mirrors += 1
         if office_mirror or any(part in EXCLUDED_PARTS for part in rel.parts):
             continue
@@ -212,7 +233,10 @@ def workspace_inventory(root: Path) -> dict[str, Any]:
         if suffix in SOURCE_EXTS:
             source_candidates += 1
         if suffix in MARKDOWN_EXTS:
-            markdown_files += 1
+            if note_type in machine_owned_note_types:
+                machine_owned_markdown += 1
+            else:
+                markdown_files += 1
         if suffix in HTML_EXTS:
             html_files += 1
     return {
@@ -220,6 +244,7 @@ def workspace_inventory(root: Path) -> dict[str, Any]:
         "source_mirrors": source_mirrors,
         "repo_mirrors": repo_mirrors,
         "markdown_files": markdown_files,
+        "machine_owned_markdown": machine_owned_markdown,
         "html_files": html_files,
         "extensions": dict(sorted(extensions.items())),
     }
@@ -362,6 +387,7 @@ def print_report(report: dict[str, Any], warnings: list[str], errors: list[str],
     print(f"  - source candidates: {inventory['source_candidates']}")
     print(f"  - generated source mirrors: {inventory['source_mirrors']}")
     print(f"  - repo mirrors: {inventory['repo_mirrors']}")
+    print(f"  - machine-owned markdown files: {inventory['machine_owned_markdown']}")
     print(f"  - curated markdown/html files: {inventory['markdown_files']}/{inventory['html_files']}")
     print("")
     source_manifest = report["source_manifest"]

@@ -63,9 +63,9 @@ vaultwright --root <vault> profile views --write
 : Mapping of allowed note type IDs to definitions. Note type IDs must be lowercase kebab-case
   identifiers. Note type definitions may only contain optional `purpose` and `machine_owned`.
   A note type definition may include `machine_owned: true` when notes of that type are regenerated
-  artifacts rather than curated human notes; catalog inventory reports them separately from
-  curated Markdown, and overlap calibration and migration frontmatter cleanup exclude those note
-  types. When present, `purpose` must be a non-empty string.
+  artifacts rather than curated human notes; catalog and Microsoft 365 handoff inventory report
+  them separately from curated Markdown, and overlap calibration and migration frontmatter cleanup
+  exclude those note types. When present, `purpose` must be a non-empty string.
 
 `statuses`
 : Mapping of allowed workflow status IDs to definitions. Status IDs must be lowercase kebab-case
@@ -172,12 +172,12 @@ vaultwright --root <vault> profile views --write
 - optional `policy_defaults.real_data_in_repo`, when present, must be `false`.
 
 `vaultwright lint`, `vaultwright catalog`, and `vaultwright overlap` read `_meta/profile.yml` for
-domain folders. Catalog also reads profile-defined machine-owned note types so generated Markdown
-artifacts are reported separately from curated Markdown/domain note counts. Overlap calibration
-also reads `related` plus the active profile's context frontmatter fields when counting inbound
-wikilinks for candidate ranking, and it excludes notes in profile-defined inactive statuses and
-machine-owned note types. Lint also reads allowed note types, statuses, required properties, and
-inactive status roles.
+domain folders. Catalog and Microsoft 365 handoff inventory also read profile-defined machine-owned
+note types so generated Markdown artifacts are reported separately from curated Markdown/domain
+note counts. Overlap calibration also reads `related` plus the active profile's context frontmatter
+fields when counting inbound wikilinks for candidate ranking, and it excludes notes in
+profile-defined inactive statuses and machine-owned note types. Lint also reads allowed note types,
+statuses, required properties, and inactive status roles.
 The review ledger accepts profile-defined machine-owned Markdown note types as generated artifacts
 eligible for metadata-only review decisions; it records hashes and frontmatter metadata, not
 artifact bodies.

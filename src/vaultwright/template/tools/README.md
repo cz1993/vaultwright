@@ -113,6 +113,8 @@ not contain notes, source text, mirror text, prompts, answers, or excerpts. See
 `m365` is read-only. It checks whether the local mirror/catalog layer has the basic artifacts needed
 for a Microsoft 365, SharePoint, OneDrive, Copilot Studio, or connector handoff review. It does not
 query Microsoft 365, verify tenant permissions, inspect sensitivity labels, or print source content.
+The inventory separates profile-declared machine-owned Markdown, including repo mirrors, from
+curated Markdown so generated artifacts are not mistaken for human-authored notes.
 It also compares repo manifests with `tools/repos.yml` so unconfigured retained repo mirrors block
 handoff readiness until the operator restores config or deliberately retires the mirror.
 See `docs/MICROSOFT_365_HANDOFF.md` in the source repository for the current guidance and
