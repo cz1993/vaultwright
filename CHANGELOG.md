@@ -141,6 +141,9 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 - GitHub repo-mirror frontmatter ordering now uses the active profile's context fields before
   managed repo metadata, and runtime helpers no longer infer business context aliases from a
   profile ID when `policy_defaults.context_aliases` is absent.
+- GitHub repo mirror sync now reuses the shared runtime profile context helpers directly for
+  repo-context fields and aliases, preserving profile-less legacy fallback without local duplicate
+  defaults.
 - Annotation migration now also reads `policy_defaults.context_aliases` when comparing generated
   repo-mirror frontmatter with `tools/repos.yml`, so profile-defined aliases are not mistaken for
   human mirror annotations.

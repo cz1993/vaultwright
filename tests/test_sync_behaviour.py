@@ -7543,6 +7543,23 @@ def test_repo_frontmatter_prefers_account_and_supports_legacy_client() -> None:
     assert normalized["client"] == "[[Acme]]"
 
 
+def test_repo_frontmatter_uses_profileless_legacy_context_aliases(tmp_path: Path, monkeypatch) -> None:
+    sync = load_sync_module()
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    monkeypatch.setattr(sync, "ROOT", vault)
+
+    entry = {"repo": "local/repo", "note": "repo.md", "client": "[[Legacy Client]]"}
+    fm = sync.base_fm({}, entry, "local/repo")
+
+    assert fm["account"] == "[[Legacy Client]]"
+    assert fm["client"] == "[[Legacy Client]]"
+    assert not sync.frontmatter_has_annotation(
+        {"account": "[[Legacy Client]]", "client": "[[Legacy Client]]"},
+        entry,
+    )
+
+
 def test_repo_frontmatter_does_not_infer_context_aliases_for_other_profiles(tmp_path: Path, monkeypatch) -> None:
     sync = load_sync_module()
     vault = tmp_path / "vault"

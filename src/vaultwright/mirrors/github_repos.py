@@ -37,9 +37,9 @@ except ImportError:
     sys.exit("Missing dependency: pip install pyyaml")
 
 from vaultwright.runtime_profile import (
-    profile_context_aliases as runtime_profile_context_aliases,
+    profile_context_aliases,
     profile_content_roots as runtime_profile_content_roots,
-    profile_context_keys as runtime_profile_context_keys,
+    profile_context_keys,
     profile_domain_folders as runtime_profile_domain_folders,
     profile_frontmatter_key_order,
     profile_generated_mirror_statuses,
@@ -62,8 +62,6 @@ ANNOTATION_MIGRATION_REQUIRED_WARNING = (
     "run `vaultwright migrate annotations --write` before syncing."
 )
 DEFAULT_ANNOTATION_FRONTMATTER_KEYS = {"title", "domain", "owner", "created", "updated"}
-LEGACY_PROFILE_CONTEXT_KEYS = {"account", "client", "program", "vendor"}
-LEGACY_PROFILE_CONTEXT_ALIASES = {"client": "account"}
 LIFECYCLE_CONTRACT_REL = Path("_meta/lifecycle-states.yml")
 MANAGED = {"type", "repo_id", "repo_manifest", "repo", "repo_url", "default_branch", "last_commit",
            "last_commit_date", "open_issues", "synced", "updated"}
@@ -293,20 +291,6 @@ def active_content_roots(root: Path | None = None) -> set[str]:
     return set(runtime_profile_content_roots(root or ROOT))
 
 
-def active_profile_context_keys(root: Path | None = None) -> set[str]:
-    try:
-        return set(runtime_profile_context_keys(root or ROOT))
-    except Exception:
-        return set(LEGACY_PROFILE_CONTEXT_KEYS)
-
-
-def active_profile_context_aliases(root: Path | None = None) -> dict[str, str]:
-    try:
-        return dict(runtime_profile_context_aliases(root or ROOT))
-    except Exception:
-        return dict(LEGACY_PROFILE_CONTEXT_ALIASES)
-
-
 def normalize_context_alias_values(values: dict[str, str], aliases: dict[str, str]) -> dict[str, str]:
     out = dict(values)
     for alias, target in aliases.items():
@@ -324,8 +308,8 @@ def repo_context_values(
     context_keys: set[str] | None = None,
     context_aliases: dict[str, str] | None = None,
 ) -> dict[str, str]:
-    keys = set(context_keys) if context_keys is not None else active_profile_context_keys()
-    aliases = dict(context_aliases) if context_aliases is not None else active_profile_context_aliases()
+    keys = set(context_keys) if context_keys is not None else profile_context_keys(ROOT)
+    aliases = dict(context_aliases) if context_aliases is not None else profile_context_aliases(ROOT)
     values: dict[str, str] = {}
     for key in sorted(keys):
         value = entry.get(key)
@@ -636,7 +620,7 @@ def frontmatter_has_annotation(existing_fm: dict | None, entry: dict) -> bool:
             if not clean_related or clean_related <= expected_related:
                 continue
             return True
-        context_keys = active_profile_context_keys()
+        context_keys = profile_context_keys(ROOT)
         if key in context_keys and value in (None, "", []):
             continue
         if key in context_keys and seed.get(key) == str(value or "").strip():
@@ -885,8 +869,8 @@ def base_fm(existing, entry, slug, domain="sources"):
         fm["tags"] = entry.get("tags", ["repo"])
     if not fm.get("related"):
         fm["related"] = entry.get("related", [])
-    context_keys = active_profile_context_keys()
-    context_aliases = active_profile_context_aliases()
+    context_keys = profile_context_keys(ROOT)
+    context_aliases = profile_context_aliases(ROOT)
     for key, value in repo_context_values(entry, context_keys, context_aliases).items():
         if not fm.get(key):
             fm[key] = value

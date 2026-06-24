@@ -43,8 +43,9 @@ domain-map content and profile-less legacy vaults still fail. Lint now loads `_m
 through the package profile validator before deriving domains, note types, statuses, policy
 defaults, and content roots. Shared runtime profile helpers now expose profile-derived sync/report
 settings and active content roots only from a validated profile contract, and GitHub repo sync
-reuses those helpers instead of maintaining a separate profile parser. Lint, catalog, overlap
-calibration, and repo mirror output validation now share the same profile-owned content-root
+reuses those helpers instead of maintaining a separate profile parser or local repo-context
+fallback defaults. Lint, catalog, overlap calibration, and repo mirror output validation now share
+the same profile-owned content-root
 fallback. Catalog and migration reporting also load profile domain
 routing through the package validator before treating profile-declared folders as canonical, and
 Office/GitHub generated mirror frontmatter ordering now shares runtime profile-derived context
