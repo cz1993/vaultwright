@@ -14,9 +14,12 @@ from pathlib import Path
 
 from vaultwright import recovery as recovery_module
 from vaultwright import review_ledger as review_ledger_module
+from vaultwright.profiles import ProfileValidationError, load_profile
 from vaultwright.runtime_profile import configured_office_mirror_root
+from vaultwright.views import profile_views_plan
 
 LIFECYCLE_CONTRACT = Path("_meta/lifecycle-states.yml")
+PROFILE_REL = Path("_meta/profile.yml")
 LIFECYCLE_REQUIRED_FIELDS = {
     "entry_condition",
     "explanation",
@@ -206,14 +209,49 @@ def backup_preflight(root: Path) -> tuple[list[str], list[str]]:
     return info, warnings
 
 
+def profile_view_preflight(root: Path) -> tuple[list[str], list[str]]:
+    info: list[str] = []
+    warnings: list[str] = []
+    profile_path = root / PROFILE_REL
+    if not profile_path.exists():
+        bases = root / "Documents.base"
+        if bases.exists():
+            info.append("legacy Obsidian Bases index: Documents.base present")
+        else:
+            warnings.append("legacy Obsidian Bases index: Documents.base missing; CLI correctness is unaffected.")
+        return info, warnings
+
+    try:
+        profile = load_profile(profile_path)
+    except ProfileValidationError as exc:
+        warnings.append(f"profile views: unavailable until {PROFILE_REL.as_posix()} is valid ({exc})")
+        return info, warnings
+
+    plan = profile_views_plan(root, profile)
+    for view in plan["views"]:
+        path = str(view.get("path", ""))
+        state = str(view.get("state", "unknown"))
+        if state == "current":
+            info.append(f"profile view: {path} current")
+        elif state in {"missing", "stale"}:
+            warnings.append(f"profile view: {path} {state}; run `vaultwright profile views --write`.")
+        else:
+            warnings.append(f"profile view: {path} {state}")
+    for blocker in plan["blockers"]:
+        path = str(blocker.get("path", ""))
+        detail = str(blocker.get("detail", blocker.get("code", "profile view blocker")))
+        warnings.append(f"profile view: {path} blocked ({detail})")
+    if not plan["views"] and not plan["blockers"]:
+        info.append("profile views: none declared")
+    return info, warnings
+
+
 def obsidian_preflight(root: Path) -> tuple[list[str], list[str]]:
     info: list[str] = []
     warnings: list[str] = []
-    bases = root / "Documents.base"
-    if bases.exists():
-        info.append("Obsidian Bases index: Documents.base present")
-    else:
-        warnings.append("Obsidian Bases index: Documents.base missing; CLI correctness is unaffected.")
+    view_info, view_warnings = profile_view_preflight(root)
+    info.extend(view_info)
+    warnings.extend(view_warnings)
 
     obsidian = root / ".obsidian"
     if not obsidian.exists():

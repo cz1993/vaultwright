@@ -77,7 +77,7 @@ def test_vaultwright_cli_doctor_passes_on_template() -> None:
     assert "info: lifecycle contract: office=13 states, repo=11 states" in result.stdout
     assert "info: recovery: no action items" in result.stdout
     assert "info: review ledger: no reviewed artifacts yet" in result.stdout
-    assert "info: Obsidian Bases index: Documents.base present" in result.stdout
+    assert "info: profile view: Documents.base current" in result.stdout
     assert "info: Obsidian: .obsidian not present" in result.stdout
     assert "backup guard: .gitignore covers high-risk local data patterns" in result.stdout
     assert "GitHub auth:" in result.stdout
@@ -231,7 +231,7 @@ def test_vaultwright_cli_doctor_reports_obsidian_and_backup_posture(tmp_path: Pa
     )
 
     assert result.returncode == 0, result.stderr or result.stdout
-    assert "info: Obsidian Bases index: Documents.base present" in result.stdout
+    assert "info: profile view: Documents.base current" in result.stdout
     assert "info: Obsidian: .obsidian present" in result.stdout
     assert "info: Obsidian core plugins: 2 enabled" in result.stdout
     assert "warning: Obsidian app.json: invalid JSON (JSONDecodeError)" in result.stdout
@@ -239,6 +239,44 @@ def test_vaultwright_cli_doctor_reports_obsidian_and_backup_posture(tmp_path: Pa
     assert "warning: Obsidian installed plugin directories: 1 found; review local plugin code before pilots." in result.stdout
     assert "info: backup guard: .gitignore covers high-risk local data patterns" in result.stdout
     assert "warning: Vault root is not inside a git work tree; back up curated notes before production sync." in result.stdout
+
+
+def test_vaultwright_cli_doctor_reports_missing_profile_declared_view(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    (vault / "Documents.base").unlink()
+
+    result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "vaultwright.py"), "doctor"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+    assert "warning: profile view: Documents.base missing; run `vaultwright profile views --write`." in result.stdout
+    assert "Obsidian Bases index: Documents.base missing" not in result.stdout
+
+
+def test_vaultwright_cli_doctor_does_not_assume_documents_base_when_profile_omits_views(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    profile_path = vault / "_meta" / "profile.yml"
+    profile = yaml.safe_load(profile_path.read_text(encoding="utf-8"))
+    profile["views"] = []
+    profile_path.write_text(yaml.safe_dump(profile, sort_keys=False), encoding="utf-8")
+    (vault / "Documents.base").unlink()
+
+    result = subprocess.run(
+        [sys.executable, str(vault / "tools" / "vaultwright.py"), "doctor"],
+        cwd=vault,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+    assert "info: profile views: none declared" in result.stdout
+    assert "Documents.base missing" not in result.stdout
 
 
 def test_vaultwright_cli_doctor_does_not_trust_commented_gitignore_patterns(tmp_path: Path) -> None:

@@ -224,6 +224,10 @@ the profile's canonical domain folders.
 a supported generated view is missing or stale, or when the profile requests a view path this
 installed Vaultwright version cannot safely generate.
 
+`vaultwright doctor` uses the same generated-view plan for preflight reporting. It reports
+profile-declared view files as current, missing, or stale; older vaults without `_meta/profile.yml`
+fall back to the legacy `Documents.base` presence check.
+
 `vaultwright profile views --write` regenerates supported profile-owned view files. In the current
 release, the supported generated view is `Documents.base`. Its tables are derived from the active
 profile's required properties, optional properties, note types, and statuses:

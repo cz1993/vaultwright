@@ -86,6 +86,8 @@ All notable changes to Vaultwright are documented here. Format loosely follows
   `policy_defaults.mirror_root`, keeping generated Office mirrors separate from profile artifacts.
 - Generated `Documents.base` review-attention filters now use only profile-declared
   `attention: true` status roles instead of inferring business-oriented status names.
+- `vaultwright doctor` now reports profile-declared generated view health through the profile view
+  planner, warning on missing or stale views without assuming every profile owns `Documents.base`.
 - `vaultwright benchmark` and the aggregate `vaultwright pilot` report now read profile-declared
   `benchmark_tasks` paths, while explicit `--tasks` and the legacy `_meta/agent-readiness-tasks.yml`
   path remain supported.
