@@ -107,9 +107,11 @@ vaultwright --root <vault> profile views --write
   folder when `tools/repos.yml` does not declare `settings.notes_dir`, `mirror_mode` and
   `mirror_root` for Office mirror placement when `_meta/mirror-config.yml` does not override them,
   `mirror_status` for refreshed machine-owned source/repo mirrors, and `repo_stub_status` for
-  repository mirrors that have not been successfully fetched yet. `repo_notes_dir`, when present,
-  must be a safe vault-relative folder inside a declared profile domain and must not overlap the
-  profile's Office mirror root.
+  repository mirrors that have not been successfully fetched yet. The current profile also declares
+  `original_sources_authoritative: true` and `real_data_in_repo: false`, which preserve the
+  Vaultwright policy that source systems remain authoritative and real/private data stays outside
+  the repository. `repo_notes_dir`, when present, must be a safe vault-relative folder inside a
+  declared profile domain and must not overlap the profile's Office mirror root.
 
 ## Validation Rules
 
@@ -142,6 +144,10 @@ vaultwright --root <vault> profile views --write
   profile domain and does not overlap `policy_defaults.mirror_root`.
 - optional `policy_defaults.mirror_status` and `policy_defaults.repo_stub_status` values reference
   declared statuses.
+- optional `policy_defaults.original_sources_authoritative` and
+  `policy_defaults.real_data_in_repo` values are booleans.
+- optional `policy_defaults.original_sources_authoritative`, when present, must be `true`.
+- optional `policy_defaults.real_data_in_repo`, when present, must be `false`.
 
 `vaultwright lint`, `vaultwright catalog`, and `vaultwright overlap` read `_meta/profile.yml` for
 domain folders. Overlap calibration also reads `related` plus the active profile's context

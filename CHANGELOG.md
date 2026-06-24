@@ -72,6 +72,9 @@ All notable changes to Vaultwright are documented here. Format loosely follows
   profile's domain/folder mapping.
 - Profile validation now requires `policy_defaults.repo_notes_dir`, when present, to be a safe
   vault-relative folder inside a declared profile domain and separate from the Office mirror root.
+- Profile validation now enforces boolean source-authority/no-real-data policy defaults, requiring
+  `original_sources_authoritative: true` and `real_data_in_repo: false` when those defaults are
+  declared.
 - GitHub repo mirror sync, lint, and annotation migration now derive repo-context frontmatter keys
   from the active profile's optional properties, preserving the business profile's
   `account`/`client` compatibility while allowing non-business profiles to use their own context

@@ -46,6 +46,9 @@ FORBIDDEN_PROFILE_PATH_PARTS = {".git", ".githooks", ".github", "node_modules"}
 NOTE_TYPE_BOOLEAN_FIELDS = {"machine_owned"}
 STATUS_BOOLEAN_FIELDS = {"attention", "inactive"}
 POLICY_STATUS_DEFAULT_FIELDS = {"mirror_status", "repo_stub_status"}
+POLICY_BOOLEAN_DEFAULT_FIELDS = {"original_sources_authoritative", "real_data_in_repo"}
+POLICY_REQUIRED_TRUE_DEFAULT_FIELDS = {"original_sources_authoritative"}
+POLICY_REQUIRED_FALSE_DEFAULT_FIELDS = {"real_data_in_repo"}
 MIRROR_MODES = {"dedicated", "sibling"}
 FORBIDDEN_MIRROR_ROOT_PARTS = {
     ".git",
@@ -335,6 +338,17 @@ def validate_profile_mapping(data: Any) -> None:
         validate_string(value, f"policy_defaults.{field}")
         if str(value).strip() not in data["statuses"]:
             raise ProfileValidationError(f"policy_defaults.{field} must reference a declared status")
+
+    for field in POLICY_BOOLEAN_DEFAULT_FIELDS:
+        if field not in data["policy_defaults"]:
+            continue
+        value = data["policy_defaults"][field]
+        if not isinstance(value, bool):
+            raise ProfileValidationError(f"policy_defaults.{field} must be true or false")
+        if field in POLICY_REQUIRED_TRUE_DEFAULT_FIELDS and value is not True:
+            raise ProfileValidationError(f"policy_defaults.{field} must be true")
+        if field in POLICY_REQUIRED_FALSE_DEFAULT_FIELDS and value is not False:
+            raise ProfileValidationError(f"policy_defaults.{field} must be false")
 
     if "mirror_mode" in data["policy_defaults"]:
         mirror_mode = data["policy_defaults"]["mirror_mode"]

@@ -51,6 +51,8 @@ def test_template_business_operations_profile_validates() -> None:
     assert profile.policy_defaults["mirror_root"] == "_mirrors"
     assert profile.policy_defaults["mirror_status"] == "active"
     assert profile.policy_defaults["repo_stub_status"] == "draft"
+    assert profile.policy_defaults["original_sources_authoritative"] is True
+    assert profile.policy_defaults["real_data_in_repo"] is False
     assert "Documents.base" in profile.views
 
 
@@ -183,6 +185,50 @@ def test_profile_contract_requires_policy_default_statuses_to_be_declared() -> N
     data["policy_defaults"] = {"mirror_status": "current"}
 
     with pytest.raises(ProfileValidationError, match=r"policy_defaults\.mirror_status must reference a declared status"):
+        validate_profile_mapping(data)
+
+
+def test_profile_contract_rejects_non_boolean_source_policy_defaults() -> None:
+    data = minimal_profile()
+    data["policy_defaults"] = {"original_sources_authoritative": "yes"}
+
+    with pytest.raises(
+        ProfileValidationError,
+        match=r"policy_defaults\.original_sources_authoritative must be true or false",
+    ):
+        validate_profile_mapping(data)
+
+
+def test_profile_contract_requires_original_sources_authoritative() -> None:
+    data = minimal_profile()
+    data["policy_defaults"] = {"original_sources_authoritative": False}
+
+    with pytest.raises(
+        ProfileValidationError,
+        match=r"policy_defaults\.original_sources_authoritative must be true",
+    ):
+        validate_profile_mapping(data)
+
+
+def test_profile_contract_rejects_non_boolean_real_data_policy_default() -> None:
+    data = minimal_profile()
+    data["policy_defaults"] = {"real_data_in_repo": "no"}
+
+    with pytest.raises(
+        ProfileValidationError,
+        match=r"policy_defaults\.real_data_in_repo must be true or false",
+    ):
+        validate_profile_mapping(data)
+
+
+def test_profile_contract_requires_real_data_out_of_repo() -> None:
+    data = minimal_profile()
+    data["policy_defaults"] = {"real_data_in_repo": True}
+
+    with pytest.raises(
+        ProfileValidationError,
+        match=r"policy_defaults\.real_data_in_repo must be false",
+    ):
         validate_profile_mapping(data)
 
 
