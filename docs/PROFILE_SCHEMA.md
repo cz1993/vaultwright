@@ -141,9 +141,10 @@ vaultwright --root <vault> profile views --write
 - list fields are YAML lists;
 - required and optional frontmatter property entries are lowercase frontmatter keys, do not
   contain duplicates, and do not overlap each other;
-- template, view, and skill entries are safe vault-relative artifact paths and do not contain
-  duplicates;
+- template, view, and skill entries are safe vault-relative artifact paths, do not contain
+  duplicates, and do not overlap `policy_defaults.mirror_root`;
 - benchmark task entries are safe vault-relative `.yml` or `.yaml` paths;
+- benchmark task entries do not overlap `policy_defaults.mirror_root`;
 - domain, note-type, and status identifiers are lowercase kebab-case;
 - domain, note-type, and status definitions only use schema-declared fields;
 - optional domain, note-type, and status `purpose` values are non-empty strings;

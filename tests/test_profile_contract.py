@@ -508,6 +508,27 @@ def test_profile_contract_rejects_duplicate_skill_paths() -> None:
         validate_profile_mapping(data)
 
 
+@pytest.mark.parametrize(
+    ("field", "path"),
+    [
+        ("templates", "_generated/templates/base-note.md"),
+        ("views", "_generated/Documents.base"),
+        ("skills", "_generated/skills/review.md"),
+        ("benchmark_tasks", "_generated/benchmarks/tasks.yml"),
+    ],
+)
+def test_profile_contract_rejects_artifacts_under_profile_mirror_root(field: str, path: str) -> None:
+    data = minimal_profile()
+    data["policy_defaults"]["mirror_root"] = "_generated"
+    data[field] = [path]
+
+    with pytest.raises(
+        ProfileValidationError,
+        match=rf"{field} entry must not overlap policy_defaults\.mirror_root",
+    ):
+        validate_profile_mapping(data)
+
+
 def test_profile_migration_directory_plan_uses_folder_plan_paths() -> None:
     data = minimal_profile()
     data["domains"]["archive"] = {"folder": "90_archive"}

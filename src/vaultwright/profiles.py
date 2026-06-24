@@ -248,6 +248,18 @@ def validate_profile_artifact_list(values: list[Any], field: str) -> None:
         seen_paths.add(path_text)
 
 
+def validate_paths_do_not_overlap_mirror_root(data: dict[str, Any], mirror_root: PurePosixPath | None) -> None:
+    if mirror_root is None:
+        return
+    for field in ("templates", "views", "skills", "benchmark_tasks"):
+        for value in data[field]:
+            path = validate_profile_path(value, f"{field} entry")
+            if path_is_under(path, mirror_root):
+                raise ProfileValidationError(
+                    f"{field} entry must not overlap policy_defaults.mirror_root"
+                )
+
+
 def path_is_under(path: PurePosixPath, directory: PurePosixPath) -> bool:
     return path == directory or (
         len(path.parts) > len(directory.parts)
@@ -452,6 +464,7 @@ def validate_profile_mapping(data: Any) -> None:
             mirror_root,
         )
 
+    validate_paths_do_not_overlap_mirror_root(data, mirror_root)
     validate_folder_plan(data["folder_plan"], domain_folders)
 
 

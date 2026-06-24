@@ -82,6 +82,8 @@ All notable changes to Vaultwright are documented here. Format loosely follows
   custom generated roots are not counted as operator content or source candidates.
 - `vaultwright recovery` now excludes the active Office mirror root from missing-manifest source
   evidence checks, so custom generated roots do not trigger false unsynced-source warnings.
+- Profile validation now rejects templates, views, skills, and benchmark task packs declared inside
+  `policy_defaults.mirror_root`, keeping generated Office mirrors separate from profile artifacts.
 - `vaultwright benchmark` and the aggregate `vaultwright pilot` report now read profile-declared
   `benchmark_tasks` paths, while explicit `--tasks` and the legacy `_meta/agent-readiness-tasks.yml`
   path remain supported.
