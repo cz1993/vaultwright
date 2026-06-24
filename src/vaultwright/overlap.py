@@ -20,6 +20,7 @@ from vaultwright.runtime_profile import (
     profile_domain_folders,
     profile_frontmatter_link_keys,
     profile_inactive_statuses,
+    profile_machine_owned_note_types,
 )
 
 
@@ -38,7 +39,6 @@ CONTENT_ROOTS = {
 }
 EXCLUDE_PREFIX = ("_archive", "_backup", "_deprecated")
 EXCLUDE_EXACT = {"_fixtures", "_meta", "_templates", "_tmp", "tools", "node_modules"}
-GENERATED_TYPES = {"source-mirror", "repo-mirror"}
 WORD_RE = re.compile(r"[a-z0-9][a-z0-9-]{2,}")
 LINK_RE = re.compile(r"\[\[([^\]]+?)\]\]")
 DEFAULT_MIN_SHARED_TERMS = 18
@@ -214,6 +214,7 @@ def collect_notes(root: Path) -> tuple[list[dict[str, Any]], dict[Path, int]]:
     content_roots = active_content_roots(root)
     frontmatter_link_keys = profile_frontmatter_link_keys(root)
     inactive_statuses = profile_inactive_statuses(root)
+    machine_owned_note_types = profile_machine_owned_note_types(root)
     by_name: dict[str, list[Path]] = {}
     by_stem: dict[str, list[Path]] = {}
     for path in files:
@@ -248,7 +249,7 @@ def collect_notes(root: Path) -> tuple[list[dict[str, Any]], dict[Path, int]]:
             continue
         note_type = str(fm.get("type", "") or "")
         status = str(fm.get("status", "") or "")
-        if note_type in GENERATED_TYPES or status in inactive_statuses:
+        if note_type in machine_owned_note_types or status in inactive_statuses:
             continue
         title_words = normalized_words(str(fm.get("title", "") or ""))
         body_words = normalized_words(body)

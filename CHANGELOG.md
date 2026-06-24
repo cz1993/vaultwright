@@ -40,6 +40,9 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 - Profile status definitions can now declare `attention: true` and `inactive: true`; generated
   Bases use the attention role for review views, and lint/overlap use inactive statuses instead of
   hard-coded business status names when skipping retired notes.
+- Profile note type definitions can now declare `machine_owned: true`; validation enforces boolean
+  values, overlap excludes machine-owned artifacts, and migration frontmatter cleanup ignores them
+  without relying only on hard-coded mirror type names.
 - `vaultwright benchmark` and the aggregate `vaultwright pilot` report now read profile-declared
   `benchmark_tasks` paths, while explicit `--tasks` and the legacy `_meta/agent-readiness-tasks.yml`
   path remain supported.

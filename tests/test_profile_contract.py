@@ -40,6 +40,8 @@ def test_template_business_operations_profile_validates() -> None:
     assert profile.id == "business-operations"
     assert profile.domains["customers"]["folder"] == "30_customers"
     assert "source-mirror" in profile.note_types
+    assert profile.note_types["source-mirror"]["machine_owned"] is True
+    assert profile.note_types["repo-mirror"]["machine_owned"] is True
     assert "active" in profile.statuses
     assert profile.statuses["draft"]["attention"] is True
     assert profile.statuses["in-review"]["attention"] is True
@@ -120,6 +122,14 @@ def test_profile_contract_rejects_non_boolean_status_roles() -> None:
     data["statuses"] = {"queued": {"purpose": "pending", "attention": "yes"}}
 
     with pytest.raises(ProfileValidationError, match=r"statuses\.queued\.attention must be true or false"):
+        validate_profile_mapping(data)
+
+
+def test_profile_contract_rejects_non_boolean_note_type_roles() -> None:
+    data = minimal_profile()
+    data["note_types"] = {"machine-note": {"purpose": "generated note", "machine_owned": "yes"}}
+
+    with pytest.raises(ProfileValidationError, match=r"note_types\.machine-note\.machine_owned must be true or false"):
         validate_profile_mapping(data)
 
 

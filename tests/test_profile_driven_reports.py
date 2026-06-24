@@ -540,6 +540,109 @@ def test_package_cli_overlap_uses_profile_inactive_status_flags(tmp_path: Path) 
     assert "Research calibration synthesis" not in result.stdout
 
 
+def test_package_cli_overlap_uses_profile_machine_owned_note_type_flags(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    add_research_repo_profile(vault)
+    profile_path = vault / "_meta" / "profile.yml"
+    profile = yaml.safe_load(profile_path.read_text(encoding="utf-8"))
+    profile["note_types"]["research-mirror"] = {
+        "purpose": "Profile-defined generated research mirror.",
+        "machine_owned": True,
+    }
+    profile_path.write_text(yaml.safe_dump(profile, sort_keys=False), encoding="utf-8")
+
+    research = vault / "25_research"
+    research.mkdir()
+    body = (
+        "Research calibration synthesis source-backed citation provenance lifecycle review "
+        "question concept experiment literature method evidence archive context retrieval "
+        "profile workspace governance refresh agent handoff."
+    )
+    for filename, note_type in (
+        ("curated-alpha.md", "note"),
+        ("curated-beta.md", "note"),
+        ("machine-mirror.md", "research-mirror"),
+    ):
+        (research / filename).write_text(
+            "---\n"
+            f"title: {filename.removesuffix('.md').replace('-', ' ').title()}\n"
+            f"type: {note_type}\n"
+            "status: active\n"
+            "domain: research\n"
+            "created: 2026-06-24\n"
+            "updated: 2026-06-24\n"
+            "---\n"
+            f"# {filename}\n\n{body}\n",
+            encoding="utf-8",
+        )
+
+    result = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "overlap", "--json", "--max-pairs", "3"],
+        cwd=ROOT,
+        env=package_cli_env(),
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+    payload = json.loads(result.stdout)
+    assert payload["report"]["summary"]["curated_notes"] == 2
+    candidate_paths = {
+        payload["report"]["current_candidates"][0]["left_path"],
+        payload["report"]["current_candidates"][0]["right_path"],
+    }
+    assert candidate_paths == {"25_research/curated-alpha.md", "25_research/curated-beta.md"}
+    assert "machine-mirror.md" not in result.stdout
+    assert "Research calibration synthesis" not in result.stdout
+
+
+def test_package_cli_migration_skips_profile_machine_owned_frontmatter_domains(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    add_research_repo_profile(vault)
+    profile_path = vault / "_meta" / "profile.yml"
+    profile = yaml.safe_load(profile_path.read_text(encoding="utf-8"))
+    profile["note_types"]["research-mirror"] = {
+        "purpose": "Profile-defined generated research mirror.",
+        "machine_owned": True,
+    }
+    profile_path.write_text(yaml.safe_dump(profile, sort_keys=False), encoding="utf-8")
+
+    research = vault / "25_research"
+    research.mkdir()
+    for filename, note_type in (
+        ("human-note.md", "note"),
+        ("machine-mirror.md", "research-mirror"),
+    ):
+        (research / filename).write_text(
+            "---\n"
+            f"title: {filename.removesuffix('.md').replace('-', ' ').title()}\n"
+            f"type: {note_type}\n"
+            "status: active\n"
+            "domain: marketing\n"
+            "created: 2026-06-24\n"
+            "updated: 2026-06-24\n"
+            "---\n"
+            f"# {filename}\n",
+            encoding="utf-8",
+        )
+
+    result = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "migration", "--json"],
+        cwd=ROOT,
+        env=package_cli_env(),
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+    payload = json.loads(result.stdout)
+    assert payload["frontmatter_summary"] == {"alias": 1, "total": 1, "unknown": 0}
+    assert [item["path"] for item in payload["frontmatter_items"]] == ["25_research/human-note.md"]
+    assert "machine-mirror.md" not in result.stdout
+
+
 def test_package_cli_benchmark_reads_profile_task_pack(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     shutil.copytree(ROOT / "template", vault)

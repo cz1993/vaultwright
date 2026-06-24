@@ -14,13 +14,14 @@ try:
 except ImportError:
     sys.exit("Missing dependency: pip install pyyaml")
 
+from vaultwright.runtime_profile import profile_machine_owned_note_types
+
 
 DEFAULT_ROOT = Path.cwd()
 PROFILE_REL = Path("_meta/profile.yml")
 DOMAIN_MAP_REL = Path("_meta/domain-map.yml")
 SOURCE_EXTS = {".docx", ".pptx", ".xlsx", ".doc", ".pdf"}
 STRUCTURAL_MD = {"AGENTS.md", "CLAUDE.md", "INDEX.md", "RETENTION.md", "CATALOG.md", "log.md"}
-GENERATED_NOTE_TYPES = {"source-mirror", "repo-mirror"}
 GENERATED_SENTINEL = "%% AUTO-GENERATED BELOW"
 RESERVED_TOP_LEVEL = {
     ".git",
@@ -185,6 +186,7 @@ def write_text_atomic(path: Path, content: str) -> None:
 
 def frontmatter_domain_items(root: Path, aliases: dict[str, dict[str, str]], canonical_domains: set[str]) -> list[dict]:
     items: list[dict] = []
+    machine_owned_note_types = profile_machine_owned_note_types(root)
     for path in sorted(root.rglob("*.md"), key=lambda p: p.relative_to(root).as_posix()):
         if not path.is_file() or path.is_symlink():
             continue
@@ -193,6 +195,8 @@ def frontmatter_domain_items(root: Path, aliases: dict[str, dict[str, str]], can
             continue
         fm, _body = split_frontmatter(path.read_text(encoding="utf-8", errors="ignore"))
         if not isinstance(fm, dict):
+            continue
+        if str(fm.get("type", "") or "") in machine_owned_note_types:
             continue
         raw_domain = fm.get("domain")
         if raw_domain in (None, ""):
@@ -519,6 +523,7 @@ def normalize_frontmatter_domain_aliases(
 ) -> tuple[list[dict], list[str]]:
     results: list[dict] = []
     errors: list[str] = []
+    machine_owned_note_types = profile_machine_owned_note_types(root)
     for item in frontmatter_items:
         if item.get("kind") != "frontmatter_domain_alias":
             continue
@@ -536,7 +541,7 @@ def normalize_frontmatter_domain_aliases(
         if not isinstance(fm, dict) or not fm:
             results.append({"status": "skipped", **item, "reason": "missing or invalid frontmatter"})
             continue
-        if str(fm.get("type", "")) in GENERATED_NOTE_TYPES or GENERATED_SENTINEL in body:
+        if str(fm.get("type", "") or "") in machine_owned_note_types or GENERATED_SENTINEL in body:
             results.append({"status": "skipped", **item, "reason": "generated mirror"})
             continue
         current_domain = str(fm.get("domain", ""))

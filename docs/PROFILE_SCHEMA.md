@@ -56,7 +56,9 @@ vaultwright --root <vault> profile views --write
 : Mapping of domain IDs to domain definitions. Each domain must define `folder`.
 
 `note_types`
-: Mapping of allowed note type IDs to definitions.
+: Mapping of allowed note type IDs to definitions. A note type definition may include
+  `machine_owned: true` when notes of that type are regenerated artifacts rather than curated
+  human notes; overlap calibration and migration frontmatter cleanup exclude those note types.
 
 `statuses`
 : Mapping of allowed workflow status IDs to definitions. A status definition may include
@@ -115,13 +117,14 @@ folder when `tools/repos.yml` does not declare `settings.notes_dir`.
 - every `folder_plan` domain references a declared profile domain;
 - every `folder_plan` path stays inside its declared domain folder;
 - duplicate `folder_plan` paths are rejected.
+- optional `note_types.<type>.machine_owned` values are booleans.
 - optional `statuses.<status>.attention` and `statuses.<status>.inactive` values are booleans.
 
 `vaultwright lint`, `vaultwright catalog`, and `vaultwright overlap` read `_meta/profile.yml` for
 domain folders. Overlap calibration also reads `related` plus the active profile's context
 frontmatter fields when counting inbound wikilinks for candidate ranking, and it excludes notes in
-profile-defined inactive statuses. Lint also reads allowed note types, statuses, required
-properties, and inactive status roles.
+profile-defined inactive statuses and machine-owned note types. Lint also reads allowed note types,
+statuses, required properties, and inactive status roles.
 `vaultwright benchmark` and the aggregate `vaultwright pilot` evidence report read profile-declared
 `benchmark_tasks`, while an explicit `--tasks` argument still takes precedence and the legacy
 `_meta/agent-readiness-tasks.yml` path remains a compatibility fallback. GitHub repo mirror sync
@@ -225,8 +228,9 @@ Allowed statuses are:
 draft, active, in-review, sent, signed, submitted, awarded, superseded, archived
 ```
 
-The packaged business profile marks `draft` and `in-review` as attention states, and marks
-`superseded` and `archived` as inactive states for overlap/lint calibration.
+The packaged business profile marks `source-mirror` and `repo-mirror` as machine-owned note types,
+marks `draft` and `in-review` as attention states, and marks `superseded` and `archived` as
+inactive states for overlap/lint calibration.
 
 These values belong to the `business-operations` profile, not the long-term core. Future
 `research-learning`, `software-project`, and `blank` profiles must define their own domains, note

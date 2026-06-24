@@ -41,6 +41,7 @@ LIST_FIELDS = {
 }
 MAPPING_FIELDS = {"domains", "note_types", "statuses", "policy_defaults"}
 FORBIDDEN_PROFILE_PATH_PARTS = {".git", ".githooks", ".github", "node_modules"}
+NOTE_TYPE_BOOLEAN_FIELDS = {"machine_owned"}
 STATUS_BOOLEAN_FIELDS = {"attention", "inactive"}
 
 
@@ -202,6 +203,14 @@ def validate_profile_mapping(data: Any) -> None:
             definition.get("folder"),
             f"domains.{domain}.folder",
         )
+
+    for note_type, definition in data["note_types"].items():
+        validate_string(note_type, "note_types key")
+        if not isinstance(definition, dict):
+            raise ProfileValidationError(f"note_types.{note_type} must be a mapping")
+        for field in NOTE_TYPE_BOOLEAN_FIELDS:
+            if field in definition and not isinstance(definition[field], bool):
+                raise ProfileValidationError(f"note_types.{note_type}.{field} must be true or false")
 
     for status, definition in data["statuses"].items():
         validate_string(status, "status key")
