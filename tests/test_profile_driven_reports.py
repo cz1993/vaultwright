@@ -236,6 +236,53 @@ def test_package_cli_repo_sync_uses_profile_repo_notes_dir(tmp_path: Path) -> No
     assert manifest["records"][0]["note_path"] == "25_research/repos/research-fixture.md"
 
 
+def test_package_cli_overlap_reads_profile_content_roots(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    shutil.copytree(ROOT / "template", vault)
+    add_research_repo_profile(vault)
+    research = vault / "25_research"
+    research.mkdir()
+    body = (
+        "Research calibration synthesis source-backed citation provenance lifecycle review "
+        "question concept experiment literature method evidence archive context retrieval "
+        "profile workspace governance refresh agent handoff."
+    )
+    for filename, title in (
+        ("question-map.md", "Research Question Map"),
+        ("concept-map.md", "Research Concept Map"),
+    ):
+        (research / filename).write_text(
+            "---\n"
+            f"title: {title}\n"
+            "type: note\n"
+            "status: active\n"
+            "domain: research\n"
+            "created: 2026-06-24\n"
+            "updated: 2026-06-24\n"
+            "---\n"
+            f"# {title}\n\n{body}\n",
+            encoding="utf-8",
+        )
+
+    result = subprocess.run(
+        [sys.executable, "-m", "vaultwright.cli", "--root", str(vault), "overlap", "--json", "--max-pairs", "1"],
+        cwd=ROOT,
+        env=package_cli_env(),
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+    payload = json.loads(result.stdout)
+    assert payload["report"]["summary"]["curated_notes"] >= 2
+    assert payload["report"]["summary"]["current_candidates"] == 1
+    candidate = payload["report"]["current_candidates"][0]
+    assert candidate["left_path"] == "25_research/concept-map.md"
+    assert candidate["right_path"] == "25_research/question-map.md"
+    assert candidate["same_domain"] is True
+    assert "Research calibration synthesis" not in result.stdout
+
+
 def test_package_cli_reports_use_profile_repo_notes_dir(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     source_root = tmp_path / "source-root"

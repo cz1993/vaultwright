@@ -16,6 +16,8 @@ try:
 except ImportError:
     sys.exit("pip install pyyaml")
 
+from vaultwright.runtime_profile import profile_domain_folders
+
 
 DEFAULT_ROOT = Path.cwd()
 LINT_CONFIG_REL = "_meta/lint-config.yml"
@@ -99,6 +101,11 @@ def markdown_files(root: Path) -> list[Path]:
         ),
         key=lambda path: path.relative_to(root).as_posix(),
     )
+
+
+def active_content_roots(root: Path) -> set[str]:
+    folders = set(profile_domain_folders(root).values())
+    return folders or set(CONTENT_ROOTS)
 
 
 def split_fm(text: str) -> tuple[dict[str, Any], str]:
@@ -201,6 +208,7 @@ def target_paths(root: Path, target: str, by_name: dict[str, list[Path]], by_ste
 
 def collect_notes(root: Path) -> tuple[list[dict[str, Any]], dict[Path, int]]:
     files = markdown_files(root)
+    content_roots = active_content_roots(root)
     by_name: dict[str, list[Path]] = {}
     by_stem: dict[str, list[Path]] = {}
     for path in files:
@@ -231,7 +239,7 @@ def collect_notes(root: Path) -> tuple[list[dict[str, Any]], dict[Path, int]]:
 
     notes: list[dict[str, Any]] = []
     for path, rel, fm, body in parsed:
-        if not rel.parts or rel.parts[0] not in CONTENT_ROOTS:
+        if not rel.parts or rel.parts[0] not in content_roots:
             continue
         note_type = str(fm.get("type", "") or "")
         status = str(fm.get("status", "") or "")

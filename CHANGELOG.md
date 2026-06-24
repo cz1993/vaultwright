@@ -31,6 +31,9 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 - Profile validation now enforces safe domain folders plus non-empty `folder_plan` records whose
   paths stay inside declared profile domains, and profile migration creates directories from that
   validated folder plan.
+- `vaultwright overlap` now reads the active profile's domain folders when choosing curated notes
+  for calibration, so profile-defined content roots participate without hard-coded business
+  folders.
 - Added package-owned `profile views --check` and `profile views --write` commands that generate
   the profile-owned `Documents.base` file from `_meta/profile.yml`, with CI smoke coverage for
   source and wheel installs.

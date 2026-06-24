@@ -109,8 +109,9 @@ folder when `tools/repos.yml` does not declare `settings.notes_dir`.
 - every `folder_plan` path stays inside its declared domain folder;
 - duplicate `folder_plan` paths are rejected.
 
-`vaultwright lint` and `vaultwright catalog` read `_meta/profile.yml` for domain folders, allowed
-note types, statuses, and required properties. GitHub repo mirror sync and lint read
+`vaultwright lint`, `vaultwright catalog`, and `vaultwright overlap` read `_meta/profile.yml` for
+domain folders. Lint also reads allowed note types, statuses, and required properties. GitHub repo
+mirror sync and lint read
 `policy_defaults.repo_notes_dir` for the default repository-mirror folder and derive repo-mirror
 frontmatter domains from the profile's domain/folder mapping. Microsoft 365 handoff, sandbox
 preflight, recovery, and review-ledger reporting also resolve repo mirror folders from the active
