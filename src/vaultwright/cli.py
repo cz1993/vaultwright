@@ -30,6 +30,7 @@ from vaultwright.annotation_migration import (
     public_plan,
     write_annotation_sidecars,
 )
+from vaultwright.changes import journal as journal_module
 from vaultwright.mirrors import github_repos as repo_sync_module
 from vaultwright.mirrors import office as office_sync_module
 from vaultwright.profile_migration import profile_migration_plan, write_profile_migration
@@ -541,6 +542,37 @@ def command_status(args: argparse.Namespace) -> int:
     return status
 
 
+def command_journal_status(args: argparse.Namespace) -> int:
+    root = args.root.expanduser().resolve()
+    try:
+        payload = journal_module.journal_status(root, initialize_state=args.init)
+    except journal_module.JournalError as exc:
+        print(f"journal status: {exc}", file=sys.stderr)
+        return 1
+    if args.json:
+        print(json.dumps(payload, indent=2, sort_keys=True))
+        return 0
+    print(f"vaultwright journal status: {payload['state_path']}")
+    print(f"state: {'initialized' if payload['initialized'] else 'not initialized'}")
+    print(f"last event sequence: {payload['last_event_sequence']}")
+    print(f"last observed sequence: {payload['last_observed_sequence']}")
+    print(f"last applied sequence: {payload['last_applied_sequence']}")
+    print(
+        "counts: "
+        f"queued={payload['queued_count']} "
+        f"processing={payload['processing_count']} "
+        f"failed={payload['failed_count']} "
+        f"review-required={payload['review_required_count']}"
+    )
+    print(f"last reconciliation: {payload['last_reconciliation'] or 'never'}")
+    worker = payload["worker"]
+    if worker["locked"]:
+        print(f"worker: locked by {worker['holder']} until {worker['expires_at']}")
+    else:
+        print("worker: unlocked")
+    return 0
+
+
 def command_migrate_annotations(args: argparse.Namespace) -> int:
     root = args.root.expanduser().resolve()
     plan = annotation_migration_plan(root)
@@ -656,6 +688,12 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("plan", help="Inventory sources and proposed mirror actions without writing.").set_defaults(func=command_plan)
     sub.add_parser("sync", help="Run Office and repo mirror syncs.").set_defaults(func=command_sync)
     sub.add_parser("status", help="Report manifest-backed lifecycle status.").set_defaults(func=command_status)
+    journal = sub.add_parser("journal", help="Inspect local journaled materialization state.")
+    journal_sub = journal.add_subparsers(dest="journal_command", required=True)
+    journal_status = journal_sub.add_parser("status", help="Report local journal queue and worker state.")
+    journal_status.add_argument("--init", action="store_true", help="Initialize local journal state if missing.")
+    journal_status.add_argument("--json", action="store_true", help="Print machine-readable journal status.")
+    journal_status.set_defaults(func=command_journal_status)
     sub.add_parser("doctor", help="Check required files, Python version, and dependencies.").set_defaults(func=command_doctor)
     sub.add_parser("lint", help="Run vault health checks.").set_defaults(func=command_lint)
     overlap = sub.add_parser("overlap", help="Print a read-only overlap threshold calibration report.")

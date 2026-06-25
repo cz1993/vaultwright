@@ -17,6 +17,24 @@ does not implement Stage 1B yet: `watch`, `sync --changed`, `sync --full`, `jour
 `journal replay`, and `reconcile` remain V1-C10 targets. Stage 2 and Stage 3 implementation
 evidence remains preserved, but those lanes are paused behind Stage 1B in the execution order.
 
+## 2026-06-25 Stage 1B Journal Foundation
+
+This checkpoint starts Stage 1B with the smallest V1-C10 foundation slice. Package-owned
+`vaultwright.changes.events` and `vaultwright.changes.journal` now define the local journal event
+vocabulary, create `.vaultwright/state.sqlite`, persist event state transitions, and expose
+read-only status payloads. The package CLI exposes `vaultwright journal status` with optional
+`--init` and `--json` flags. The root, template, packaged-template, and example `.gitignore` files
+ignore `.vaultwright/`, and the no-data scanner skips local derived state during ordinary scans
+while blocking force-staged `.vaultwright/` files.
+
+This is intentionally not a watcher, reconciler, replay engine, changed-file sync path, or
+materialization worker. No Stage 2+ profile, Obsidian, index, Explorer, package-part diffing, cloud
+adapter, embedding, model-lifecycle, enrichment, or visualization work is started by this
+checkpoint. Architectural compatibility with journaled incremental materialization is preserved:
+the journal is source-addressable, local derived state is excluded from source control, full sync
+remains the baseline/recovery path, and status output reports queue/sequence/worker state without
+becoming a retrieval index.
+
 ## 2026-06-25 Stage 1A Profile-Assumption Inventory
 
 This checkpoint closes the first Stage 1A evidence gap by inventorying the remaining hard-coded
@@ -628,8 +646,8 @@ non-goals, journaled incremental architecture, ADRs, and finish-line matrix are 
 
 Stage 1 is now split into Stage 1A and Stage 1B. Stage 1A is closed by the inventory and closure
 evidence above: remaining profile assumptions are either universal, profile-owned, compatibility
-fallbacks, or fixtures, and no inventory-confirmed blocking defect is known. Stage 1B is now the
-next active lane and has not started.
+fallbacks, or fixtures, and no inventory-confirmed blocking defect is known. Stage 1B is now active,
+with the local journal/state foundation started while the remaining V1-C10 clauses stay open.
 
 | Requirement | Status |
 | --- | --- |
@@ -638,7 +656,7 @@ next active lane and has not started.
 | V1-C3 official profiles | In progress. `business-operations` remains the only scaffolded template/profile shape, but package-owned contracts for `research-learning`, `software-project`, and `blank` now validate and are exposed through `vaultwright profile list/show`. |
 | V1-C4 safe migration path | Closed for Stage 1A. Reports, frontmatter-domain normalization, read-only plans, and conservative write-mode profile migration exist; migration reports now use profile-defined canonical domains with domain-map aliases, and profile migration creates directories from validated `folder_plan` records plus the target profile's Office mirror root without overwriting sources, mirrors, annotation sidecars, or drifted existing files. Broader workspace/profile migration coverage remains tied to later profile expansion. |
 | V1-C5 machine-owned mirrors | Stage 1 closed by this batch. Fresh mirrors are machine-owned, sync blocks unmigrated mirror annotations, sidecar-aware sync rewrites migrated mirrors as machine-owned, and lint blocks unmigrated annotations. |
-| V1-C10 journaled changed-file materialization | Not started. ADR 0002 and the canonical white paper define the Stage 1B architecture and exit evidence, but no package-owned journal, watch, reconcile, replay, lock, benchmark, or changed-file sync implementation exists yet. |
+| V1-C10 journaled changed-file materialization | Foundation started. Package-owned journal event/state modules, `.vaultwright/state.sqlite` initialization, `vaultwright journal status`, `.vaultwright/` ignore posture, no-data staged blocking, and event persistence tests now exist. Watch/event capture, coalescing, reconcile, replay, worker lease operations, benchmark evidence, and changed-file sync remain open. |
 
 Stage 3 has one preparatory slice: package-owned `profile views --check/--write` generates the
 current profile's `Documents.base` without requiring Obsidian. Governance skills, Canvas outputs,
@@ -661,7 +679,8 @@ exits.
 
 ## Next Recommended Slice
 
-Stage 1A is closed. The next recommended slice is the first Stage 1B V1-C10 batch: add the smallest
-package-owned journal/state foundation that proves local derived state location, schema creation,
-basic status introspection, ignore/no-data posture for `.vaultwright/`, and tests for event state
-persistence without starting watcher delivery or profile/content expansion.
+Stage 1A is closed. The first Stage 1B V1-C10 foundation slice now proves local derived state
+location, schema creation, basic status introspection, ignore/no-data posture for `.vaultwright/`,
+and event state persistence without starting watcher delivery or profile/content expansion. The
+next Stage 1B slice should remain bounded to one of the remaining V1-C10 clauses and should not
+start profile, Obsidian, index, Explorer, adapter, enrichment, or visualization work.

@@ -6,6 +6,9 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 ## [Unreleased]
 
 ### Added
+- Added the first Stage 1B journal foundation: package-owned changed-file event/state modules,
+  local `.vaultwright/state.sqlite` initialization, `vaultwright journal status`, `.vaultwright/`
+  ignore/no-data safeguards, and focused persistence tests without starting watcher delivery.
 - Closed the Stage 1A kernel/profile-convergence gate in the controlling docs, preserving the
   package-runtime/shim boundary and making Stage 1B journaled materialization the next active lane.
 - Documented the Stage 1A profile-assumption inventory across package code, copied-tool shims,
