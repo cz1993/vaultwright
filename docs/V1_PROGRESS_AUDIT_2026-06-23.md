@@ -84,6 +84,20 @@ source materializes without converting unrelated sources, unchanged sources skip
 the existing planning semantics, source bytes remain unchanged during normal materialization, and
 profile-specific Office mirror roots are honored.
 
+## 2026-06-25 Stage 1B File-Stability Foundation
+
+This checkpoint adds deterministic source-settling checks for changed-source candidates without
+adding a native watcher or real-time correctness dependency. `vaultwright.changes.stability` polls
+the existing metadata fingerprint until it remains unchanged for a configurable settle interval or
+until a bounded timeout expires. The helper accepts injectable fingerprint, clock, and sleeper
+functions so tests do not depend on OS notification timing or wall-clock sleeps.
+
+The source-addressable Office materialization primitive can now opt into this settle check before
+planning, hashing, converting, or writing. If the candidate keeps changing until timeout, it returns
+`skipped:unstable-source` without conversion, manifest writes, audit writes, mirror writes, or
+source mutation. This preserves the existing post-conversion source-hash safeguard and adds the
+pre-conversion stability gate needed before worker integration.
+
 ## 2026-06-25 Stage 1A Profile-Assumption Inventory
 
 This checkpoint closes the first Stage 1A evidence gap by inventorying the remaining hard-coded
@@ -705,7 +719,7 @@ with the local journal/state foundation started while the remaining V1-C10 claus
 | V1-C3 official profiles | In progress. `business-operations` remains the only scaffolded template/profile shape, but package-owned contracts for `research-learning`, `software-project`, and `blank` now validate and are exposed through `vaultwright profile list/show`. |
 | V1-C4 safe migration path | Closed for Stage 1A. Reports, frontmatter-domain normalization, read-only plans, and conservative write-mode profile migration exist; migration reports now use profile-defined canonical domains with domain-map aliases, and profile migration creates directories from validated `folder_plan` records plus the target profile's Office mirror root without overwriting sources, mirrors, annotation sidecars, or drifted existing files. Broader workspace/profile migration coverage remains tied to later profile expansion. |
 | V1-C5 machine-owned mirrors | Stage 1 closed by this batch. Fresh mirrors are machine-owned, sync blocks unmigrated mirror annotations, sidecar-aware sync rewrites migrated mirrors as machine-owned, and lint blocks unmigrated annotations. |
-| V1-C10 journaled changed-file materialization | Foundation started. Package-owned journal event/state modules, `.vaultwright/state.sqlite` initialization, `vaultwright journal status`, `.vaultwright/` ignore posture, no-data staged blocking, deterministic feed queueing, generated/local/operational/temp path filtering, repeated-event coalescing, cheap metadata fingerprints, no-full-hash-on-unchanged-fingerprint tests, workspace leases, stale-lease recovery, transactional event claims, claimed-event finish checkpoints, failed-event retry, interrupted-`processing` recovery, and a source-addressable Office materialization primitive now exist. Native watch/event capture, debounce/settle checks, changed-source worker integration, reconcile, replay command wiring, benchmark evidence, and changed-file sync remain open. |
+| V1-C10 journaled changed-file materialization | Foundation started. Package-owned journal event/state modules, `.vaultwright/state.sqlite` initialization, `vaultwright journal status`, `.vaultwright/` ignore posture, no-data staged blocking, deterministic feed queueing, generated/local/operational/temp path filtering, repeated-event coalescing, cheap metadata fingerprints, no-full-hash-on-unchanged-fingerprint tests, workspace leases, stale-lease recovery, transactional event claims, claimed-event finish checkpoints, failed-event retry, interrupted-`processing` recovery, a source-addressable Office materialization primitive, and deterministic file-stability settling now exist. Native watch/event capture, changed-source worker integration, reconcile, replay command wiring, benchmark evidence, and changed-file sync remain open. |
 
 Stage 3 has one preparatory slice: package-owned `profile views --check/--write` generates the
 current profile's `Documents.base` without requiring Obsidian. Governance skills, Canvas outputs,
@@ -734,7 +748,8 @@ state persistence, deterministic feed queueing, path filtering, event coalescing
 fingerprint-based full-hash avoidance, plus lease-protected event claiming, stale-lock recovery,
 failed-event retry, interrupted-processing recovery, and source-addressable Office
 materialization through the existing mirror engine without starting native watcher delivery or
-profile/content expansion. The next Stage 1B slice should remain bounded to debounce/file-stability
-checks, changed-source worker integration, replay, reconciliation, changed sync, or benchmark
-evidence, and should not start profile, Obsidian, index, Explorer, adapter, enrichment, or
+profile/content expansion. Deterministic file-stability settling now exists for candidate
+materialization. The next Stage 1B slice should remain bounded to changed-source worker
+integration, replay, reconciliation, changed sync, native watch capture, or benchmark evidence, and
+should not start profile, Obsidian, index, Explorer, adapter, enrichment, or
 visualization work.

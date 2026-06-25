@@ -7,6 +7,7 @@ import shutil
 
 import yaml
 
+from vaultwright.changes.fingerprint import MetadataFingerprint
 from vaultwright.changes.materialize import MaterializationError, materialize_office_source
 
 
@@ -31,6 +32,29 @@ class CountingConverter:
 class FailingIfConverted:
     def convert(self, path: str) -> TextConversion:
         raise AssertionError(f"unchanged source should not be converted: {path}")
+
+
+class FakeClock:
+    def __init__(self) -> None:
+        self.now = 0.0
+
+    def __call__(self) -> float:
+        return self.now
+
+    def sleep(self, seconds: float) -> None:
+        self.now += seconds
+
+
+def stability_fp(path: str, *, size: int, mtime_ns: int) -> MetadataFingerprint:
+    return MetadataFingerprint(
+        path=path,
+        exists=True,
+        is_file=True,
+        is_symlink=False,
+        size=size,
+        mtime_ns=mtime_ns,
+        identity_hint="1:1",
+    )
 
 
 def test_materialize_office_source_processes_only_requested_source(tmp_path: Path) -> None:
@@ -149,3 +173,88 @@ def test_materialize_office_source_rejects_unsafe_paths(tmp_path: Path) -> None:
         assert "parent-directory" in str(exc)
     else:
         raise AssertionError("unsafe source path was accepted")
+
+
+def test_materialize_office_source_waits_for_stable_candidate(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    source = vault / "40_delivery" / "registration.docx"
+    source.parent.mkdir(parents=True)
+    source.write_bytes(b"synthetic source bytes")
+    clock = FakeClock()
+    first = stability_fp("40_delivery/registration.docx", size=12, mtime_ns=100)
+    changed = stability_fp("40_delivery/registration.docx", size=22, mtime_ns=200)
+    fingerprints = [first, changed, changed, changed]
+    calls: list[str] = []
+
+    def fingerprint_func(_root: Path, path: str | Path) -> MetadataFingerprint:
+        calls.append(str(path))
+        return fingerprints[min(len(calls) - 1, len(fingerprints) - 1)]
+
+    converter = CountingConverter()
+
+    result = materialize_office_source(
+        vault,
+        "40_delivery/registration.docx",
+        converter=converter,
+        converter_name="test-converter",
+        converter_version="test",
+        settle=True,
+        settle_seconds=1.0,
+        settle_check_interval_seconds=0.5,
+        settle_timeout_seconds=3.0,
+        stability_fingerprint_func=fingerprint_func,
+        stability_clock=clock,
+        stability_sleeper=clock.sleep,
+        append_audit=False,
+    )
+
+    assert result["status"] == "created"
+    assert result["stability"]["stable"] is True
+    assert result["stability"]["observations"] == 4
+    assert calls == ["40_delivery/registration.docx"] * 4
+    assert converter.paths == [str(source)]
+    assert (vault / "_mirrors" / "40_delivery" / "registration.md").exists()
+
+
+def test_materialize_office_source_skips_unstable_candidate_without_conversion(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    source = vault / "40_delivery" / "registration.docx"
+    source.parent.mkdir(parents=True)
+    source.write_bytes(b"synthetic source bytes")
+    clock = FakeClock()
+    first = stability_fp("40_delivery/registration.docx", size=12, mtime_ns=100)
+    second = stability_fp("40_delivery/registration.docx", size=18, mtime_ns=200)
+    calls: list[str] = []
+
+    def alternating_fingerprint(_root: Path, path: str | Path) -> MetadataFingerprint:
+        calls.append(str(path))
+        return first if len(calls) % 2 else second
+
+    converter = CountingConverter()
+
+    result = materialize_office_source(
+        vault,
+        "40_delivery/registration.docx",
+        converter=converter,
+        converter_name="test-converter",
+        converter_version="test",
+        settle=True,
+        settle_seconds=0.75,
+        settle_check_interval_seconds=0.5,
+        settle_timeout_seconds=1.0,
+        stability_fingerprint_func=alternating_fingerprint,
+        stability_clock=clock,
+        stability_sleeper=clock.sleep,
+    )
+
+    assert result["status"] == "skipped:unstable-source"
+    assert result["action"] == "stabilizing"
+    assert result["manifest_written"] is False
+    assert result["audit_appended"] is False
+    assert result["stability"]["stable"] is False
+    assert result["stability"]["timed_out"] is True
+    assert result["record"]["lifecycle_state"] == "stabilizing"
+    assert converter.paths == []
+    assert calls == ["40_delivery/registration.docx"] * 3
+    assert not (vault / "_mirrors" / "40_delivery" / "registration.md").exists()
+    assert not (vault / "_meta" / "source-manifest.json").exists()

@@ -16,9 +16,10 @@ specified by `docs/adr/0002-journaled-incremental-materialization.md`. The curre
 local journal/state foundation plus deterministic feed filtering, event coalescing, and cheap
 metadata fingerprint primitives, plus lease-protected event claims and interrupted-worker recovery.
 It also has a source-addressable Office materialization primitive that processes one vault-relative
-source through the existing Office mirror engine instead of creating a second mirror writer. Native
-watching, debounce/settle checks, changed-source worker integration, reconciliation, replay command
-wiring, changed sync, and benchmark evidence remain open.
+source through the existing Office mirror engine instead of creating a second mirror writer, plus
+deterministic file-stability settling before conversion. Native watching, changed-source worker
+integration, reconciliation, replay command wiring, changed sync, and benchmark evidence remain
+open.
 
 ## Source Identity
 
@@ -69,6 +70,10 @@ Current implementation status:
   one vault-relative Office source through the same Office mirror planning/sync path, preserving
   source bytes, profile-defined mirror roots, manifest updates, audit events, and the existing
   source-change-during-conversion safeguard;
+- implemented for Stage 1B candidate stability: `vaultwright.changes.stability` waits for the
+  cheap metadata fingerprint to remain unchanged for a configurable settle interval, supports a
+  bounded timeout, and can be injected into source-addressable materialization so unstable sources
+  skip conversion and writes before worker integration;
 - implemented for repo mirrors: stable repo IDs, configured/resolved repo, note path, local-tree or
   remote HEAD hash, lifecycle state, warnings/errors, non-mutating plan/status reports, and
   generated-region manual-edit detection, plus contract-backed lifecycle next-action guidance in plan/status

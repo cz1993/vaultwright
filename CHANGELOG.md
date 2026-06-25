@@ -6,6 +6,9 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 ## [Unreleased]
 
 ### Added
+- Added deterministic Stage 1B file-stability settling for changed-source candidates, with
+  injectable clock/sleeper/fingerprint tests and optional pre-conversion settling in the
+  source-addressable Office materialization primitive.
 - Added a Stage 1B source-addressable Office materialization primitive that processes one
   vault-relative source through the existing Office mirror engine, preserves source bytes, honors
   profile-defined mirror roots, writes manifest/audit state, and skips unchanged conversions.

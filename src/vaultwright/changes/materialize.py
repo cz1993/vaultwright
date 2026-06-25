@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from vaultwright.changes.events import JournalEventError, normalize_vault_relative_path
+from vaultwright.changes import stability
 from vaultwright.mirrors import office as office_sync
 
 
@@ -46,6 +47,13 @@ def materialize_office_source(
     converter_name: str = "markitdown",
     converter_version: str | None = None,
     append_audit: bool = True,
+    settle: bool = False,
+    settle_seconds: float = stability.DEFAULT_SETTLE_SECONDS,
+    settle_check_interval_seconds: float = stability.DEFAULT_CHECK_INTERVAL_SECONDS,
+    settle_timeout_seconds: float = stability.DEFAULT_TIMEOUT_SECONDS,
+    stability_fingerprint_func: stability.FingerprintFunc | None = None,
+    stability_clock: stability.ClockFunc | None = None,
+    stability_sleeper: stability.SleepFunc | None = None,
 ) -> dict[str, Any]:
     """Materialize one Office/PDF source through the existing mirror engine.
 
@@ -88,6 +96,40 @@ def materialize_office_source(
                 "errors": [],
             },
         }
+
+    stability_result = None
+    if settle:
+        stability_result = stability.wait_for_file_stability(
+            root,
+            rel,
+            settle_seconds=settle_seconds,
+            check_interval_seconds=settle_check_interval_seconds,
+            timeout_seconds=settle_timeout_seconds,
+            **({"fingerprint_func": stability_fingerprint_func} if stability_fingerprint_func else {}),
+            **({"clock": stability_clock} if stability_clock else {}),
+            **({"sleeper": stability_sleeper} if stability_sleeper else {}),
+        )
+        if not stability_result.stable:
+            return {
+                "kind": "office-source",
+                "source_path": rel,
+                "status": "skipped:unstable-source",
+                "action": "stabilizing",
+                "dry_run": dry_run,
+                "manifest_written": False,
+                "audit_appended": False,
+                "stability": stability_result.as_dict(),
+                "record": {
+                    "source_id": "",
+                    "current_source_path": rel,
+                    "mirror_path": "",
+                    "source_format": source.suffix.lstrip(".").lower(),
+                    "source_sha256": "",
+                    "lifecycle_state": "stabilizing",
+                    "warnings": ["Source did not remain metadata-stable before the settle timeout."],
+                    "errors": [],
+                },
+            }
 
     manifest = office_sync.load_source_manifest(root)
     routing = office_sync.load_domain_routing(root)
@@ -133,5 +175,6 @@ def materialize_office_source(
         "dry_run": dry_run,
         "manifest_written": manifest_written,
         "audit_appended": audit_appended,
+        "stability": stability_result.as_dict() if stability_result else None,
         "record": _public_record(record),
     }
