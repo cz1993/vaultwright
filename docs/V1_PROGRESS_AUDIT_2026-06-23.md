@@ -41,6 +41,36 @@ journaled Stage 1B path must stay source-addressable and profile-aware by depend
 runtime profile helpers and mirror artifact semantics already inventoried here; it must not create
 a second set of business-folder, mirror-root, repo-note, or status constants.
 
+## 2026-06-25 Stage 1A Closure
+
+Stage 1A is closed for the current V1 execution order. The closure is scoped: it proves the kernel
+and profile-convergence gate is satisfied before Stage 1B starts, not that later official-profile,
+Obsidian, index, Explorer, or release-pilot work has resumed.
+
+| Gate item | Closure evidence |
+| --- | --- |
+| Package modules authoritative | `vaultwright` CLI commands dispatch to package-owned modules; copied `template/tools/*.py` and packaged template tool copies import package modules and pass the copied vault root as compatibility shims. |
+| Profile-derived runtime values | Lint, catalog, migration, Office sync, GitHub repo sync, benchmark, pilot, sandbox, recovery, Microsoft 365 handoff, review-ledger, generated views, and annotation migration use validated profile contracts or shared runtime profile helpers, with legacy fallbacks only for profile-less compatibility. |
+| Invalid profile data blocked | `src/vaultwright/profiles.py` validates schema version, safe identifiers, safe paths, folder plans, policy defaults, context aliases, source-authority defaults, and no-real-data defaults before runtime paths, sync, lint, reports, or migration use profile data. |
+| Legacy override posture clear | `_meta/domain-map.yml` and `_meta/mirror-config.yml` remain documented as legacy alias/config override layers; valid `_meta/profile.yml` is the canonical profile contract. |
+| Mirror and annotation safety | Fresh Office/repo mirrors are machine-owned, sync blocks unmigrated above-sentinel annotations, annotation sidecars preserve human notes, and lint blocks unmigrated mirror annotations. |
+| Remaining profile assumptions | The inventory above classifies remaining hard-coded vocabulary as universal mirror-layer invariant, business profile/template data, legacy compatibility fallback, or test fixture; no Stage 1A-blocking defect was verified. |
+| Journaled materialization compatibility | No architectural conflict was found. Stage 1B must reuse existing profile helpers and mirror materialization semantics instead of adding new business-folder, mirror-root, repo-note, context, or status constants. |
+
+Local closure validation for this batch:
+
+- `pytest -q -p no:cacheprovider`: 398 passed.
+- `python -m compileall -q src template/tools scripts tests` with bytecode redirected outside the
+  repo: OK.
+- `scripts/no_data_scan.py`: OK.
+- `scripts/sync_template_copies.py --check`: clean.
+- `PYTHONPATH=src template/tools/lint_vault.py`: OK.
+- `bash -n scripts/init.sh`, `bash -n template/tools/sync_all.sh`, and
+  `bash -n .githooks/pre-commit`: OK.
+- `git diff --check`: OK.
+- no `build/`, `dist/`, `.egg-info`, `.pytest_cache`, `__pycache__`, or `*.pyc` residue remains in
+  the repo.
+
 ## Integrity Baseline
 
 - Local branch started clean and synced with `origin/main`.
@@ -596,17 +626,17 @@ a second set of business-folder, mirror-root, repo-note, or status constants.
 Stage 0 is complete: the product statement, seven-layer architecture, fixed v1 profile list,
 non-goals, journaled incremental architecture, ADRs, and finish-line matrix are tracked.
 
-Stage 1 is now split into Stage 1A and Stage 1B. Stage 1A remains the active lane: the remaining
-kernel/profile assumptions are now inventoried above, no inventory-confirmed blocking defect is
-known, and remaining work should remove or justify only proven non-universal runtime assumptions.
-Stage 1B has not started.
+Stage 1 is now split into Stage 1A and Stage 1B. Stage 1A is closed by the inventory and closure
+evidence above: remaining profile assumptions are either universal, profile-owned, compatibility
+fallbacks, or fixtures, and no inventory-confirmed blocking defect is known. Stage 1B is now the
+next active lane and has not started.
 
 | Requirement | Status |
 | --- | --- |
-| V1-C1 package-owned runtime | In progress. Package CLI exists; `plan`, `sync`, `status`, `doctor`, `catalog`, `lint`, `conversion`, `m365`, `migration`, `overlap`, `benchmark`, `pilot`, `sandbox`, `recovery`, and `review` are package-owned; Office mirror planning/sync/status lives in `vaultwright.mirrors.office`; GitHub repo mirror planning/sync/status lives in `vaultwright.mirrors.github_repos`; copied sync, lint, catalog, conversion, m365, migration, overlap, benchmark, pilot, sandbox, recovery, review-ledger, and operator-wrapper scripts are compatibility shims. |
-| V1-C2 versioned profile contract | In progress. Schema validation, schema documentation, read-only profile commands, conservative write-mode profile migration, profile-generated `Documents.base` check/write support, validator-backed catalog/migration domain routing, validator-backed benchmark/pilot task discovery, profile-driven migration domain routing, profile-owned Office mirror placement defaults, profile-first Office source-domain routing, profile-aware source/repo-mirror frontmatter ordering, profile/config-aware Office mirror report surfaces, profile-owned repo mirror defaults, profile-owned generated mirror status defaults, profile/config-aware repo mirror report surfaces, profile-derived repo context frontmatter, contract-owned context aliases in repo sync/lint/annotation migration without profile-ID inference, shared profile-derived frontmatter key ordering for generated Office/GitHub mirrors, profile-owned machine-owned note type roles in overlap/migration/review classification plus catalog, Microsoft 365, and sandbox inventory counts, profile-owned status roles without generated-Base name inference, profile-owned source-authority/no-real-data policy defaults, profile-declared generated-view doctor reporting, profile-contract-first doctor required-file posture, profile-contract-first lint domain-map posture, profile-validator-backed lint contract loading, validator-backed runtime profile helpers, shared active-content-root fallback across lint/catalog/overlap/repo mirror validation, lint, GitHub repo sync, and annotation migration shared profile helper usage without local repo-context fallback copies, profile-first migration runbook/worksheet guidance, safe profile vocabulary identifiers, schema-declared nested definition fields, schema-declared folder-plan and policy-default fields, safe disjoint frontmatter property validation, safe profile artifact paths, safe unique non-overlapping domain-folder validation, safe profile artifact/mirror-root separation, validated `folder_plan` paths/domains, safe profile repo-mirror folder defaults, safe profile benchmark-task paths, profile-aware migration mirror-root planning, profile-aware benchmark generated-mirror roots, profile-aware pilot workspace inventory, profile-aware recovery source-evidence preflight, profile-aware overlap content roots/context links/inactive statuses, and profile-declared benchmark task discovery exist; remaining profile-driven behavior is not done. |
+| V1-C1 package-owned runtime | Closed for Stage 1A. Package CLI exists; `plan`, `sync`, `status`, `doctor`, `catalog`, `lint`, `conversion`, `m365`, `migration`, `overlap`, `benchmark`, `pilot`, `sandbox`, `recovery`, and `review` are package-owned; Office mirror planning/sync/status lives in `vaultwright.mirrors.office`; GitHub repo mirror planning/sync/status lives in `vaultwright.mirrors.github_repos`; copied sync, lint, catalog, conversion, m365, migration, overlap, benchmark, pilot, sandbox, recovery, review-ledger, and operator-wrapper scripts are compatibility shims. |
+| V1-C2 versioned profile contract | Closed for Stage 1A. Schema validation, schema documentation, read-only profile commands, conservative write-mode profile migration, profile-generated `Documents.base` check/write support, validator-backed catalog/migration domain routing, validator-backed benchmark/pilot task discovery, profile-driven migration domain routing, profile-owned Office mirror placement defaults, profile-first Office source-domain routing, profile-aware source/repo-mirror frontmatter ordering, profile/config-aware Office mirror report surfaces, profile-owned repo mirror defaults, profile-owned generated mirror status defaults, profile/config-aware repo mirror report surfaces, profile-derived repo context frontmatter, contract-owned context aliases in repo sync/lint/annotation migration without profile-ID inference, shared profile-derived frontmatter key ordering for generated Office/GitHub mirrors, profile-owned machine-owned note type roles in overlap/migration/review classification plus catalog, Microsoft 365, and sandbox inventory counts, profile-owned status roles without generated-Base name inference, profile-owned source-authority/no-real-data policy defaults, profile-declared generated-view doctor reporting, profile-contract-first doctor required-file posture, profile-contract-first lint domain-map posture, profile-validator-backed lint contract loading, validator-backed runtime profile helpers, shared active-content-root fallback across lint/catalog/overlap/repo mirror validation, lint, GitHub repo sync, and annotation migration shared profile helper usage without local repo-context fallback copies, profile-first migration runbook/worksheet guidance, safe profile vocabulary identifiers, schema-declared nested definition fields, schema-declared folder-plan and policy-default fields, safe disjoint frontmatter property validation, safe profile artifact paths, safe unique non-overlapping domain-folder validation, safe profile artifact/mirror-root separation, validated `folder_plan` paths/domains, safe profile repo-mirror folder defaults, safe profile benchmark-task paths, profile-aware migration mirror-root planning, profile-aware benchmark generated-mirror roots, profile-aware pilot workspace inventory, profile-aware recovery source-evidence preflight, profile-aware overlap content roots/context links/inactive statuses, profile-declared benchmark task discovery, and the classified profile-assumption inventory exist; remaining profile expansion belongs to later gated stages. |
 | V1-C3 official profiles | In progress. `business-operations` remains the only scaffolded template/profile shape, but package-owned contracts for `research-learning`, `software-project`, and `blank` now validate and are exposed through `vaultwright profile list/show`. |
-| V1-C4 safe migration path | In progress. Reports, frontmatter-domain normalization, read-only plans, and conservative write-mode profile migration exist; migration reports now use profile-defined canonical domains with domain-map aliases, and profile migration creates directories from validated `folder_plan` records plus the target profile's Office mirror root; broader workspace/profile migration coverage will be needed as profile-driven behavior expands. |
+| V1-C4 safe migration path | Closed for Stage 1A. Reports, frontmatter-domain normalization, read-only plans, and conservative write-mode profile migration exist; migration reports now use profile-defined canonical domains with domain-map aliases, and profile migration creates directories from validated `folder_plan` records plus the target profile's Office mirror root without overwriting sources, mirrors, annotation sidecars, or drifted existing files. Broader workspace/profile migration coverage remains tied to later profile expansion. |
 | V1-C5 machine-owned mirrors | Stage 1 closed by this batch. Fresh mirrors are machine-owned, sync blocks unmigrated mirror annotations, sidecar-aware sync rewrites migrated mirrors as machine-owned, and lint blocks unmigrated annotations. |
 | V1-C10 journaled changed-file materialization | Not started. ADR 0002 and the canonical white paper define the Stage 1B architecture and exit evidence, but no package-owned journal, watch, reconcile, replay, lock, benchmark, or changed-file sync implementation exists yet. |
 
@@ -618,79 +648,20 @@ exits.
 
 ## Remaining Execution Plan
 
-1. Finish Stage 1A kernel/profile convergence:
-   - keep vault-local tools as compatibility shims only and prevent implementation drift;
-   - preserve current no-data, lifecycle, recovery, catalog, benchmark, and example gates;
-   - use the Stage 1A profile-assumption inventory above to remove or justify only proven
-     non-universal runtime assumptions before Stage 1B starts.
-2. Finish the profile contract:
-   - move remaining business folder/type/status assumptions into `business-operations` profile data;
-   - make remaining sync/report behavior read those contracts consistently;
-   - keep generated Bases reading the active profile contract.
-3. Add write-mode profile migration:
-   - expand beyond conservative missing-file/profile bootstrap only when the next profile-driven
-     behavior requires it;
-   - preserve curated knowledge and annotation sidecars;
-   - prove original sources are byte-for-byte unchanged.
-4. Implement Stage 1B only after Stage 1A exit criteria pass:
+1. Implement Stage 1B now that Stage 1A exit criteria pass:
    - add journaled changed-file materialization mapped to V1-C10;
    - preserve full sync as baseline and recovery;
    - record benchmark evidence instead of claiming performance from design alone.
-5. Continue Stage 2 only after Stage 1B exit criteria pass:
+2. Continue Stage 2 only after Stage 1B exit criteria pass:
    - scaffolded init fixtures for `research-learning`, `software-project`, and `blank`;
    - one synthetic example and benchmark task pack per maintained profile;
    - identical lifecycle and safety tests across profiles.
-6. Hold Stage 4 index and Stage 5 Explorer work until profile/core schema groundwork, Stage 1B, and
+3. Hold Stage 4 index and Stage 5 Explorer work until profile/core schema groundwork, Stage 1B, and
    Stage 2 profiles exist. The index must earn v1 scope through benchmark improvement.
 
 ## Next Recommended Slice
 
-The first Stage 1A evidence gap is now closed by the inventory above. The next Stage 1A slice
-should be removal-only: change code only where the inventory or a focused multi-profile fixture
-proves a remaining occurrence is a non-universal runtime defect. Repo mirror sync/lint, repo-context
-frontmatter, overlap context links/inactive statuses, status attention roles without generated-Base
-name inference, generated mirror status defaults, benchmark/pilot task discovery, and the Microsoft
-365, sandbox, recovery, and review-ledger report surfaces now resolve
-their profile-controlled paths from profile/config; Office mirror placement now uses profile
-defaults when mirror config is absent, catalog, Microsoft 365 handoff, and sandbox now separate
-profile-defined machine-owned Markdown from curated/domain Markdown counts, and
-catalog/m365/sandbox/doctor/review/migration reporting classifies generated source mirrors from the
-active Office mirror root, doctor now reports profile-declared generated view state instead of
-assuming every profile owns `Documents.base`, doctor now treats `_meta/domain-map.yml` plus
-`_meta/mirror-config.yml` as legacy alias/override posture when a valid profile contract is present,
-`vaultwright sandbox` now follows the same profile-first required-file posture for those legacy
-files, and lint now treats a missing `_meta/domain-map.yml` as a non-blocking legacy-alias warning
-when the active profile provides canonical domains and loads `_meta/profile.yml` through the
-package profile validator before applying profile-derived lint settings. Shared runtime profile
-helpers now expose profile-derived sync/report defaults only from a validated profile contract,
-lint repo-mirror path checks use the shared configured/profile repo-notes directory helper, lint,
-GitHub repo sync, and annotation migration use shared context helpers instead of duplicate local
-parsers/defaults, and catalog/migration domain routing now validates the whole profile contract
-before using profile-declared canonical folders.
-Generic doctor, sandbox, pilot, benchmark, and conversion report copy now uses workspace,
-protected-identifier, private-evidence, and source-backed language instead of client-specific
-wording on profile-neutral workflows.
-Benchmark/pilot task discovery now validates the whole profile contract before using
-profile-declared `benchmark_tasks`, and benchmark task/result validation plus task scaffolding also
-use the active Office mirror root for generated mirror evidence. Pilot workspace inventory now
-excludes the active Office mirror root, and profile
-migration now plans the target profile's Office mirror root instead of a fixed `_mirrors/`
-directory. Recovery missing-manifest warnings now also exclude the active Office mirror root from
-source-evidence checks. Office sync now derives source domains and canonical mirror paths from
-active profile domain folders, keeps unsafe mirror-output plan records rooted in the active
-profile/configured mirror root, and keeps `_meta/domain-map.yml` as the legacy alias layer.
-Migration runbooks/worksheets now print the active profile identity plus canonical domain folders
-before routing unknown folder/domain decisions back to `_meta/profile.yml`. Profile validation
-now rejects unsafe or ambiguous domain folders, undeclared nested
-domain/note-type/status/folder-plan fields, undeclared policy-default fields,
-unsafe note-type/status/frontmatter vocabulary, overlapping required/optional frontmatter fields,
-unsafe profile artifact paths, profile artifact paths inside the Office mirror root, invalid context aliases, invalid
-repo-mirror folder defaults, and invalid
-source-authority/no-real-data policy values before they reach runtime paths, views, profile
-migration, repo sync, or lint rules. Repo sync and lint now read profile-owned context aliases, so
-`business-operations` keeps `client`/`account` compatibility without forcing that assumption on
-future profiles. Office source-mirror frontmatter ordering now uses active profile context fields
-instead of always privileging business-only context keys. Preserve the example
-regeneration gates and
-require no-data, lifecycle, recovery, catalog, annotation-migration, package-install,
-benchmark/pilot, and profile-validation coverage before treating the slice as closed.
+Stage 1A is closed. The next recommended slice is the first Stage 1B V1-C10 batch: add the smallest
+package-owned journal/state foundation that proves local derived state location, schema creation,
+basic status introspection, ignore/no-data posture for `.vaultwright/`, and tests for event state
+persistence without starting watcher delivery or profile/content expansion.

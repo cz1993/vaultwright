@@ -686,11 +686,13 @@ Retain the existing product statement, profile list, non-goals, and finish-line 
 
 ### Stage 1A — Kernel and profile convergence
 
-**Current status:** in progress.
+**Current status:** complete.
 
-Close the existing Stage 1 gaps:
+The Stage 1A gate closed after the remaining profile-assumption inventory found no
+Stage 1A-blocking runtime defect and classified remaining vocabulary as profile data, legacy
+compatibility fallback, test fixture, or universal mirror-layer invariant. The closed gate
+preserves these constraints:
 
-- finish extraction of remaining profile-dependent assumptions;
 - keep package modules authoritative;
 - keep compatibility scripts thin;
 - preserve machine-owned mirror and annotation-sidecar guarantees;
@@ -701,6 +703,9 @@ Close the existing Stage 1 gaps:
 - all remaining hard-coded profile vocabulary is enumerated and either removed or explicitly justified as universal;
 - V1-C1, V1-C2, V1-C4, and V1-C5 meet their Stage 1 definitions;
 - the full existing suite and repository gates pass.
+
+Stage 1B is the next active lane. Stage 2+ profile, Obsidian, index, and Explorer work remains
+paused until the journaled materialization gate passes.
 
 ### Stage 1B — Journaled changed-file synchronization
 

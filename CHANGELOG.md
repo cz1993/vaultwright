@@ -6,6 +6,8 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 ## [Unreleased]
 
 ### Added
+- Closed the Stage 1A kernel/profile-convergence gate in the controlling docs, preserving the
+  package-runtime/shim boundary and making Stage 1B journaled materialization the next active lane.
 - Documented the Stage 1A profile-assumption inventory across package code, copied-tool shims,
   templates, examples, and tests, with classifications for universal invariants, business profile
   data, legacy compatibility fallbacks, test fixtures, and verified defects.
