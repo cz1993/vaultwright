@@ -388,6 +388,8 @@ def finish_claimed_event(
     status: str,
     *,
     error_summary: str | None = None,
+    source_id: str | None = None,
+    source_sha256: str | None = None,
     workspace_id: str = DEFAULT_WORKSPACE_ID,
     now: str | None = None,
 ) -> None:
@@ -405,7 +407,10 @@ def finish_claimed_event(
         conn.execute("BEGIN IMMEDIATE")
         try:
             _require_active_lease(conn, holder, workspace_id, now_text)
-            row = conn.execute("SELECT status FROM journal_events WHERE sequence = ?", (sequence,)).fetchone()
+            row = conn.execute(
+                "SELECT status, source_id, source_sha256 FROM journal_events WHERE sequence = ?",
+                (sequence,),
+            ).fetchone()
             if row is None:
                 raise JournalError(f"journal event does not exist: {sequence}")
             if row["status"] != "processing":
@@ -415,10 +420,19 @@ def finish_claimed_event(
                 UPDATE journal_events
                    SET status = ?,
                        error_summary = ?,
+                       source_id = ?,
+                       source_sha256 = ?,
                        updated_at = ?
                  WHERE sequence = ?
                 """,
-                (status, "" if error_summary is None else error_summary, now_text, sequence),
+                (
+                    status,
+                    "" if error_summary is None else error_summary,
+                    str(row["source_id"] if source_id is None else source_id),
+                    str(row["source_sha256"] if source_sha256 is None else source_sha256),
+                    now_text,
+                    sequence,
+                ),
             )
             if status == "applied":
                 meta = _read_meta(conn)

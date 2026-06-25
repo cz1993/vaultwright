@@ -6,6 +6,9 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 ## [Unreleased]
 
 ### Added
+- Added a Stage 1B lease-protected changed-source worker primitive that claims journal events,
+  runs source-addressable Office materialization for current-path events, records source identity
+  on finished journal rows, and finishes events as applied, review-required, or failed.
 - Added deterministic Stage 1B file-stability settling for changed-source candidates, with
   injectable clock/sleeper/fingerprint tests and optional pre-conversion settling in the
   source-addressable Office materialization primitive.

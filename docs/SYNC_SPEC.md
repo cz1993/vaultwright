@@ -17,9 +17,9 @@ local journal/state foundation plus deterministic feed filtering, event coalesci
 metadata fingerprint primitives, plus lease-protected event claims and interrupted-worker recovery.
 It also has a source-addressable Office materialization primitive that processes one vault-relative
 source through the existing Office mirror engine instead of creating a second mirror writer, plus
-deterministic file-stability settling before conversion. Native watching, changed-source worker
-integration, reconciliation, replay command wiring, changed sync, and benchmark evidence remain
-open.
+deterministic file-stability settling before conversion and a lease-protected worker path for
+current-path Office events. Native watching, reconciliation, replay command wiring, changed sync,
+broader delete/reconcile event handling, and benchmark evidence remain open.
 
 ## Source Identity
 
@@ -74,6 +74,11 @@ Current implementation status:
   cheap metadata fingerprint to remain unchanged for a configurable settle interval, supports a
   bounded timeout, and can be injected into source-addressable materialization so unstable sources
   skip conversion and writes before worker integration;
+- implemented for Stage 1B current-path Office worker processing:
+  `vaultwright.changes.worker` acquires the workspace lease, claims queued/ready journal events,
+  materializes supported current-path Office sources through `vaultwright.changes.materialize`,
+  records source ID/hash on finished journal rows, and finishes unsupported/no-current-path events
+  as review-required or materialization errors as failed;
 - implemented for repo mirrors: stable repo IDs, configured/resolved repo, note path, local-tree or
   remote HEAD hash, lifecycle state, warnings/errors, non-mutating plan/status reports, and
   generated-region manual-edit detection, plus contract-backed lifecycle next-action guidance in plan/status
