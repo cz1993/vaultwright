@@ -31,6 +31,7 @@ from vaultwright.annotation_migration import (
     write_annotation_sidecars,
 )
 from vaultwright.changes import journal as journal_module
+from vaultwright.changes import replay as replay_module
 from vaultwright.mirrors import github_repos as repo_sync_module
 from vaultwright.mirrors import office as office_sync_module
 from vaultwright.profile_migration import profile_migration_plan, write_profile_migration
@@ -575,6 +576,43 @@ def command_journal_status(args: argparse.Namespace) -> int:
     return 0
 
 
+def command_journal_replay(args: argparse.Namespace) -> int:
+    root = args.root.expanduser().resolve()
+    holder = args.holder or f"cli-{os.getpid()}"
+    try:
+        payload = replay_module.replay_journal(
+            root,
+            holder,
+            retry_failed=args.retry_failed,
+            max_events=args.max_events,
+            lease_ttl_seconds=args.lease_ttl_seconds,
+        )
+    except (journal_module.JournalError, replay_module.ReplayError) as exc:
+        print(f"journal replay: {exc}", file=sys.stderr)
+        return 1
+    if args.json:
+        print(json.dumps(payload, indent=2, sort_keys=True))
+    else:
+        print(f"vaultwright journal replay: processed {payload['processed']} event(s)")
+        print(f"recovered processing: {len(payload['recovered_processing'])}")
+        print(f"retried failed: {len(payload['retried_failed'])}")
+        counts = payload["finish_counts"]
+        print(
+            "finish counts: "
+            f"applied={counts['applied']} "
+            f"review-required={counts['review-required']} "
+            f"failed={counts['failed']}"
+        )
+        lease = payload["lease"]
+        if payload["acquired"]:
+            print(f"worker: acquired by {holder} until {lease['expires_at']}")
+        else:
+            print(f"worker: locked by {lease['holder']} until {lease['expires_at']}")
+    if not payload["acquired"]:
+        return 1
+    return 1 if payload["finish_counts"]["failed"] else 0
+
+
 def command_migrate_annotations(args: argparse.Namespace) -> int:
     root = args.root.expanduser().resolve()
     plan = annotation_migration_plan(root)
@@ -696,6 +734,25 @@ def build_parser() -> argparse.ArgumentParser:
     journal_status.add_argument("--init", action="store_true", help="Initialize local journal state if missing.")
     journal_status.add_argument("--json", action="store_true", help="Print machine-readable journal status.")
     journal_status.set_defaults(func=command_journal_status)
+    journal_replay = journal_sub.add_parser("replay", help="Replay recoverable local journal work.")
+    journal_replay.add_argument(
+        "--holder",
+        help="Worker lease holder ID. Defaults to a process-scoped CLI holder.",
+    )
+    journal_replay.add_argument(
+        "--retry-failed",
+        action="store_true",
+        help="Requeue failed events before replaying. Interrupted processing events are always recovered.",
+    )
+    journal_replay.add_argument("--max-events", type=int, help="Maximum number of events to process.")
+    journal_replay.add_argument(
+        "--lease-ttl-seconds",
+        type=int,
+        default=300,
+        help="Worker lease time-to-live in seconds.",
+    )
+    journal_replay.add_argument("--json", action="store_true", help="Print machine-readable replay results.")
+    journal_replay.set_defaults(func=command_journal_replay)
     sub.add_parser("doctor", help="Check required files, Python version, and dependencies.").set_defaults(func=command_doctor)
     sub.add_parser("lint", help="Run vault health checks.").set_defaults(func=command_lint)
     overlap = sub.add_parser("overlap", help="Print a read-only overlap threshold calibration report.")

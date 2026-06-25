@@ -18,8 +18,10 @@ metadata fingerprint primitives, plus lease-protected event claims and interrupt
 It also has a source-addressable Office materialization primitive that processes one vault-relative
 source through the existing Office mirror engine instead of creating a second mirror writer, plus
 deterministic file-stability settling before conversion and a lease-protected worker path for
-current-path Office events. Native watching, reconciliation, replay command wiring, changed sync,
-broader delete/reconcile event handling, and benchmark evidence remain open.
+current-path Office events, plus idempotent journal replay that recovers interrupted processing
+events and optionally retries failed events under the same worker lease. Native watching,
+reconciliation, changed sync, broader delete/reconcile event handling, and benchmark evidence
+remain open.
 
 ## Source Identity
 
@@ -79,6 +81,10 @@ Current implementation status:
   materializes supported current-path Office sources through `vaultwright.changes.materialize`,
   records source ID/hash on finished journal rows, and finishes unsupported/no-current-path events
   as review-required or materialization errors as failed;
+- implemented for Stage 1B journal replay: `vaultwright.changes.replay` and
+  `vaultwright journal replay` recover interrupted `processing` events, optionally requeue failed
+  events only when `--retry-failed` is requested, process claimable work through the existing
+  worker/materialization path under one lease, and expose bounded/JSON replay results;
 - implemented for repo mirrors: stable repo IDs, configured/resolved repo, note path, local-tree or
   remote HEAD hash, lifecycle state, warnings/errors, non-mutating plan/status reports, and
   generated-region manual-edit detection, plus contract-backed lifecycle next-action guidance in plan/status

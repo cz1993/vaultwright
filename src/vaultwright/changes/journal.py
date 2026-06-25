@@ -467,6 +467,19 @@ def retry_failed_event(
     return cursor.rowcount > 0
 
 
+def failed_event_sequences(root: Path) -> list[int]:
+    with _connect_existing(root) as conn:
+        rows = conn.execute(
+            """
+            SELECT sequence
+              FROM journal_events
+             WHERE status = 'failed'
+          ORDER BY sequence
+            """
+        ).fetchall()
+    return [int(row["sequence"]) for row in rows]
+
+
 def recover_processing_events(
     root: Path,
     *,

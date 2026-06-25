@@ -112,6 +112,21 @@ failed-event retry can return them to the queue. Focused tests cover one support
 source review, delete/no-current-path review, converter failure and retry, active-lease contention,
 and draining multiple ready events under one lease.
 
+## 2026-06-25 Stage 1B Journal Replay Foundation
+
+This checkpoint adds the idempotent replay path for recoverable journal work without starting
+watcher delivery, reconciliation, changed sync, native watch capture, benchmarks, or broader
+delete/move handling. `vaultwright.changes.replay` acquires the workspace lease, recovers events
+left in `processing`, optionally requeues failed events only when requested, and then drains
+claimable events through the existing `vaultwright.changes.worker` materialization path under that
+single lease.
+
+The package CLI exposes `vaultwright journal replay` with a process-scoped holder by default,
+optional `--holder`, `--retry-failed`, `--max-events`, `--lease-ttl-seconds`, and `--json`.
+Focused tests cover interrupted-worker replay, explicit failed-event retry, repeated idempotent
+replay, active-lease contention, argument validation, and JSON CLI output for a review-required
+unsupported source.
+
 ## 2026-06-25 Stage 1A Profile-Assumption Inventory
 
 This checkpoint closes the first Stage 1A evidence gap by inventorying the remaining hard-coded
@@ -733,7 +748,7 @@ with the local journal/state foundation started while the remaining V1-C10 claus
 | V1-C3 official profiles | In progress. `business-operations` remains the only scaffolded template/profile shape, but package-owned contracts for `research-learning`, `software-project`, and `blank` now validate and are exposed through `vaultwright profile list/show`. |
 | V1-C4 safe migration path | Closed for Stage 1A. Reports, frontmatter-domain normalization, read-only plans, and conservative write-mode profile migration exist; migration reports now use profile-defined canonical domains with domain-map aliases, and profile migration creates directories from validated `folder_plan` records plus the target profile's Office mirror root without overwriting sources, mirrors, annotation sidecars, or drifted existing files. Broader workspace/profile migration coverage remains tied to later profile expansion. |
 | V1-C5 machine-owned mirrors | Stage 1 closed by this batch. Fresh mirrors are machine-owned, sync blocks unmigrated mirror annotations, sidecar-aware sync rewrites migrated mirrors as machine-owned, and lint blocks unmigrated annotations. |
-| V1-C10 journaled changed-file materialization | Foundation started. Package-owned journal event/state modules, `.vaultwright/state.sqlite` initialization, `vaultwright journal status`, `.vaultwright/` ignore posture, no-data staged blocking, deterministic feed queueing, generated/local/operational/temp path filtering, repeated-event coalescing, cheap metadata fingerprints, no-full-hash-on-unchanged-fingerprint tests, workspace leases, stale-lease recovery, transactional event claims, claimed-event finish checkpoints, failed-event retry, interrupted-`processing` recovery, a source-addressable Office materialization primitive, deterministic file-stability settling, and lease-protected current-path Office worker processing now exist. Native watch/event capture, reconcile, replay command wiring, benchmark evidence, changed-file sync, and delete/reconcile event handling beyond review-required remain open. |
+| V1-C10 journaled changed-file materialization | Foundation started. Package-owned journal event/state modules, `.vaultwright/state.sqlite` initialization, `vaultwright journal status`, `.vaultwright/` ignore posture, no-data staged blocking, deterministic feed queueing, generated/local/operational/temp path filtering, repeated-event coalescing, cheap metadata fingerprints, no-full-hash-on-unchanged-fingerprint tests, workspace leases, stale-lease recovery, transactional event claims, claimed-event finish checkpoints, failed-event retry, interrupted-`processing` recovery, a source-addressable Office materialization primitive, deterministic file-stability settling, lease-protected current-path Office worker processing, and idempotent `vaultwright journal replay` now exist. Native watch/event capture, reconcile, benchmark evidence, changed-file sync, and delete/reconcile event handling beyond review-required remain open. |
 
 Stage 3 has one preparatory slice: package-owned `profile views --check/--write` generates the
 current profile's `Documents.base` without requiring Obsidian. Governance skills, Canvas outputs,
@@ -763,8 +778,9 @@ fingerprint-based full-hash avoidance, plus lease-protected event claiming, stal
 failed-event retry, interrupted-processing recovery, and source-addressable Office
 materialization through the existing mirror engine without starting native watcher delivery or
 profile/content expansion. Deterministic file-stability settling now exists for candidate
-materialization, and the first lease-protected worker path now processes current-path Office events.
-The next Stage 1B slice should remain bounded to replay, reconciliation, changed sync, native watch
-capture, benchmark evidence, or stronger delete/move handling, and should not start profile,
+materialization, the first lease-protected worker path now processes current-path Office events,
+and `vaultwright journal replay` now performs idempotent interrupted-work recovery plus explicit
+failed-event retry. The next Stage 1B slice should remain bounded to reconciliation, changed sync,
+native watch capture, benchmark evidence, or stronger delete/move handling, and should not start profile,
 Obsidian, index, Explorer, adapter, enrichment, or
 visualization work.

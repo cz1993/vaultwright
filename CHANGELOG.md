@@ -6,6 +6,9 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 ## [Unreleased]
 
 ### Added
+- Added Stage 1B idempotent journal replay with `vaultwright journal replay`, recovering
+  interrupted `processing` events under the workspace lease, explicitly retrying failed events
+  only with `--retry-failed`, and exposing bounded/JSON replay output.
 - Added a Stage 1B lease-protected changed-source worker primitive that claims journal events,
   runs source-addressable Office materialization for current-path events, records source identity
   on finished journal rows, and finishes events as applied, review-required, or failed.
