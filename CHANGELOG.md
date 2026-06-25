@@ -6,6 +6,9 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 ## [Unreleased]
 
 ### Added
+- Added a Stage 1B source-addressable Office materialization primitive that processes one
+  vault-relative source through the existing Office mirror engine, preserves source bytes, honors
+  profile-defined mirror roots, writes manifest/audit state, and skips unchanged conversions.
 - Added Stage 1B journal worker coordination primitives: workspace lease acquisition/release,
   stale-lease takeover, transactional event claiming, claimed-event finishing, failed-event retry,
   and recovery of events left `processing` after an interrupted worker.

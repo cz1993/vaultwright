@@ -15,7 +15,9 @@ Journaled incremental materialization is tracked as V1-C10 in `docs/V1_FINISH_LI
 specified by `docs/adr/0002-journaled-incremental-materialization.md`. The current runtime has the
 local journal/state foundation plus deterministic feed filtering, event coalescing, and cheap
 metadata fingerprint primitives, plus lease-protected event claims and interrupted-worker recovery.
-Native watching, debounce/settle checks, worker materialization, reconciliation, replay command
+It also has a source-addressable Office materialization primitive that processes one vault-relative
+source through the existing Office mirror engine instead of creating a second mirror writer. Native
+watching, debounce/settle checks, changed-source worker integration, reconciliation, replay command
 wiring, changed sync, and benchmark evidence remain open.
 
 ## Source Identity
@@ -63,6 +65,10 @@ Current implementation status:
   placeholders and empty `Unnamed:*` table columns, plus ambiguous same-hash move detection that
   blocks sync as `conflict` when multiple missing manifest records could match one new source, plus
   profile-first source-domain routing with `_meta/domain-map.yml` retained as a legacy alias layer;
+- implemented for Stage 1B Office materialization: `vaultwright.changes.materialize` can process
+  one vault-relative Office source through the same Office mirror planning/sync path, preserving
+  source bytes, profile-defined mirror roots, manifest updates, audit events, and the existing
+  source-change-during-conversion safeguard;
 - implemented for repo mirrors: stable repo IDs, configured/resolved repo, note path, local-tree or
   remote HEAD hash, lifecycle state, warnings/errors, non-mutating plan/status reports, and
   generated-region manual-edit detection, plus contract-backed lifecycle next-action guidance in plan/status

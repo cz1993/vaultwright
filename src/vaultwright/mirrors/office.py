@@ -1507,10 +1507,12 @@ def sync_one(
     manifest: dict | None = None,
     converter_name: str = "markitdown",
     converter_version: str = "unknown",
+    plan: dict | None = None,
 ):
     """Return status string: created | updated | unchanged | skipped:<reason> | error:<msg>."""
     active_manifest = manifest if manifest is not None else empty_manifest()
-    plan = plan_one(src, root, mirror_config, routing, active_manifest, converter_name, converter_version)
+    if plan is None:
+        plan = plan_one(src, root, mirror_config, routing, active_manifest, converter_name, converter_version)
     record = dict(plan["record"])
     existing_record = plan.get("existing_record")
     mirror = plan["mirror"]
@@ -1830,6 +1832,7 @@ def main(argv: list[str] | None = None, default_root: Path | None = None):
             manifest,
             converter_name,
             converter_version,
+            plan=plan,
         )
         count_status(status, counts)
         if not args.quiet:
