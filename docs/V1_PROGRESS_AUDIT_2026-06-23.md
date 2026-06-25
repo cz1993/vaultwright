@@ -17,6 +17,30 @@ does not implement Stage 1B yet: `watch`, `sync --changed`, `sync --full`, `jour
 `journal replay`, and `reconcile` remain V1-C10 targets. Stage 2 and Stage 3 implementation
 evidence remains preserved, but those lanes are paused behind Stage 1B in the execution order.
 
+## 2026-06-25 Stage 1A Profile-Assumption Inventory
+
+This checkpoint closes the first Stage 1A evidence gap by inventorying the remaining hard-coded
+profile vocabulary across package code, copied-tool shims, templates, examples, and tests. The
+verification used targeted `rg` searches for legacy/default constants, business profile IDs,
+profile folder names, mirror roots, repo-note paths, context keys, status values, mirror note
+types, generated views, and benchmark task paths across `src/vaultwright`, `template`,
+`examples`, and `tests`.
+
+| Surface | Remaining occurrence class | Classification | Stage 1A disposition |
+| --- | --- | --- | --- |
+| Package runtime fallbacks: `src/vaultwright/runtime_profile.py`, `src/vaultwright/lint.py`, `src/vaultwright/mirrors/office.py`, `src/vaultwright/mirrors/github_repos.py`, and `src/vaultwright/profile_migration.py` | Legacy content roots, repo-note path, context keys/aliases, inactive statuses, generated mirror statuses, mirror mode/root, and profile-less lint defaults remain as fallback constants. | Legacy compatibility fallback | Allowed only when a profile/config is missing, invalid, or absent. New Stage 1B journal code must call the shared runtime profile helpers instead of copying these constants. |
+| Package mirror/runtime identities: Office source mirror handling, GitHub repo mirror handling, annotation sidecars, generated sentinel checks, lifecycle state names, and managed metadata keys | `source-mirror`, `repo-mirror`, source/repo manifests, annotation sidecars, lifecycle event labels, and generated-mirror metadata remain named in package code. | Universal invariant | Keep as mirror-layer artifact semantics. If a future profile renames machine-owned note types, it must pass through the profile role helpers rather than changing journal authority rules. |
+| Package profile and adapter limits: `src/vaultwright/cli.py`, `src/vaultwright/profiles.py`, `src/vaultwright/views.py`, `src/vaultwright/benchmark.py`, `src/vaultwright/pilot.py`, and `src/vaultwright/sandbox.py` | `business-operations` is the only scaffolded init target; `Documents.base` is the only generated view renderer; `_meta/agent-readiness-tasks.yml` remains the default task-pack fallback. | Business profile data, adapter capability, and legacy compatibility fallback | Not a Stage 1A defect. Stage 2 owns additional scaffolded profile fixtures; Stage 3 owns broader generated view support; benchmark defaults stay fallback behavior behind profile-declared task packs. |
+| Copied vault-local tools under `template/tools` and packaged copies under `src/vaultwright/template/tools` | Executable scripts import package modules and pass the copied vault root; profile vocabulary appears in README/operator examples and `repos.example.yml`. | Compatibility shim plus business profile data | Shim posture is acceptable. Implementation logic remains package-owned; operator docs/examples remain tied to the current `business-operations` template until Stage 2 adds more fixtures. |
+| Template, packaged template, built-in profiles, and example vaults | Business folders, statuses, context fields, mirror roots, repo-note paths, and generated views are present in `_meta/profile.yml`, template docs, synthetic example notes, and public-data example fixtures. | Business profile data and sample/test fixture | Allowed. These are profile/template facts, not kernel assumptions, and are covered by template-copy, example regeneration, lint, and no-data gates. |
+| Test suite | Hard-coded folders, statuses, context fields, mirror paths, repo-note paths, and generated view names appear throughout `tests/test_*`. | Test fixture and legacy compatibility coverage | Allowed when asserting the business profile, fallback compatibility, or mirror safety behavior. Add non-business profile fixtures in Stage 2 instead of weakening existing safety tests. |
+| Defects found in this batch | No package occurrence was verified as a Stage 1A-blocking defect during this inventory. | None | No code fix was required in this atomic batch. Future removals should target only non-universal runtime defects proven by this inventory or by new failing multi-profile tests. |
+
+Architectural compatibility with journaled incremental materialization: no conflict was found. The
+journaled Stage 1B path must stay source-addressable and profile-aware by depending on the same
+runtime profile helpers and mirror artifact semantics already inventoried here; it must not create
+a second set of business-folder, mirror-root, repo-note, or status constants.
+
 ## Integrity Baseline
 
 - Local branch started clean and synced with `origin/main`.
@@ -572,9 +596,10 @@ evidence remains preserved, but those lanes are paused behind Stage 1B in the ex
 Stage 0 is complete: the product statement, seven-layer architecture, fixed v1 profile list,
 non-goals, journaled incremental architecture, ADRs, and finish-line matrix are tracked.
 
-Stage 1 is now split into Stage 1A and Stage 1B. Stage 1A remains the active lane until the
-remaining kernel/profile assumptions are inventoried and either removed, profile-driven, or
-explicitly justified. Stage 1B has not started.
+Stage 1 is now split into Stage 1A and Stage 1B. Stage 1A remains the active lane: the remaining
+kernel/profile assumptions are now inventoried above, no inventory-confirmed blocking defect is
+known, and remaining work should remove or justify only proven non-universal runtime assumptions.
+Stage 1B has not started.
 
 | Requirement | Status |
 | --- | --- |
@@ -596,8 +621,8 @@ exits.
 1. Finish Stage 1A kernel/profile convergence:
    - keep vault-local tools as compatibility shims only and prevent implementation drift;
    - preserve current no-data, lifecycle, recovery, catalog, benchmark, and example gates;
-   - enumerate remaining profile-dependent assumptions and classify them as universal invariants,
-     profile data, legacy compatibility, test fixtures, or defects.
+   - use the Stage 1A profile-assumption inventory above to remove or justify only proven
+     non-universal runtime assumptions before Stage 1B starts.
 2. Finish the profile contract:
    - move remaining business folder/type/status assumptions into `business-operations` profile data;
    - make remaining sync/report behavior read those contracts consistently;
@@ -620,15 +645,12 @@ exits.
 
 ## Next Recommended Slice
 
-Close the first Stage 1A evidence gap: produce the required remaining-assumptions inventory for
-hard-coded profile vocabulary in package code, shims, templates, examples, and tests, classify each
-occurrence, and fix only defects that block Stage 1A exit. Continue removing hard-coded business
-folder/type/status assumptions from docs, report copy, validation checks, and migration guidance
-only when the inventory proves they are non-universal runtime defects. Repo mirror sync/lint, repo-context
+The first Stage 1A evidence gap is now closed by the inventory above. The next Stage 1A slice
+should be removal-only: change code only where the inventory or a focused multi-profile fixture
+proves a remaining occurrence is a non-universal runtime defect. Repo mirror sync/lint, repo-context
 frontmatter, overlap context links/inactive statuses, status attention roles without generated-Base
-name inference, generated mirror
-status defaults, benchmark/pilot task discovery, and the Microsoft 365, sandbox, recovery, and
-review-ledger report surfaces now resolve
+name inference, generated mirror status defaults, benchmark/pilot task discovery, and the Microsoft
+365, sandbox, recovery, and review-ledger report surfaces now resolve
 their profile-controlled paths from profile/config; Office mirror placement now uses profile
 defaults when mirror config is absent, catalog, Microsoft 365 handoff, and sandbox now separate
 profile-defined machine-owned Markdown from curated/domain Markdown counts, and

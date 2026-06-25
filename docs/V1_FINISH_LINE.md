@@ -69,6 +69,14 @@ Lint repo-mirror path checks now use the shared runtime repo-notes directory hel
 runtime context helper path for repo context keys and aliases, preserving profile-less legacy
 fallback without duplicating those defaults locally.
 
+Stage 1A profile-assumption inventory note: `docs/V1_PROGRESS_AUDIT_2026-06-23.md` now classifies
+the remaining hard-coded profile vocabulary across package code, copied-tool shims, templates,
+examples, and tests as universal mirror-layer invariants, business profile data, legacy
+compatibility fallbacks, or test fixtures. No inventory-confirmed Stage 1A-blocking defect is
+known. Stage 1B journaled materialization must reuse the shared runtime profile helpers and
+mirror artifact semantics rather than introducing a second set of folder, mirror-root, repo-note,
+context, or status constants.
+
 ## Conditional V1 Explorer Finish Line
 
 Stage 4 decides whether these stay in v1 or move to post-v1. Do not build a visual Explorer before
@@ -85,7 +93,7 @@ the index has benchmark evidence.
 | Open Work | Finish-Line Mapping | Execution Rule |
 | --- | --- | --- |
 | Copied vault-local scripts | V1-C1 | Keep package modules authoritative; copied sync, lint, catalog, conversion, m365, migration, overlap, benchmark, pilot, sandbox, recovery, review-ledger, and operator-wrapper scripts are now shims |
-| Hard-coded business folders, note types, statuses, and linter assumptions | V1-C2, V1-C3, V1-C7 | Continue extracting into profile contracts before adding more profiles; `lint`, `catalog`, `migration`, Office mirror placement defaults, overlap calibration roots/context links/inactive statuses, benchmark tasks, repo mirror defaults/context fields, Microsoft 365/sandbox/recovery/review repo/source mirror reporting, and `Documents.base` generation now read validated profile-defined values |
+| Hard-coded business folders, note types, statuses, and linter assumptions | V1-C2, V1-C3, V1-C7 | Use the Stage 1A inventory in `docs/V1_PROGRESS_AUDIT_2026-06-23.md` as the control list; continue extracting only inventory-proven non-universal runtime defects into profile contracts before adding more profiles. `lint`, `catalog`, `migration`, Office mirror placement defaults, overlap calibration roots/context links/inactive statuses, benchmark tasks, repo mirror defaults/context fields, Microsoft 365/sandbox/recovery/review repo/source mirror reporting, and `Documents.base` generation now read validated profile-defined values |
 | Current business template and examples | V1-C3, V1-C4 | Treat as `business-operations`; migrate rather than fork |
 | Above-sentinel notes in generated mirrors | V1-C5 | Preserve first with `migrate annotations --write`; sync blocks unmigrated mirror annotations, fresh mirrors are machine-owned, and sidecar-aware sync makes migrated mirrors machine-owned on the next regeneration |
 | Repeated whole-corpus steady-state sync cost | V1-C10 | Stage 1B must add a durable local journal, metadata-first changed-file event processing, replay, reconciliation, and benchmarks while preserving full sync as the recovery path |

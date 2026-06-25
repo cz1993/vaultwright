@@ -6,6 +6,9 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 ## [Unreleased]
 
 ### Added
+- Documented the Stage 1A profile-assumption inventory across package code, copied-tool shims,
+  templates, examples, and tests, with classifications for universal invariants, business profile
+  data, legacy compatibility fallbacks, test fixtures, and verified defects.
 - Adopted the June 24 canonical white paper, added ADR 0002 for journaled incremental
   materialization, split Stage 1 into Stage 1A/Stage 1B in the finish-line controls, and added
   V1-C10 for journaled changed-file materialization while preserving full sync as the
