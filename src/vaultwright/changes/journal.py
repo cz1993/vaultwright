@@ -2,7 +2,7 @@
 """Durable local journal state for changed-file materialization."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import sqlite3
 from typing import Any
@@ -19,6 +19,10 @@ from vaultwright.changes.events import (
 STATE_DIR = Path(".vaultwright")
 STATE_DB = STATE_DIR / "state.sqlite"
 SCHEMA_VERSION = 1
+DEFAULT_WORKSPACE_ID = "default"
+CLAIMABLE_STATUSES = ("queued", "ready")
+RECOVERABLE_STATUSES = ("processing",)
+FINISH_STATUSES = {"applied", "failed", "review-required"}
 
 META_DEFAULTS = {
     "schema_version": str(SCHEMA_VERSION),
@@ -33,7 +37,39 @@ class JournalError(ValueError):
 
 
 def utc_now() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    return utc_text(datetime.now(timezone.utc))
+
+
+def utc_text(value: datetime) -> str:
+    return value.astimezone(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def parse_utc(value: str) -> datetime:
+    text = value.strip()
+    if text.endswith("Z"):
+        text = text[:-1] + "+00:00"
+    parsed = datetime.fromisoformat(text)
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def _now_datetime(now: str | None = None) -> datetime:
+    return parse_utc(now) if now else datetime.now(timezone.utc)
+
+
+def _normalize_holder(holder: str) -> str:
+    value = holder.strip()
+    if not value:
+        raise JournalError("worker holder must be non-empty")
+    return value
+
+
+def _normalize_workspace_id(workspace_id: str) -> str:
+    value = workspace_id.strip()
+    if not value:
+        raise JournalError("workspace_id must be non-empty")
+    return value
 
 
 def state_db_path(root: Path) -> Path:
@@ -107,6 +143,52 @@ def _write_meta(conn: sqlite3.Connection, key: str, value: str) -> None:
     )
 
 
+def _row_to_event(row: sqlite3.Row | None) -> dict[str, Any] | None:
+    return dict(row) if row is not None else None
+
+
+def _lease_row(
+    conn: sqlite3.Connection,
+    workspace_id: str,
+) -> sqlite3.Row | None:
+    return conn.execute(
+        """
+        SELECT workspace_id, holder, acquired_at, expires_at, last_sequence
+          FROM journal_worker_lease
+         WHERE workspace_id = ?
+        """,
+        (workspace_id,),
+    ).fetchone()
+
+
+def _active_lease_row(
+    conn: sqlite3.Connection,
+    holder: str,
+    workspace_id: str,
+    now_text: str,
+) -> sqlite3.Row | None:
+    row = _lease_row(conn, workspace_id)
+    if row is None:
+        return None
+    if row["holder"] != holder:
+        return None
+    if str(row["expires_at"]) <= now_text:
+        return None
+    return row
+
+
+def _require_active_lease(
+    conn: sqlite3.Connection,
+    holder: str,
+    workspace_id: str,
+    now_text: str,
+) -> sqlite3.Row:
+    row = _active_lease_row(conn, holder, workspace_id, now_text)
+    if row is None:
+        raise JournalError(f"worker lease is not active for holder: {holder}")
+    return row
+
+
 def initialize(root: Path) -> Path:
     root = root.expanduser().resolve()
     _ensure_root(root)
@@ -124,10 +206,290 @@ def _connect_existing(root: Path) -> sqlite3.Connection:
     conn = _connect(path)
     try:
         _ensure_schema(conn)
+        conn.commit()
     except Exception:
         conn.close()
         raise
     return conn
+
+
+def acquire_worker_lease(
+    root: Path,
+    holder: str,
+    *,
+    ttl_seconds: int = 300,
+    workspace_id: str = DEFAULT_WORKSPACE_ID,
+    now: str | None = None,
+) -> dict[str, Any]:
+    holder = _normalize_holder(holder)
+    workspace_id = _normalize_workspace_id(workspace_id)
+    if ttl_seconds <= 0:
+        raise JournalError("ttl_seconds must be positive")
+    now_dt = _now_datetime(now)
+    now_text = utc_text(now_dt)
+    expires_at = utc_text(now_dt + timedelta(seconds=ttl_seconds))
+    initialize(root)
+    with _connect_existing(root) as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            existing = _lease_row(conn, workspace_id)
+            stale_recovered = False
+            acquired = False
+            if existing is None:
+                conn.execute(
+                    """
+                    INSERT INTO journal_worker_lease(
+                      workspace_id, holder, acquired_at, expires_at, last_sequence
+                    )
+                    VALUES (?, ?, ?, ?, 0)
+                    """,
+                    (workspace_id, holder, now_text, expires_at),
+                )
+                acquired = True
+            elif existing["holder"] == holder or str(existing["expires_at"]) <= now_text:
+                stale_recovered = existing["holder"] != holder and str(existing["expires_at"]) <= now_text
+                conn.execute(
+                    """
+                    UPDATE journal_worker_lease
+                       SET holder = ?,
+                           acquired_at = ?,
+                           expires_at = ?
+                     WHERE workspace_id = ?
+                    """,
+                    (holder, now_text, expires_at, workspace_id),
+                )
+                acquired = True
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+    return {
+        "acquired": acquired,
+        "holder": holder if acquired else str(existing["holder"]) if existing else "",
+        "workspace_id": workspace_id,
+        "expires_at": expires_at if acquired else str(existing["expires_at"]) if existing else "",
+        "stale_recovered": stale_recovered if acquired else False,
+    }
+
+
+def release_worker_lease(
+    root: Path,
+    holder: str,
+    *,
+    workspace_id: str = DEFAULT_WORKSPACE_ID,
+) -> bool:
+    holder = _normalize_holder(holder)
+    workspace_id = _normalize_workspace_id(workspace_id)
+    with _connect_existing(root) as conn:
+        cursor = conn.execute(
+            "DELETE FROM journal_worker_lease WHERE workspace_id = ? AND holder = ?",
+            (workspace_id, holder),
+        )
+    return cursor.rowcount > 0
+
+
+def get_event(root: Path, sequence: int) -> dict[str, Any] | None:
+    with _connect_existing(root) as conn:
+        row = conn.execute(
+            """
+            SELECT sequence, event_kind, source_id, current_path, previous_path, observed_at,
+                   status, retry_count, error_summary, metadata_fingerprint, source_sha256,
+                   created_at, updated_at
+              FROM journal_events
+             WHERE sequence = ?
+            """,
+            (sequence,),
+        ).fetchone()
+    return _row_to_event(row)
+
+
+def _validate_statuses(statuses: tuple[str, ...] | list[str]) -> tuple[str, ...]:
+    out: list[str] = []
+    for status in statuses:
+        try:
+            out.append(validate_event_status(status))
+        except JournalEventError as exc:
+            raise JournalError(str(exc)) from exc
+    if not out:
+        raise JournalError("at least one status is required")
+    return tuple(out)
+
+
+def claim_next_event(
+    root: Path,
+    holder: str,
+    *,
+    workspace_id: str = DEFAULT_WORKSPACE_ID,
+    now: str | None = None,
+    statuses: tuple[str, ...] | list[str] = CLAIMABLE_STATUSES,
+) -> dict[str, Any] | None:
+    holder = _normalize_holder(holder)
+    workspace_id = _normalize_workspace_id(workspace_id)
+    claimable = _validate_statuses(statuses)
+    now_text = utc_text(_now_datetime(now))
+    placeholders = ", ".join("?" for _status in claimable)
+    with _connect_existing(root) as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            _require_active_lease(conn, holder, workspace_id, now_text)
+            row = conn.execute(
+                f"""
+                SELECT sequence
+                  FROM journal_events
+                 WHERE status IN ({placeholders})
+              ORDER BY sequence
+                 LIMIT 1
+                """,
+                claimable,
+            ).fetchone()
+            if row is None:
+                conn.commit()
+                return None
+            sequence = int(row["sequence"])
+            conn.execute(
+                """
+                UPDATE journal_events
+                   SET status = 'processing',
+                       error_summary = '',
+                       updated_at = ?
+                 WHERE sequence = ?
+                """,
+                (now_text, sequence),
+            )
+            conn.execute(
+                """
+                UPDATE journal_worker_lease
+                   SET last_sequence = ?
+                 WHERE workspace_id = ?
+                """,
+                (sequence, workspace_id),
+            )
+            claimed = conn.execute(
+                """
+                SELECT sequence, event_kind, source_id, current_path, previous_path, observed_at,
+                       status, retry_count, error_summary, metadata_fingerprint, source_sha256,
+                       created_at, updated_at
+                  FROM journal_events
+                 WHERE sequence = ?
+                """,
+                (sequence,),
+            ).fetchone()
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+    return _row_to_event(claimed)
+
+
+def finish_claimed_event(
+    root: Path,
+    holder: str,
+    sequence: int,
+    status: str,
+    *,
+    error_summary: str | None = None,
+    workspace_id: str = DEFAULT_WORKSPACE_ID,
+    now: str | None = None,
+) -> None:
+    holder = _normalize_holder(holder)
+    workspace_id = _normalize_workspace_id(workspace_id)
+    try:
+        status = validate_event_status(status)
+    except JournalEventError as exc:
+        raise JournalError(str(exc)) from exc
+    if status not in FINISH_STATUSES:
+        allowed = ", ".join(sorted(FINISH_STATUSES))
+        raise JournalError(f"claimed events can finish only as: {allowed}")
+    now_text = utc_text(_now_datetime(now))
+    with _connect_existing(root) as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            _require_active_lease(conn, holder, workspace_id, now_text)
+            row = conn.execute("SELECT status FROM journal_events WHERE sequence = ?", (sequence,)).fetchone()
+            if row is None:
+                raise JournalError(f"journal event does not exist: {sequence}")
+            if row["status"] != "processing":
+                raise JournalError(f"journal event is not processing: {sequence}")
+            conn.execute(
+                """
+                UPDATE journal_events
+                   SET status = ?,
+                       error_summary = ?,
+                       updated_at = ?
+                 WHERE sequence = ?
+                """,
+                (status, "" if error_summary is None else error_summary, now_text, sequence),
+            )
+            if status == "applied":
+                meta = _read_meta(conn)
+                current_last = int(meta.get("last_applied_sequence", "0") or "0")
+                _write_meta(conn, "last_applied_sequence", str(max(current_last, sequence)))
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+
+
+def retry_failed_event(
+    root: Path,
+    sequence: int,
+    *,
+    now: str | None = None,
+) -> bool:
+    now_text = utc_text(_now_datetime(now))
+    with _connect_existing(root) as conn:
+        cursor = conn.execute(
+            """
+            UPDATE journal_events
+               SET status = 'queued',
+                   retry_count = retry_count + 1,
+                   error_summary = '',
+                   updated_at = ?
+             WHERE sequence = ?
+               AND status = 'failed'
+            """,
+            (now_text, sequence),
+        )
+    return cursor.rowcount > 0
+
+
+def recover_processing_events(
+    root: Path,
+    *,
+    error_summary: str = "worker interrupted before completion",
+    now: str | None = None,
+) -> list[int]:
+    now_text = utc_text(_now_datetime(now))
+    with _connect_existing(root) as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            rows = conn.execute(
+                """
+                SELECT sequence
+                  FROM journal_events
+                 WHERE status = 'processing'
+              ORDER BY sequence
+                """
+            ).fetchall()
+            sequences = [int(row["sequence"]) for row in rows]
+            if sequences:
+                placeholders = ", ".join("?" for _sequence in sequences)
+                conn.execute(
+                    f"""
+                    UPDATE journal_events
+                       SET status = 'queued',
+                           retry_count = retry_count + 1,
+                           error_summary = ?,
+                           updated_at = ?
+                     WHERE sequence IN ({placeholders})
+                    """,
+                    (error_summary, now_text, *sequences),
+                )
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+    return sequences
 
 
 def record_event(
@@ -226,7 +588,7 @@ def _empty_status(root: Path) -> dict[str, Any]:
         "last_applied_sequence": 0,
         "last_reconciliation": None,
         "state_counts": counts,
-        "worker": {"locked": False, "holder": "", "expires_at": "", "last_sequence": 0},
+        "worker": {"locked": False, "stale": False, "holder": "", "expires_at": "", "last_sequence": 0},
     }
     for status in COUNTED_STATUSES:
         payload[f"{status.replace('-', '_')}_count"] = 0
@@ -256,6 +618,8 @@ def journal_status(root: Path, *, initialize_state: bool = False) -> dict[str, A
             """
         ).fetchone()
     last_reconciliation = meta.get("last_reconciliation_at") or None
+    now_text = utc_now()
+    lease_locked = lease is not None and str(lease["expires_at"]) > now_text
     payload = {
         "state_path": STATE_DB.as_posix(),
         "initialized": True,
@@ -266,7 +630,8 @@ def journal_status(root: Path, *, initialize_state: bool = False) -> dict[str, A
         "last_reconciliation": last_reconciliation,
         "state_counts": counts,
         "worker": {
-            "locked": lease is not None,
+            "locked": lease_locked,
+            "stale": lease is not None and not lease_locked,
             "holder": str(lease["holder"]) if lease else "",
             "expires_at": str(lease["expires_at"]) if lease else "",
             "last_sequence": int(lease["last_sequence"]) if lease else 0,

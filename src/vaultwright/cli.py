@@ -568,6 +568,8 @@ def command_journal_status(args: argparse.Namespace) -> int:
     worker = payload["worker"]
     if worker["locked"]:
         print(f"worker: locked by {worker['holder']} until {worker['expires_at']}")
+    elif worker.get("stale"):
+        print(f"worker: stale lease from {worker['holder']} expired at {worker['expires_at']}")
     else:
         print("worker: unlocked")
     return 0

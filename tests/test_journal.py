@@ -111,3 +111,184 @@ def test_journal_cli_status_init_creates_state(tmp_path: Path) -> None:
     assert payload["initialized"] is True
     assert payload["schema_version"] == 1
     assert (tmp_path / ".vaultwright" / "state.sqlite").exists()
+
+
+def test_worker_lease_allows_one_active_holder_and_release(tmp_path: Path) -> None:
+    first = journal.acquire_worker_lease(
+        tmp_path,
+        "worker-a",
+        now="2099-01-01T00:00:00Z",
+        ttl_seconds=60,
+    )
+    second = journal.acquire_worker_lease(
+        tmp_path,
+        "worker-b",
+        now="2099-01-01T00:00:01Z",
+        ttl_seconds=60,
+    )
+
+    assert first["acquired"] is True
+    assert second["acquired"] is False
+    assert second["holder"] == "worker-a"
+    status = journal.journal_status(tmp_path)
+    assert status["worker"]["locked"] is True
+    assert status["worker"]["stale"] is False
+    assert status["worker"]["holder"] == "worker-a"
+
+    assert journal.release_worker_lease(tmp_path, "worker-b") is False
+    assert journal.release_worker_lease(tmp_path, "worker-a") is True
+    assert journal.journal_status(tmp_path)["worker"]["locked"] is False
+
+
+def test_worker_lease_can_recover_stale_holder(tmp_path: Path) -> None:
+    journal.acquire_worker_lease(
+        tmp_path,
+        "worker-a",
+        now="2099-01-01T00:00:00Z",
+        ttl_seconds=5,
+    )
+
+    recovered = journal.acquire_worker_lease(
+        tmp_path,
+        "worker-b",
+        now="2099-01-01T00:00:06Z",
+        ttl_seconds=60,
+    )
+
+    assert recovered["acquired"] is True
+    assert recovered["stale_recovered"] is True
+    status = journal.journal_status(tmp_path)
+    assert status["worker"]["locked"] is True
+    assert status["worker"]["holder"] == "worker-b"
+
+
+def test_claim_next_event_requires_active_lease_and_claims_once(tmp_path: Path) -> None:
+    first = journal.record_event(tmp_path, "created", current_path="10_sources/first.docx")
+    second = journal.record_event(tmp_path, "modified", current_path="10_sources/second.docx")
+    journal.acquire_worker_lease(
+        tmp_path,
+        "worker-a",
+        now="2099-01-01T00:00:00Z",
+        ttl_seconds=60,
+    )
+
+    with pytest.raises(journal.JournalError, match="worker lease is not active"):
+        journal.claim_next_event(tmp_path, "worker-b", now="2099-01-01T00:00:01Z")
+
+    claimed = journal.claim_next_event(tmp_path, "worker-a", now="2099-01-01T00:00:02Z")
+
+    assert claimed is not None
+    assert claimed["sequence"] == first
+    assert claimed["status"] == "processing"
+    assert journal.get_event(tmp_path, first)["status"] == "processing"  # type: ignore[index]
+    assert journal.get_event(tmp_path, second)["status"] == "queued"  # type: ignore[index]
+    status = journal.journal_status(tmp_path)
+    assert status["processing_count"] == 1
+    assert status["queued_count"] == 1
+    assert status["worker"]["last_sequence"] == first
+
+
+def test_finish_claimed_event_updates_checkpoint_once(tmp_path: Path) -> None:
+    sequence = journal.record_event(tmp_path, "modified", current_path="10_sources/brief.docx")
+    journal.acquire_worker_lease(
+        tmp_path,
+        "worker-a",
+        now="2099-01-01T00:00:00Z",
+        ttl_seconds=60,
+    )
+    journal.claim_next_event(tmp_path, "worker-a", now="2099-01-01T00:00:01Z")
+
+    journal.finish_claimed_event(
+        tmp_path,
+        "worker-a",
+        sequence,
+        "applied",
+        now="2099-01-01T00:00:02Z",
+    )
+
+    event = journal.get_event(tmp_path, sequence)
+    assert event is not None
+    assert event["status"] == "applied"
+    assert journal.journal_status(tmp_path)["last_applied_sequence"] == sequence
+    with pytest.raises(journal.JournalError, match="not processing"):
+        journal.finish_claimed_event(
+            tmp_path,
+            "worker-a",
+            sequence,
+            "applied",
+            now="2099-01-01T00:00:03Z",
+        )
+
+
+def test_failed_event_retry_returns_to_queue(tmp_path: Path) -> None:
+    sequence = journal.record_event(tmp_path, "modified", current_path="10_sources/brief.docx")
+    journal.acquire_worker_lease(
+        tmp_path,
+        "worker-a",
+        now="2099-01-01T00:00:00Z",
+        ttl_seconds=60,
+    )
+    journal.claim_next_event(tmp_path, "worker-a", now="2099-01-01T00:00:01Z")
+    journal.finish_claimed_event(
+        tmp_path,
+        "worker-a",
+        sequence,
+        "failed",
+        error_summary="converter failed",
+        now="2099-01-01T00:00:02Z",
+    )
+
+    assert journal.retry_failed_event(tmp_path, sequence, now="2099-01-01T00:00:03Z") is True
+    assert journal.retry_failed_event(tmp_path, sequence, now="2099-01-01T00:00:04Z") is False
+    event = journal.get_event(tmp_path, sequence)
+    assert event is not None
+    assert event["status"] == "queued"
+    assert event["retry_count"] == 1
+    assert event["error_summary"] == ""
+
+
+def test_processing_event_recovery_prevents_permanent_queue_loss(tmp_path: Path) -> None:
+    sequence = journal.record_event(tmp_path, "modified", current_path="10_sources/brief.docx")
+    journal.acquire_worker_lease(
+        tmp_path,
+        "worker-a",
+        now="2099-01-01T00:00:00Z",
+        ttl_seconds=5,
+    )
+    journal.claim_next_event(tmp_path, "worker-a", now="2099-01-01T00:00:01Z")
+    recovered_lease = journal.acquire_worker_lease(
+        tmp_path,
+        "worker-b",
+        now="2099-01-01T00:00:06Z",
+        ttl_seconds=60,
+    )
+
+    recovered = journal.recover_processing_events(
+        tmp_path,
+        error_summary="worker-a interrupted",
+        now="2099-01-01T00:00:07Z",
+    )
+    claimed = journal.claim_next_event(tmp_path, "worker-b", now="2099-01-01T00:00:08Z")
+
+    assert recovered_lease["stale_recovered"] is True
+    assert recovered == [sequence]
+    event = journal.get_event(tmp_path, sequence)
+    assert event is not None
+    assert event["retry_count"] == 1
+    assert claimed is not None
+    assert claimed["sequence"] == sequence
+    assert claimed["status"] == "processing"
+
+
+def test_journal_cli_status_reports_stale_lease(tmp_path: Path) -> None:
+    journal.acquire_worker_lease(
+        tmp_path,
+        "worker-a",
+        now="2000-01-01T00:00:00Z",
+        ttl_seconds=1,
+    )
+
+    result = run_cli(tmp_path, "journal", "status")
+
+    assert result.returncode == 0, result.stderr
+    assert "worker: stale lease from worker-a expired at 2000-01-01T00:00:01Z" in result.stdout

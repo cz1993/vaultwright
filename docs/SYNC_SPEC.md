@@ -14,8 +14,9 @@ not authoritative.
 Journaled incremental materialization is tracked as V1-C10 in `docs/V1_FINISH_LINE.md` and
 specified by `docs/adr/0002-journaled-incremental-materialization.md`. The current runtime has the
 local journal/state foundation plus deterministic feed filtering, event coalescing, and cheap
-metadata fingerprint primitives, but native watching, debounce/settle checks, worker
-materialization, reconciliation, replay, changed sync, and benchmark evidence remain open.
+metadata fingerprint primitives, plus lease-protected event claims and interrupted-worker recovery.
+Native watching, debounce/settle checks, worker materialization, reconciliation, replay command
+wiring, changed sync, and benchmark evidence remain open.
 
 ## Source Identity
 

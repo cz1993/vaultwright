@@ -6,6 +6,9 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 ## [Unreleased]
 
 ### Added
+- Added Stage 1B journal worker coordination primitives: workspace lease acquisition/release,
+  stale-lease takeover, transactional event claiming, claimed-event finishing, failed-event retry,
+  and recovery of events left `processing` after an interrupted worker.
 - Added deterministic Stage 1B change-feed and metadata-fingerprint primitives, including a static
   test feed, generated/local/operational path filtering, event coalescing before queueing, and a
   no-full-hash fast path when the cheap fingerprint is unchanged.
