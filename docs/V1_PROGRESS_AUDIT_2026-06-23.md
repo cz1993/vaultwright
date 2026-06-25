@@ -1,7 +1,21 @@
-# Vaultwright V1 Progress Audit — 2026-06-23
+# Vaultwright V1 Progress Audit — 2026-06-23 / 2026-06-24
 
-This audit maps the current implementation to `docs/VAULTWRIGHT_WHITEPAPER_2026-06-23.md`,
-`docs/adr/0001-profile-driven-v1-architecture.md`, and `docs/V1_FINISH_LINE.md`.
+This audit maps the current implementation to the canonical `docs/VAULTWRIGHT_WHITEPAPER.md`,
+`docs/adr/0001-profile-driven-v1-architecture.md`,
+`docs/adr/0002-journaled-incremental-materialization.md`, and
+`docs/V1_FINISH_LINE.md`.
+
+## 2026-06-24 Architecture Adoption
+
+Current checkpoint before Phase A: `main` was at
+`004a3617f15e8234a056b8b1711b139ebe9b8e2f` with no tracked modifications, the two June 24
+steering drafts untracked, and the latest `main` CI run green.
+
+Phase A adopts the June 24 white paper as the canonical white paper, moves the dated copy to
+`docs/revisions/`, and adds ADR 0002 for journaled incremental materialization. The current code
+does not implement Stage 1B yet: `watch`, `sync --changed`, `sync --full`, `journal status`,
+`journal replay`, and `reconcile` remain V1-C10 targets. Stage 2 and Stage 3 implementation
+evidence remains preserved, but those lanes are paused behind Stage 1B in the execution order.
 
 ## Integrity Baseline
 
@@ -555,10 +569,12 @@ This audit maps the current implementation to `docs/VAULTWRIGHT_WHITEPAPER_2026-
 
 ## Whitepaper Progress
 
-Stage 0 is complete: the product statement, six-layer architecture, fixed v1 profile list,
-non-goals, and finish-line matrix are tracked.
+Stage 0 is complete: the product statement, seven-layer architecture, fixed v1 profile list,
+non-goals, journaled incremental architecture, ADRs, and finish-line matrix are tracked.
 
-Stage 1 remains the active lane. Current status:
+Stage 1 is now split into Stage 1A and Stage 1B. Stage 1A remains the active lane until the
+remaining kernel/profile assumptions are inventoried and either removed, profile-driven, or
+explicitly justified. Stage 1B has not started.
 
 | Requirement | Status |
 | --- | --- |
@@ -567,17 +583,21 @@ Stage 1 remains the active lane. Current status:
 | V1-C3 official profiles | In progress. `business-operations` remains the only scaffolded template/profile shape, but package-owned contracts for `research-learning`, `software-project`, and `blank` now validate and are exposed through `vaultwright profile list/show`. |
 | V1-C4 safe migration path | In progress. Reports, frontmatter-domain normalization, read-only plans, and conservative write-mode profile migration exist; migration reports now use profile-defined canonical domains with domain-map aliases, and profile migration creates directories from validated `folder_plan` records plus the target profile's Office mirror root; broader workspace/profile migration coverage will be needed as profile-driven behavior expands. |
 | V1-C5 machine-owned mirrors | Stage 1 closed by this batch. Fresh mirrors are machine-owned, sync blocks unmigrated mirror annotations, sidecar-aware sync rewrites migrated mirrors as machine-owned, and lint blocks unmigrated annotations. |
+| V1-C10 journaled changed-file materialization | Not started. ADR 0002 and the canonical white paper define the Stage 1B architecture and exit evidence, but no package-owned journal, watch, reconcile, replay, lock, benchmark, or changed-file sync implementation exists yet. |
 
-Stage 3 now has one preparatory slice: package-owned `profile views --check/--write` generates the
+Stage 3 has one preparatory slice: package-owned `profile views --check/--write` generates the
 current profile's `Documents.base` without requiring Obsidian. Governance skills, Canvas outputs,
-and the broader Obsidian adapter gate remain open. Stages 2, 4, 5, and 6 have not started and
-should remain gated until Stage 1 exits.
+and the broader Obsidian adapter gate remain open. Stage 2 and Stage 3 evidence is preserved but
+paused behind Stage 1B. Stages 4, 5, and 6 have not started and should remain gated until Stage 1B
+exits.
 
 ## Remaining Execution Plan
 
-1. Finish Stage 1 kernel convergence:
+1. Finish Stage 1A kernel/profile convergence:
    - keep vault-local tools as compatibility shims only and prevent implementation drift;
-   - preserve current no-data, lifecycle, recovery, catalog, benchmark, and example gates.
+   - preserve current no-data, lifecycle, recovery, catalog, benchmark, and example gates;
+   - enumerate remaining profile-dependent assumptions and classify them as universal invariants,
+     profile data, legacy compatibility, test fixtures, or defects.
 2. Finish the profile contract:
    - move remaining business folder/type/status assumptions into `business-operations` profile data;
    - make remaining sync/report behavior read those contracts consistently;
@@ -587,18 +607,24 @@ should remain gated until Stage 1 exits.
      behavior requires it;
    - preserve curated knowledge and annotation sidecars;
    - prove original sources are byte-for-byte unchanged.
-4. Continue Stage 2 only after Stage 1 exit criteria pass:
+4. Implement Stage 1B only after Stage 1A exit criteria pass:
+   - add journaled changed-file materialization mapped to V1-C10;
+   - preserve full sync as baseline and recovery;
+   - record benchmark evidence instead of claiming performance from design alone.
+5. Continue Stage 2 only after Stage 1B exit criteria pass:
    - scaffolded init fixtures for `research-learning`, `software-project`, and `blank`;
    - one synthetic example and benchmark task pack per maintained profile;
    - identical lifecycle and safety tests across profiles.
-5. Hold Stage 4 index and Stage 5 Explorer work until profile/core schema groundwork and Stage 2
-   profiles exist. The index must earn v1 scope through benchmark improvement.
+6. Hold Stage 4 index and Stage 5 Explorer work until profile/core schema groundwork, Stage 1B, and
+   Stage 2 profiles exist. The index must earn v1 scope through benchmark improvement.
 
 ## Next Recommended Slice
 
-Move the next Stage 1 gap deeper into profile-driven behavior: keep removing hard-coded business
-folder/type/status assumptions from docs, report copy, validation checks, and migration guidance,
-and make those paths read active profile data consistently. Repo mirror sync/lint, repo-context
+Close the first Stage 1A evidence gap: produce the required remaining-assumptions inventory for
+hard-coded profile vocabulary in package code, shims, templates, examples, and tests, classify each
+occurrence, and fix only defects that block Stage 1A exit. Continue removing hard-coded business
+folder/type/status assumptions from docs, report copy, validation checks, and migration guidance
+only when the inventory proves they are non-universal runtime defects. Repo mirror sync/lint, repo-context
 frontmatter, overlap context links/inactive statuses, status attention roles without generated-Base
 name inference, generated mirror
 status defaults, benchmark/pilot task discovery, and the Microsoft 365, sandbox, recovery, and

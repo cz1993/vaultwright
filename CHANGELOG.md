@@ -6,6 +6,10 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 ## [Unreleased]
 
 ### Added
+- Adopted the June 24 canonical white paper, added ADR 0002 for journaled incremental
+  materialization, split Stage 1 into Stage 1A/Stage 1B in the finish-line controls, and added
+  V1-C10 for journaled changed-file materialization while preserving full sync as the
+  baseline/recovery path.
 - Added the 2026-06-23 strategic whitepaper revision, ADR 0001, and `docs/V1_FINISH_LINE.md` so
   v1 work is gated by the profile-driven architecture, explicit non-goals, and Core/Explorer
   finish-line matrix.

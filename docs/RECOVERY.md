@@ -54,6 +54,11 @@ python3.11 tools/vaultwright.py lint
 Review the plan before sync if the source tree changed, especially after folder renames or cloud
 sync conflicts.
 
+Full sync remains the authoritative recovery mode after Stage 1B. The future local journal and
+state database are derived operational state; if they are lost or suspect, stop any watcher, run
+reconciliation or full sync, and rebuild journal state from sources and manifests rather than
+treating the journal as authority.
+
 ## Recover From Interrupted Sync
 
 Mirror writes are atomic, so an interrupted sync should preserve either the prior complete mirror or
@@ -71,6 +76,11 @@ If `_meta/source-manifest.json`, `_meta/repo-manifest.json`, or `_meta/sync-audi
 restore it from backup when possible. If no backup exists, rerun status/sync to rebuild manifests
 from the current sources and mirrors, then review all `planned`, `stale`, `source_missing`,
 `unreachable`, and `manual_modification` states.
+
+After Stage 1B exists, interrupted changed-file materialization should first be handled by
+`vaultwright journal status`, `vaultwright journal replay`, and `vaultwright reconcile`. Those
+commands are V1-C10 targets and are not implemented in the current runtime. When replay or
+reconciliation cannot prove consistency, run full sync as the recovery path.
 
 When an error state exists, inspect the newest `_meta/sync-audit.jsonl` event for that `source_id` or
 `repo_id`. The event records the generated artifact path, lifecycle state, sync status, and
@@ -251,6 +261,10 @@ Before public release, recovery must be tested on a copied vault:
 - run `tools/vaultwright.py recovery` and verify the checklist matches the manifest states;
 - restore a curated note from Git;
 - run no-data scan and lint after recovery.
+
+Stage 1B adds recovery gates for journal replay, missed-event reconciliation, stale-lock recovery,
+duplicate event delivery, crash after mirror write but before checkpoint, and full-sync recovery
+after journal loss.
 
 The test suite now exercises the copied-vault regeneration path, source-byte preservation,
 converter-failure, Office mirror-write-failure, and repo-note write-failure recovery that preserve

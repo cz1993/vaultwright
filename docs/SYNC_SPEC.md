@@ -5,12 +5,25 @@
 Vaultwright sync must prove the core product promise: source files remain untouched while generated
 knowledge artifacts can be regenerated, audited, and reviewed.
 
+Full sync is the current implemented baseline and remains the recovery/verification path. Stage 1B
+adds journaled changed-file materialization as the normal future steady-state path: event-identified
+candidate sources are fingerprinted, hashed only when needed, materialized through the same
+package-owned mirror logic, and reconciled against authoritative sources because watcher events are
+not authoritative.
+
+Journaled incremental materialization is tracked as V1-C10 in `docs/V1_FINISH_LINE.md` and
+specified by `docs/adr/0002-journaled-incremental-materialization.md`. It is not implemented in
+the current runtime.
+
 ## Source Identity
 
 Path-based mirror names are user-friendly but insufficient as the durable identity model. Office
 mirror sync maintains `_meta/source-manifest.json` with stable source IDs. Repo mirror sync
 maintains `_meta/repo-manifest.json` with stable repo IDs derived from configured repo/note
 identity.
+
+The future change journal may store paths, fingerprints, hashes, event states, and checkpoints, but
+it does not replace manifest-owned source identity or lifecycle state.
 
 Each source record should include:
 
@@ -172,6 +185,9 @@ A second sync with unchanged source bytes, unchanged converter/config version, a
 region must produce no content diff.
 The append-only `_meta/sync-audit.jsonl` log may receive new events; idempotency assertions should
 compare stable generated mirrors, repo notes, and manifests separately from the audit log.
+
+For Stage 1B, event replay must also be idempotent: duplicate or interrupted journal events must
+not produce duplicate successful materialization or corrupt manifests/mirrors.
 
 Current idempotency regression coverage includes:
 

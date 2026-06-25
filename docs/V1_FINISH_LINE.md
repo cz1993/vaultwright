@@ -1,7 +1,9 @@
 # Vaultwright V1 Finish-Line Matrix
 
-This matrix is the execution control document for the 2026-06-23 whitepaper revision,
-`docs/adr/0001-profile-driven-v1-architecture.md`, and `docs/PROFILE_SCHEMA.md`.
+This matrix is the execution control document for the canonical white paper,
+`docs/adr/0001-profile-driven-v1-architecture.md`,
+`docs/adr/0002-journaled-incremental-materialization.md`, and
+`docs/PROFILE_SCHEMA.md`.
 
 Current progress and next execution order are summarized in
 `docs/V1_PROGRESS_AUDIT_2026-06-23.md`.
@@ -14,13 +16,14 @@ required migration. New ideas that do not map here move to the post-v1 backlog.
 
 | Stage | Gate | Required Evidence | Status |
 | --- | --- | --- | --- |
-| 0. Scope freeze and architecture decision | Product statement, six-layer architecture, v1 profiles, v1 non-goals, and stop rule are approved and tracked | ADR 0001 plus this matrix are committed; README/product docs point to them | Complete |
-| 1. Kernel and packaging convergence | Runtime logic moves into `src/vaultwright/`; vault-local scripts become compatibility shims; profile and core schemas exist; generated mirrors become machine-owned with annotation migration | Package owns behavior; tests prove source integrity, idempotency, lifecycle, recovery, migration, and safety | In progress |
-| 2. Official profiles | `business-operations`, `research-learning`, `software-project`, and `blank` initialize from the same core package | Profile fixtures pass identical lifecycle and no-data gates; no core hard-coding of profile folders/types/statuses | In progress |
-| 3. Obsidian adapter and skills | Obsidian integration stays optional; governance skills and profile-aware Bases/Canvas outputs exist | Generated `.base` and `.canvas` artifacts pass syntax/integrity tests; core tests pass without Obsidian | In progress |
-| 4. Evidence index and exploration gate | Local SQLite/FTS graph index, `index build`, `index status`, `explore`, MCP exploration tool, and benchmark comparison exist | Deletion/rebuild equivalence, provenance on every result, no cross-workspace retrieval, and material benchmark improvement | Not started |
-| 5. Explorer and context builder | Only if Stage 4 passes: local read-only Explorer and context pack export | Explorer reads shared index/profile model; no UI-only business logic; accessibility and browser checks pass | Conditional |
-| 6. External validation and v1 release | Three structured pilots complete; release artifact installs and upgrades; limitations and support boundaries are published | Business-operations, research-learning, and software-project pilots all produce measured improvements and source-backed handoffs | Not started |
+| 0. Scope freeze and architecture decision | Product statement, seven-layer architecture, v1 profiles, v1 non-goals, journaled incremental architecture, and stop rules are approved and tracked | ADR 0001, ADR 0002, this matrix, and the canonical white paper are committed; README/product docs point to them | Complete |
+| 1A. Kernel and profile convergence | Runtime logic moves into `src/vaultwright/`; vault-local scripts become compatibility shims; profile/core schemas exist; generated mirrors become machine-owned with annotation migration; remaining profile assumptions are enumerated and either profile-owned, legacy compatibility, tests, or universal invariants | Package owns behavior; tests prove source integrity, idempotency, lifecycle, recovery, migration, profile validation, mirror annotation, and safety | In progress |
+| 1B. Journaled changed-file materialization | Durable local journal, source-addressable materialization, event coalescing, metadata-first fingerprints, replay, reconciliation, lock/lease safety, and full-sync recovery path exist | One changed source avoids whole-vault steady-state hashing/conversion; missed/interrupted work recovers; benchmark records paths/files/bytes/conversions/events | Not started |
+| 2. Official profiles | `business-operations`, `research-learning`, `software-project`, and `blank` initialize from the same core package | Profile fixtures pass identical lifecycle and no-data gates; no core hard-coding of profile folders/types/statuses | Paused behind Stage 1B |
+| 3. Obsidian adapter and skills | Obsidian integration stays optional; governance skills and profile-aware Bases/Canvas outputs exist | Generated `.base` and `.canvas` artifacts pass syntax/integrity tests; core tests pass without Obsidian | Paused behind Stage 1B |
+| 4. Evidence index and exploration gate | Local SQLite/FTS graph index, `index build`, `index status`, `explore`, MCP exploration tool, and benchmark comparison exist; the index consumes applied journal events rather than its own watcher | Deletion/rebuild equivalence, provenance on every result, no cross-workspace retrieval, and material benchmark improvement | Not started |
+| 5. Explorer and context builder | Only if Stage 4 passes: local read-only Explorer and context pack export | Explorer reads shared profile/journal/index model; no UI-only business logic; accessibility and browser checks pass | Conditional |
+| 6. External validation and v1 release | Three structured pilots complete; release artifact installs and upgrades; limitations and support boundaries are published | Business-operations, research-learning, and software-project pilots all produce measured improvements and source-backed handoffs, including baseline, changed-file sync, downtime/reconciliation, recovery, and handoff evidence | Not started |
 
 ## Mandatory V1 Core Finish Line
 
@@ -35,6 +38,7 @@ required migration. New ideas that do not map here move to the post-v1 backlog.
 | V1-C7 | Profile-aware catalogs, Bases, and Canvas outputs | `vaultwright catalog` emits Markdown/HTML inventory from manifests; `vaultwright profile views --check/--write` generates the profile-owned `Documents.base` file from `_meta/profile.yml`, and CI smoke tests check it for source and wheel installs | Need richer profile-specific Base presets plus generated Canvas recipes | 3 |
 | V1-C8 | Three external profile pilots | Dogfood copy and government-services example provide internal evidence; benchmark and pilot reporting can now discover profile-declared benchmark task packs | Need one structured external pilot each for business-operations, research-learning, and software-project | 6 |
 | V1-C9 | Tagged v1 release with upgrade, recovery, security, and support docs | Recovery, security, release, and design-partner docs exist | Need profile-aware upgrade/recovery docs, release artifact validation, and published known limitations | 6 |
+| V1-C10 | Journaled changed-file materialization | ADR 0002 defines authority boundaries, local derived-state journal semantics, event states, metadata fingerprints, debounce/stability, replay, reconciliation, locking, security, model boundary, adoption, rollback, and benchmark evidence requirements; the canonical white paper and supporting docs now make full sync the baseline/recovery path and journaled materialization the Stage 1B steady-state target | Need package-owned journal/reconcile/watch modules or equivalent, source-addressable materialization API, `.vaultwright/state.sqlite` excluded derived state, event coalescing/stability, metadata-first hashing, crash replay, missed-event reconciliation, worker locking, CLI surfaces, tests, benchmark results, and full safety gates | 1B |
 
 Stage 1 V1-C2 note: `vaultwright lint` now matches the profile-contract-first posture used by
 doctor, migration, and Office sync. A valid `_meta/profile.yml` provides canonical domains, so a
@@ -84,9 +88,10 @@ the index has benchmark evidence.
 | Hard-coded business folders, note types, statuses, and linter assumptions | V1-C2, V1-C3, V1-C7 | Continue extracting into profile contracts before adding more profiles; `lint`, `catalog`, `migration`, Office mirror placement defaults, overlap calibration roots/context links/inactive statuses, benchmark tasks, repo mirror defaults/context fields, Microsoft 365/sandbox/recovery/review repo/source mirror reporting, and `Documents.base` generation now read validated profile-defined values |
 | Current business template and examples | V1-C3, V1-C4 | Treat as `business-operations`; migrate rather than fork |
 | Above-sentinel notes in generated mirrors | V1-C5 | Preserve first with `migrate annotations --write`; sync blocks unmigrated mirror annotations, fresh mirrors are machine-owned, and sidecar-aware sync makes migrated mirrors machine-owned on the next regeneration |
+| Repeated whole-corpus steady-state sync cost | V1-C10 | Stage 1B must add a durable local journal, metadata-first changed-file event processing, replay, reconciliation, and benchmarks while preserving full sync as the recovery path |
 | Obsidian Bases and future Canvas outputs | V1-C6, V1-C7 | Adapter only; `profile views --check` keeps generated Bases testable without Obsidian, and Canvas remains open |
-| Agent-readiness benchmark | V1-C8, V1-E10, V1-E11 | Keep benchmark task packs profile-declared, keep generated mirror evidence rooted in the active Office mirror root, and use measured results to decide the Stage 4 Explorer gate |
-| Catalog JSON/Markdown/HTML | V1-C1, V1-C7, V1-E12 | Package-owned `vaultwright catalog` is now the shared view-model path; continue stabilizing it before richer UI |
+| Agent-readiness benchmark | V1-C8, V1-E10, V1-E11 | Keep benchmark task packs profile-declared, keep generated mirror evidence rooted in the active Office mirror root, and use measured results after Stage 1B before deciding the Stage 4 Explorer gate |
+| Catalog JSON/Markdown/HTML | V1-C1, V1-C7, V1-E12 | Package-owned `vaultwright catalog` is now the shared view-model path; continue preserving it, but do not broaden UI work before Stage 1B |
 | Microsoft 365/Copilot handoff | V1-C9 | Keep as support/deployment documentation, not an enterprise taxonomy profile |
 | Local evidence index | V1-E10 | Build after profile/core schema groundwork; no vector DB by default |
 | Visual Explorer | V1-E12 | Build only if Stage 4 benchmark gate passes |
@@ -107,6 +112,12 @@ vaultwright profile views --check
 vaultwright profile views --write
 vaultwright migrate annotations --plan
 vaultwright migrate annotations --write
+vaultwright watch
+vaultwright sync --changed
+vaultwright sync --full
+vaultwright journal status
+vaultwright journal replay
+vaultwright reconcile
 vaultwright index build
 vaultwright index status
 vaultwright explore "question"
@@ -126,7 +137,9 @@ lint, catalog, conversion, m365, migration, overlap, benchmark, pilot, sandbox, 
 review-ledger, and operator-wrapper tools are compatibility shims.
 Sidecar-aware Office/repo sync rewrites migrated mirrors as machine-owned on regeneration; fresh
 mirrors are machine-owned; sync and lint block unmigrated mirror annotations.
-`index` and `explore` remain gated future work.
+`watch`, `sync --changed`, `sync --full`, `journal status`, `journal replay`, and `reconcile`
+are Stage 1B V1-C10 targets and are not implemented yet. `index` and `explore` remain gated
+future work after Stage 1B and the official-profile/Obsidian gates.
 
 ## Post-V1 Backlog
 
@@ -145,3 +158,6 @@ The following are explicitly outside v1 unless they replace a v1 requirement:
 - broad connector catalog;
 - desktop application shell;
 - automatic enterprise permission or retention enforcement.
+- package-part DOCX/PPTX/XLSX/PDF extraction;
+- default semantic-delta model processing;
+- cloud-provider change-feed adapters.

@@ -4,7 +4,9 @@
 
 Vaultwright turns heterogeneous source collections into governed, profile-driven knowledge
 workspaces that humans and AI agents can inspect, navigate, cite, and refresh without replacing the
-original records.
+original records. The canonical v1 direction now adds journaled changed-file materialization:
+after an initial baseline, normal steady-state refresh should process event-identified candidate
+sources, while full sync remains the recovery and verification path.
 
 The first paid workflow remains consulting and implementation work, but the v1 architecture is no
 longer a single business-operations folder template. The accepted v1 direction is documented in
@@ -37,6 +39,8 @@ The first workflow is:
    reports so approvals are tied to artifact hashes.
 8. Create a small number of curated hubs and entity pages.
 9. Refresh the workspace over time with auditable sync/status output.
+10. After Stage 1B, use journaled changed-file materialization for normal steady-state refresh and
+    full sync for recovery, reconciliation, and verification.
 
 ## Supported Corpus Range
 
@@ -60,6 +64,8 @@ Out of scope for the first release:
 A successful first workflow produces:
 
 - original files unchanged;
+- full sync available as baseline and recovery mode;
+- future journaled changed-file materialization state kept local and derived, never authoritative;
 - generated mirrors under `_mirrors/`;
 - repo mirrors under the active profile's `repo_notes_dir` (`80_sources/repos/` in the packaged
   business-operations profile);
@@ -80,6 +86,7 @@ A successful first workflow produces:
 - Not a generic personal PKM or Zettelkasten app.
 - Not a hosted SaaS in this open-core repository.
 - Not a vector-RAG chatbot over documents.
+- Not a filesystem watcher that treats events as authoritative truth.
 - Not a public profile marketplace for v1.
 - Not an Obsidian plugin for v1.
 - Not a desktop application shell for v1.

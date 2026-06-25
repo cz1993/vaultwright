@@ -1,8 +1,11 @@
 # Vaultwright Whitepaper
 
-**Status:** canonical strategic product revision, incremental-materialization architecture, and finite v1 execution brief
+> Historical revision copy. The canonical editable white paper for this architecture now lives at
+> `docs/VAULTWRIGHT_WHITEPAPER.md`; update that file first and keep this copy as dated provenance.
+
+**Status:** strategic product revision, incremental-materialization architecture, and finite v1 execution brief
 **Date:** 2026-06-24
-**Repository reviewed:** `cz1993/vaultwright` at commit `004a3617f15e8234a056b8b1711b139ebe9b8e2f`
+**Repository reviewed:** `cz1993/vaultwright` at commit `a57ef29ec7d02ff5510da609c87710199b0931cc`
 **Audience:** maintainers, design partners, consulting operators, knowledge-management teams, and technical reviewers
 **Review posture:** ambitious, practical, evidence-based, source-preserving, and deliberately scope-bounded
 
@@ -77,12 +80,11 @@ As of the reviewed commit:
 - Source-authority and no-real-data policy defaults are validated through the profile schema.
 - Machine-owned mirrors and annotation-sidecar migration are implemented and treated as closed Stage 1 work.
 - Compatibility scripts remain as thin shims while package and profile convergence continues.
-- The latest checkpoint on `main` is green in CI at `004a3617f15e8234a056b8b1711b139ebe9b8e2f`; local
-  verification at that checkpoint reported 398 passing tests.
+- The repository reports a current full test run of 332 passing tests in its progress documentation.
 
 This progress matters. The incremental design should not replace the existing lifecycle engine. It should make the existing engine addressable by source and drive it through a durable queue.
 
-The present performance issue is structural: normal Office synchronization still discovers the source tree and computes content hashes during planning for all eligible files. Conversion is avoided for clean files, but traversal and full hashing still scale with the whole corpus. Stage 1B is planned to remove that repeated steady-state cost; the journaled changed-file materialization engine is not implemented at this checkpoint.
+The present performance issue is structural: normal Office synchronization still discovers the source tree and computes content hashes during planning for all eligible files. Conversion is avoided for clean files, but traversal and full hashing still scale with the whole corpus. The first incremental release should remove that repeated steady-state cost.
 
 The main remaining risks are:
 
@@ -851,9 +853,6 @@ The scope remains finite: changed-file incrementality is mandatory; package-part
 - Vaultwright repository: https://github.com/cz1993/vaultwright
 - Vaultwright June 23 strategic whitepaper: `docs/VAULTWRIGHT_WHITEPAPER_2026-06-23.md`
 - Vaultwright v1 finish-line matrix: `docs/V1_FINISH_LINE.md`
-- ADR 0001 profile-driven v1 architecture: `docs/adr/0001-profile-driven-v1-architecture.md`
-- ADR 0002 journaled incremental materialization:
-  `docs/adr/0002-journaled-incremental-materialization.md`
 - Vaultwright profile schema: `docs/PROFILE_SCHEMA.md`
 - Obsidian Agent Skills: https://github.com/kepano/obsidian-skills
 - CodeGraph: https://github.com/colbymchenry/codegraph
