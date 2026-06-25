@@ -232,6 +232,7 @@ def _empty_status(root: Path) -> dict[str, Any]:
         payload[f"{status.replace('-', '_')}_count"] = 0
     return payload
 
+
 def journal_status(root: Path, *, initialize_state: bool = False) -> dict[str, Any]:
     root = root.expanduser().resolve()
     path = state_db_path(root)

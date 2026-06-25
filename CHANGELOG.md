@@ -6,6 +6,9 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 ## [Unreleased]
 
 ### Added
+- Added deterministic Stage 1B change-feed and metadata-fingerprint primitives, including a static
+  test feed, generated/local/operational path filtering, event coalescing before queueing, and a
+  no-full-hash fast path when the cheap fingerprint is unchanged.
 - Added the first Stage 1B journal foundation: package-owned changed-file event/state modules,
   local `.vaultwright/state.sqlite` initialization, `vaultwright journal status`, `.vaultwright/`
   ignore/no-data safeguards, and focused persistence tests without starting watcher delivery.

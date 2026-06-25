@@ -35,6 +35,24 @@ the journal is source-addressable, local derived state is excluded from source c
 remains the baseline/recovery path, and status output reports queue/sequence/worker state without
 becoming a retrieval index.
 
+## 2026-06-25 Stage 1B Feed and Fingerprint Foundation
+
+This checkpoint adds the deterministic trigger-feed and fast-candidate-fingerprint layer for
+V1-C10 without adding a native watcher dependency. `vaultwright.changes.feed` defines a replaceable
+feed interface, a static test feed, shared filtering for generated Office/repo mirrors, local
+`.vaultwright/` state, operational/template paths, Office lock files, and atomic-write temporary
+files, plus deterministic coalescing before journal queueing. `vaultwright.changes.fingerprint`
+records path, existence, file/symlink state, size, nanosecond mtime, and filesystem identity hint
+as a cheap token, and exposes a testable helper that does not call the full-hash function when the
+token is unchanged.
+
+This remains a foundation slice. It does not start native filesystem watching, debounce/settle
+timers, source-addressable materialization, changed-source workers, reconciliation, replay, worker
+locking, performance benchmarking, or any Stage 2+ lane. Architectural compatibility is preserved:
+watcher delivery remains advisory, ignored paths are derived through existing runtime profile and
+mirror helper APIs, and unchanged fingerprints can short-circuit full hashing before later worker
+integration.
+
 ## 2026-06-25 Stage 1A Profile-Assumption Inventory
 
 This checkpoint closes the first Stage 1A evidence gap by inventorying the remaining hard-coded
@@ -656,7 +674,7 @@ with the local journal/state foundation started while the remaining V1-C10 claus
 | V1-C3 official profiles | In progress. `business-operations` remains the only scaffolded template/profile shape, but package-owned contracts for `research-learning`, `software-project`, and `blank` now validate and are exposed through `vaultwright profile list/show`. |
 | V1-C4 safe migration path | Closed for Stage 1A. Reports, frontmatter-domain normalization, read-only plans, and conservative write-mode profile migration exist; migration reports now use profile-defined canonical domains with domain-map aliases, and profile migration creates directories from validated `folder_plan` records plus the target profile's Office mirror root without overwriting sources, mirrors, annotation sidecars, or drifted existing files. Broader workspace/profile migration coverage remains tied to later profile expansion. |
 | V1-C5 machine-owned mirrors | Stage 1 closed by this batch. Fresh mirrors are machine-owned, sync blocks unmigrated mirror annotations, sidecar-aware sync rewrites migrated mirrors as machine-owned, and lint blocks unmigrated annotations. |
-| V1-C10 journaled changed-file materialization | Foundation started. Package-owned journal event/state modules, `.vaultwright/state.sqlite` initialization, `vaultwright journal status`, `.vaultwright/` ignore posture, no-data staged blocking, and event persistence tests now exist. Watch/event capture, coalescing, reconcile, replay, worker lease operations, benchmark evidence, and changed-file sync remain open. |
+| V1-C10 journaled changed-file materialization | Foundation started. Package-owned journal event/state modules, `.vaultwright/state.sqlite` initialization, `vaultwright journal status`, `.vaultwright/` ignore posture, no-data staged blocking, deterministic feed queueing, generated/local/operational/temp path filtering, repeated-event coalescing, cheap metadata fingerprints, and no-full-hash-on-unchanged-fingerprint tests now exist. Native watch/event capture, debounce/settle checks, source-addressable materialization, reconcile, replay, worker lease operations, benchmark evidence, and changed-file sync remain open. |
 
 Stage 3 has one preparatory slice: package-owned `profile views --check/--write` generates the
 current profile's `Documents.base` without requiring Obsidian. Governance skills, Canvas outputs,
@@ -679,8 +697,9 @@ exits.
 
 ## Next Recommended Slice
 
-Stage 1A is closed. The first Stage 1B V1-C10 foundation slice now proves local derived state
-location, schema creation, basic status introspection, ignore/no-data posture for `.vaultwright/`,
-and event state persistence without starting watcher delivery or profile/content expansion. The
-next Stage 1B slice should remain bounded to one of the remaining V1-C10 clauses and should not
-start profile, Obsidian, index, Explorer, adapter, enrichment, or visualization work.
+Stage 1A is closed. The first Stage 1B V1-C10 slices now prove local derived state location,
+schema creation, basic status introspection, ignore/no-data posture for `.vaultwright/`, event
+state persistence, deterministic feed queueing, path filtering, event coalescing, and cheap
+fingerprint-based full-hash avoidance without starting native watcher delivery or profile/content
+expansion. The next Stage 1B slice should remain bounded to one of the remaining V1-C10 clauses and
+should not start profile, Obsidian, index, Explorer, adapter, enrichment, or visualization work.
