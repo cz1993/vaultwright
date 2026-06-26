@@ -6,6 +6,9 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 ## [Unreleased]
 
 ### Added
+- Added Stage 1B deleted-source replay handling: manifest-backed `deleted` journal events now mark
+  Office source records `source_missing`, retain generated mirrors for review, append audit
+  evidence, and finish as applied work instead of generic review-required events.
 - Added Stage 1B watch startup orchestration with `vaultwright watch --once`, composing startup
   reconciliation, feed-event queueing, and journal replay while leaving continuous native watcher
   delivery as an explicit remaining Stage 1B gap.

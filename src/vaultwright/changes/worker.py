@@ -9,7 +9,7 @@ from vaultwright.changes import journal, materialize
 
 MaterializeFunc = Callable[..., dict[str, Any]]
 
-APPLIED_MATERIALIZATION_STATUSES = ("created", "updated", "unchanged")
+APPLIED_MATERIALIZATION_STATUSES = ("created", "updated", "unchanged", "source-missing")
 REVIEW_MATERIALIZATION_PREFIXES = ("skipped:",)
 FAILED_MATERIALIZATION_PREFIXES = ("error:",)
 
@@ -56,6 +56,84 @@ def _unsupported_event_result(event: dict[str, Any], detail: str) -> dict[str, A
     }
 
 
+def _process_deleted_event(
+    root: Path,
+    holder: str,
+    event: dict[str, Any],
+    *,
+    workspace_id: str,
+    now: str | None,
+) -> dict[str, Any]:
+    sequence = int(event["sequence"])
+    previous_path = event.get("previous_path")
+    if not previous_path:
+        detail = "deleted event has no previous path for source-missing lifecycle update"
+        result = _unsupported_event_result(event, detail)
+        journal.finish_claimed_event(
+            root,
+            holder,
+            sequence,
+            "review-required",
+            error_summary=detail,
+            workspace_id=workspace_id,
+            now=now,
+        )
+        return {
+            "processed": True,
+            "event": event,
+            "finish_status": "review-required",
+            "error_summary": detail,
+            "materialization": result,
+        }
+
+    try:
+        result = materialize.materialize_office_delete(
+            root,
+            previous_path,
+            source_id=str(event.get("source_id") or ""),
+            source_sha256=str(event.get("source_sha256") or ""),
+        )
+    except Exception as exc:
+        summary = f"{exc.__class__.__name__}: {str(exc)[:160]}"
+        journal.finish_claimed_event(
+            root,
+            holder,
+            sequence,
+            "failed",
+            error_summary=summary,
+            workspace_id=workspace_id,
+            now=now,
+        )
+        return {
+            "processed": True,
+            "event": event,
+            "finish_status": "failed",
+            "error_summary": summary,
+            "materialization": None,
+        }
+
+    finish_status, error_summary = _finish_status(str(result.get("status", "")))
+    source_id, source_sha256 = _record_identity(result)
+    journal.finish_claimed_event(
+        root,
+        holder,
+        sequence,
+        finish_status,
+        error_summary=error_summary,
+        source_id=source_id,
+        source_sha256=source_sha256,
+        workspace_id=workspace_id,
+        now=now,
+    )
+    return {
+        "processed": True,
+        "event": event,
+        "finish_status": finish_status,
+        "error_summary": error_summary,
+        "materialization": result,
+    }
+
+
 def process_claimed_event(
     root: Path,
     holder: str,
@@ -68,6 +146,14 @@ def process_claimed_event(
 ) -> dict[str, Any]:
     sequence = int(event["sequence"])
     current_path = event.get("current_path")
+    if event.get("event_kind") == "deleted":
+        return _process_deleted_event(
+            root,
+            holder,
+            event,
+            workspace_id=workspace_id,
+            now=now,
+        )
     if not current_path:
         detail = f"{event.get('event_kind', 'unknown')} event has no current path for materialization"
         result = _unsupported_event_result(event, detail)

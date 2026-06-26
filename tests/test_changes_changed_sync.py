@@ -110,6 +110,35 @@ def test_sync_changed_second_unchanged_pass_does_not_convert(tmp_path: Path) -> 
     assert first_converter.paths == [str(source)]
 
 
+def test_sync_changed_delete_marks_manifest_source_missing_and_retains_mirror(tmp_path: Path) -> None:
+    source = tmp_path / "40_delivery" / "registration.docx"
+    source.parent.mkdir(parents=True)
+    source.write_bytes(b"synthetic changed-sync source")
+    first_converter = CountingConverter()
+    first = changed_sync.sync_changed(
+        tmp_path,
+        "worker-a",
+        now="2099-01-01T00:00:00Z",
+        materialize_kwargs=converter_kwargs(first_converter),
+    )
+    mirror = tmp_path / "_mirrors" / "40_delivery" / "registration.md"
+    source.unlink()
+
+    second = changed_sync.sync_changed(
+        tmp_path,
+        "worker-a",
+        now="2099-01-01T00:00:01Z",
+    )
+
+    assert first["processed"] == 1
+    assert second["reconciliation"]["event_counts"]["deleted"] == 1
+    assert second["processed"] == 1
+    assert second["finish_counts"] == {"applied": 1, "review-required": 0, "failed": 0}
+    assert mirror.exists()
+    status = json.loads((tmp_path / "_meta" / "source-manifest.json").read_text(encoding="utf-8"))
+    assert status["records"][0]["lifecycle_state"] == "source_missing"
+
+
 def test_sync_changed_cli_json_processes_review_required_legacy_doc(tmp_path: Path) -> None:
     source = tmp_path / "40_delivery" / "legacy.doc"
     source.parent.mkdir(parents=True)

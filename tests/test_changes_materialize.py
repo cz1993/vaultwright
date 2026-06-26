@@ -8,7 +8,12 @@ import shutil
 import yaml
 
 from vaultwright.changes.fingerprint import MetadataFingerprint
-from vaultwright.changes.materialize import MaterializationError, materialize_office_source
+from vaultwright.changes.materialize import (
+    MaterializationError,
+    materialize_office_delete,
+    materialize_office_source,
+)
+from vaultwright.mirrors import office as office_sync
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -43,6 +48,29 @@ class FakeClock:
 
     def sleep(self, seconds: float) -> None:
         self.now += seconds
+
+
+def write_manifest(root: Path, records: list[dict[str, object]]) -> None:
+    manifest = office_sync.empty_manifest()
+    manifest["records"] = records
+    office_sync.write_source_manifest(root, manifest)
+
+
+def manifest_record(root: Path, rel: str, source_id: str = "src_existing") -> dict[str, object]:
+    source = root / rel
+    return {
+        "source_id": source_id,
+        "current_source_path": rel,
+        "previous_source_paths": [],
+        "mirror_path": f"_mirrors/{Path(rel).with_suffix('.md').as_posix()}",
+        "source_format": source.suffix.lstrip(".").lower(),
+        "source_size": source.stat().st_size,
+        "source_modified": office_sync.file_mtime_iso(source),
+        "source_sha256": office_sync.sha256_of(source),
+        "lifecycle_state": "clean",
+        "warnings": [],
+        "errors": [],
+    }
 
 
 def stability_fp(path: str, *, size: int, mtime_ns: int) -> MetadataFingerprint:
@@ -135,6 +163,60 @@ def test_materialize_office_source_skips_unchanged_conversion(tmp_path: Path) ->
     assert second["manifest_written"] is False
     assert mirror.read_text(encoding="utf-8") == first_mirror
     assert manifest.read_text(encoding="utf-8") == first_manifest
+
+
+def test_materialize_office_delete_marks_source_missing_and_retains_mirror(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    source = vault / "40_delivery" / "registration.docx"
+    source.parent.mkdir(parents=True)
+    source.write_bytes(b"synthetic source bytes")
+    record = manifest_record(vault, "40_delivery/registration.docx")
+    write_manifest(vault, [record])
+    mirror = vault / "_mirrors" / "40_delivery" / "registration.md"
+    mirror.parent.mkdir(parents=True)
+    mirror.write_text("retained generated evidence\n", encoding="utf-8")
+    source.unlink()
+
+    result = materialize_office_delete(
+        vault,
+        "40_delivery/registration.docx",
+        source_id=str(record["source_id"]),
+        source_sha256=str(record["source_sha256"]),
+    )
+
+    assert result["status"] == "source-missing"
+    assert result["record"]["lifecycle_state"] == "source_missing"
+    assert result["manifest_written"] is True
+    assert result["audit_appended"] is True
+    assert mirror.read_text(encoding="utf-8") == "retained generated evidence\n"
+    manifest = json.loads((vault / "_meta" / "source-manifest.json").read_text(encoding="utf-8"))
+    assert manifest["records"][0]["lifecycle_state"] == "source_missing"
+    audit_lines = (vault / "_meta" / "sync-audit.jsonl").read_text(encoding="utf-8").splitlines()
+    assert len(audit_lines) == 1
+    audit = json.loads(audit_lines[0])
+    assert audit["status"] == "source_missing"
+    assert audit["lifecycle_state"] == "source_missing"
+
+
+def test_materialize_office_delete_requires_matching_source_id_and_path(tmp_path: Path) -> None:
+    vault = tmp_path / "vault"
+    source = vault / "40_delivery" / "registration.docx"
+    source.parent.mkdir(parents=True)
+    source.write_bytes(b"synthetic source bytes")
+    record = manifest_record(vault, "40_delivery/registration.docx", source_id="src_expected")
+    write_manifest(vault, [record])
+    source.unlink()
+
+    result = materialize_office_delete(
+        vault,
+        "40_delivery/registration.docx",
+        source_id="src_other",
+    )
+
+    assert result["status"] == "skipped:missing-manifest-record"
+    assert result["record"]["lifecycle_state"] == "review-required"
+    manifest = json.loads((vault / "_meta" / "source-manifest.json").read_text(encoding="utf-8"))
+    assert manifest["records"][0]["lifecycle_state"] == "clean"
 
 
 def test_materialize_office_source_honors_profile_mirror_root(tmp_path: Path) -> None:

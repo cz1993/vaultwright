@@ -4,6 +4,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from vaultwright.changes import journal, worker
+from vaultwright.mirrors import office as office_sync
 
 
 class TextConversion:
@@ -24,6 +25,29 @@ class CountingConverter:
 class FailingConverter:
     def convert(self, _path: str) -> TextConversion:
         raise RuntimeError("conversion exploded")
+
+
+def write_manifest(root: Path, records: list[dict[str, object]]) -> None:
+    manifest = office_sync.empty_manifest()
+    manifest["records"] = records
+    office_sync.write_source_manifest(root, manifest)
+
+
+def manifest_record(root: Path, rel: str, source_id: str = "src_existing") -> dict[str, object]:
+    source = root / rel
+    return {
+        "source_id": source_id,
+        "current_source_path": rel,
+        "previous_source_paths": [],
+        "mirror_path": f"_mirrors/{Path(rel).with_suffix('.md').as_posix()}",
+        "source_format": source.suffix.lstrip(".").lower(),
+        "source_size": source.stat().st_size,
+        "source_modified": office_sync.file_mtime_iso(source),
+        "source_sha256": office_sync.sha256_of(source),
+        "lifecycle_state": "clean",
+        "warnings": [],
+        "errors": [],
+    }
 
 
 def test_worker_processes_next_supported_office_event(tmp_path: Path) -> None:
@@ -89,10 +113,49 @@ def test_worker_marks_unsupported_source_for_review(tmp_path: Path) -> None:
     assert not (tmp_path / "_meta" / "source-manifest.json").exists()
 
 
-def test_worker_marks_no_current_path_event_for_review(tmp_path: Path) -> None:
+def test_worker_marks_deleted_source_missing_and_retains_mirror(tmp_path: Path) -> None:
+    source = tmp_path / "40_delivery" / "registration.docx"
+    source.parent.mkdir(parents=True)
+    source.write_bytes(b"synthetic source bytes")
+    record = manifest_record(tmp_path, "40_delivery/registration.docx")
+    write_manifest(tmp_path, [record])
+    mirror = tmp_path / "_mirrors" / "40_delivery" / "registration.md"
+    mirror.parent.mkdir(parents=True)
+    mirror.write_text("retained generated evidence\n", encoding="utf-8")
+    source.unlink()
     sequence = journal.record_event(
         tmp_path,
         "deleted",
+        previous_path="40_delivery/registration.docx",
+        source_id=str(record["source_id"]),
+        source_sha256=str(record["source_sha256"]),
+    )
+
+    result = worker.process_next_event(
+        tmp_path,
+        "worker-a",
+        now="2099-01-01T00:00:00Z",
+    )
+
+    assert result["finish_status"] == "applied"
+    assert result["materialization"]["status"] == "source-missing"
+    assert mirror.exists()
+    manifest = office_sync.load_source_manifest(tmp_path)
+    updated = manifest["records"][0]
+    assert updated["source_id"] == "src_existing"
+    assert updated["lifecycle_state"] == "source_missing"
+    assert "Source file is missing" in updated["warnings"][0]
+    event = journal.get_event(tmp_path, sequence)
+    assert event is not None
+    assert event["status"] == "applied"
+    assert event["source_id"] == "src_existing"
+    assert event["source_sha256"] == record["source_sha256"]
+
+
+def test_worker_marks_non_delete_no_current_path_event_for_review(tmp_path: Path) -> None:
+    sequence = journal.record_event(
+        tmp_path,
+        "reconcile-required",
         previous_path="40_delivery/registration.docx",
     )
 

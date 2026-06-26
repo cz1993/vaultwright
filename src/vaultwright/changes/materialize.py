@@ -21,6 +21,22 @@ def _source_record(manifest: dict, source_id: str) -> dict[str, Any] | None:
     return None
 
 
+def _source_record_for_path(manifest: dict, source_path: str, source_id: str = "") -> dict[str, Any] | None:
+    records = [record for record in manifest.get("records", []) if isinstance(record, dict)]
+    if source_id:
+        for record in records:
+            if (
+                record.get("source_id") == source_id
+                and record.get("current_source_path") == source_path
+            ):
+                return record
+        return None
+    for record in records:
+        if record.get("current_source_path") == source_path:
+            return record
+    return None
+
+
 def _public_record(record: dict[str, Any]) -> dict[str, Any]:
     return {
         "source_id": str(record.get("source_id", "") or ""),
@@ -177,4 +193,82 @@ def materialize_office_source(
         "audit_appended": audit_appended,
         "stability": stability_result.as_dict() if stability_result else None,
         "record": _public_record(record),
+    }
+
+
+def materialize_office_delete(
+    root: Path,
+    previous_path: str | Path,
+    *,
+    source_id: str = "",
+    source_sha256: str = "",
+    append_audit: bool = True,
+) -> dict[str, Any]:
+    """Apply one missing-source journal event without deleting retained mirrors."""
+
+    root = root.expanduser().resolve()
+    try:
+        rel = normalize_vault_relative_path(previous_path, field="previous_path")
+    except JournalEventError as exc:
+        raise MaterializationError(str(exc)) from exc
+    assert rel is not None
+
+    manifest = office_sync.load_source_manifest(root)
+    record = _source_record_for_path(manifest, rel, source_id=source_id)
+    if record is None:
+        return {
+            "kind": "office-source-delete",
+            "source_path": rel,
+            "status": "skipped:missing-manifest-record",
+            "action": "review",
+            "manifest_written": False,
+            "audit_appended": False,
+            "record": {
+                "source_id": source_id,
+                "current_source_path": rel,
+                "mirror_path": "",
+                "source_format": Path(rel).suffix.lstrip(".").lower(),
+                "source_sha256": source_sha256,
+                "lifecycle_state": "review-required",
+                "warnings": ["Deleted source event has no matching source manifest record."],
+                "errors": [],
+            },
+        }
+    if (root / rel).exists():
+        return {
+            "kind": "office-source-delete",
+            "source_path": rel,
+            "status": "skipped:source-present",
+            "action": "review",
+            "manifest_written": False,
+            "audit_appended": False,
+            "record": _public_record(record),
+        }
+
+    updated = dict(record)
+    updated["lifecycle_state"] = "source_missing"
+    updated.update(office_sync.lifecycle_record_metadata(root))
+    updated["warnings"] = office_sync.unique_list(
+        (updated.get("warnings") or [])
+        + ["Source file is missing; mirror was retained for review."]
+    )
+    updated["errors"] = []
+    office_sync.upsert_manifest_record(manifest, updated)
+    manifest_written = office_sync.write_source_manifest(root, manifest)
+    audit_appended = False
+    if append_audit:
+        office_sync.append_audit(
+            root,
+            office_sync.sync_audit_event(root, {"record": updated}, manifest, "source_missing"),
+        )
+        audit_appended = True
+
+    return {
+        "kind": "office-source-delete",
+        "source_path": rel,
+        "status": "source-missing",
+        "action": "source_missing",
+        "manifest_written": manifest_written,
+        "audit_appended": audit_appended,
+        "record": _public_record(updated),
     }

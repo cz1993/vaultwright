@@ -25,7 +25,7 @@ candidate-only hashing for safe move detection. `vaultwright sync --changed` com
 reconciliation and replay, while `vaultwright sync` and `vaultwright sync --full` preserve the full
 sync recovery path. `vaultwright watch --once` runs the deterministic watch-start cycle: startup
 reconciliation, feed-event queueing, and journal replay. Continuous native watching, broader
-delete/reconcile event handling, and benchmark evidence remain open.
+move/recreate reconciliation handling, and benchmark evidence remain open.
 
 ## Source Identity
 
@@ -85,6 +85,12 @@ Current implementation status:
   materializes supported current-path Office sources through `vaultwright.changes.materialize`,
   records source ID/hash on finished journal rows, and finishes unsupported/no-current-path events
   as review-required or materialization errors as failed;
+- implemented for Stage 1B deleted-source lifecycle replay:
+  manifest-backed `deleted` journal events with a previous source path are applied through
+  `vaultwright.changes.materialize.materialize_office_delete`, marking the Office source manifest
+  record `source_missing`, retaining the generated mirror for review, appending audit evidence,
+  and finishing the journal event as applied; deleted events without matching manifest evidence
+  still require review;
 - implemented for Stage 1B journal replay: `vaultwright.changes.replay` and
   `vaultwright journal replay` recover interrupted `processing` events, optionally requeue failed
   events only when `--retry-failed` is requested, process claimable work through the existing
