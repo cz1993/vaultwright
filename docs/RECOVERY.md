@@ -272,8 +272,9 @@ after journal loss. The current replay path covers interrupted `processing` even
 failed-event retry; the current explicit reconciliation path queues missed create, update, delete,
 move, and review-required candidate events; the current `watch --once` path runs deterministic
 startup reconciliation, feed queueing, and replay; manifest-backed deleted events now mark records
-`source_missing` while retaining generated mirrors. Continuous native watch delivery and broader
-move/recreate lifecycle automation remain open.
+`source_missing` while retaining generated mirrors; resolved `source_moved` records replay after
+old-mirror cleanup, and delete/recreate can return records to `clean`. Continuous native watch
+delivery and benchmark evidence remain open.
 
 The test suite now exercises the copied-vault regeneration path, source-byte preservation,
 converter-failure, Office mirror-write-failure, and repo-note write-failure recovery that preserve

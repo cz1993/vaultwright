@@ -139,6 +139,103 @@ def test_sync_changed_delete_marks_manifest_source_missing_and_retains_mirror(tm
     assert status["records"][0]["lifecycle_state"] == "source_missing"
 
 
+def test_sync_changed_replays_move_after_previous_mirror_is_removed(tmp_path: Path) -> None:
+    source = tmp_path / "40_delivery" / "registration.docx"
+    renamed = tmp_path / "40_delivery" / "registration-renamed.docx"
+    source.parent.mkdir(parents=True)
+    source.write_bytes(b"synthetic moved source")
+    first_converter = CountingConverter()
+    first = changed_sync.sync_changed(
+        tmp_path,
+        "worker-a",
+        now="2099-01-01T00:00:00Z",
+        materialize_kwargs=converter_kwargs(first_converter),
+    )
+    old_mirror = tmp_path / "_mirrors" / "40_delivery" / "registration.md"
+    new_mirror = tmp_path / "_mirrors" / "40_delivery" / "registration-renamed.md"
+    initial_manifest = json.loads((tmp_path / "_meta" / "source-manifest.json").read_text(encoding="utf-8"))
+    source_id = initial_manifest["records"][0]["source_id"]
+    source.rename(renamed)
+    review_converter = CountingConverter()
+
+    review = changed_sync.sync_changed(
+        tmp_path,
+        "worker-a",
+        now="2099-01-01T00:00:01Z",
+        materialize_kwargs=converter_kwargs(review_converter),
+    )
+
+    assert first["processed"] == 1
+    assert review["reconciliation"]["event_counts"]["moved"] == 1
+    assert review["finish_counts"] == {"applied": 0, "review-required": 1, "failed": 0}
+    assert review_converter.paths == []
+    assert old_mirror.exists()
+    assert not new_mirror.exists()
+    move_review = json.loads((tmp_path / "_meta" / "source-manifest.json").read_text(encoding="utf-8"))
+    assert move_review["records"][0]["source_id"] == source_id
+    assert move_review["records"][0]["current_source_path"] == "40_delivery/registration-renamed.docx"
+    assert move_review["records"][0]["lifecycle_state"] == "source_moved"
+    assert move_review["records"][0]["previous_mirror_path"] == "_mirrors/40_delivery/registration.md"
+    old_mirror.unlink()
+    replay_converter = CountingConverter()
+
+    replayed = changed_sync.sync_changed(
+        tmp_path,
+        "worker-a",
+        now="2099-01-01T00:00:02Z",
+        materialize_kwargs=converter_kwargs(replay_converter),
+    )
+
+    assert replayed["reconciliation"]["event_counts"]["modified"] == 1
+    assert replayed["finish_counts"] == {"applied": 1, "review-required": 0, "failed": 0}
+    assert replay_converter.paths == [str(renamed)]
+    assert new_mirror.exists()
+    resolved = json.loads((tmp_path / "_meta" / "source-manifest.json").read_text(encoding="utf-8"))
+    record = resolved["records"][0]
+    assert record["source_id"] == source_id
+    assert record["current_source_path"] == "40_delivery/registration-renamed.docx"
+    assert record["previous_source_paths"] == ["40_delivery/registration.docx"]
+    assert record["lifecycle_state"] == "clean"
+    assert "previous_mirror_path" not in record
+
+
+def test_sync_changed_recreated_deleted_source_returns_to_clean(tmp_path: Path) -> None:
+    source = tmp_path / "40_delivery" / "registration.docx"
+    source.parent.mkdir(parents=True)
+    source.write_bytes(b"synthetic changed-sync source")
+    first_converter = CountingConverter()
+    first = changed_sync.sync_changed(
+        tmp_path,
+        "worker-a",
+        now="2099-01-01T00:00:00Z",
+        materialize_kwargs=converter_kwargs(first_converter),
+    )
+    source.unlink()
+    deleted = changed_sync.sync_changed(
+        tmp_path,
+        "worker-a",
+        now="2099-01-01T00:00:01Z",
+    )
+    source.write_bytes(b"recreated synthetic changed-sync source with new bytes")
+    recreate_converter = CountingConverter()
+
+    recreated = changed_sync.sync_changed(
+        tmp_path,
+        "worker-a",
+        now="2099-01-01T00:00:02Z",
+        materialize_kwargs=converter_kwargs(recreate_converter),
+    )
+
+    assert first["processed"] == 1
+    assert deleted["finish_counts"] == {"applied": 1, "review-required": 0, "failed": 0}
+    assert recreated["reconciliation"]["event_counts"]["modified"] == 1
+    assert recreated["finish_counts"] == {"applied": 1, "review-required": 0, "failed": 0}
+    assert recreate_converter.paths == [str(source)]
+    manifest = json.loads((tmp_path / "_meta" / "source-manifest.json").read_text(encoding="utf-8"))
+    assert manifest["records"][0]["current_source_path"] == "40_delivery/registration.docx"
+    assert manifest["records"][0]["lifecycle_state"] == "clean"
+
+
 def test_sync_changed_cli_json_processes_review_required_legacy_doc(tmp_path: Path) -> None:
     source = tmp_path / "40_delivery" / "legacy.doc"
     source.parent.mkdir(parents=True)

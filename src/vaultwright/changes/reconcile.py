@@ -50,6 +50,24 @@ def _source_modified(source: Path) -> str:
         raise ReconciliationError(f"source is not readable for reconciliation: {source}: {exc}") from exc
 
 
+def _safe_manifest_rel(value: Any) -> Path | None:
+    if not isinstance(value, str) or not value:
+        return None
+    path = Path(value)
+    if path.is_absolute() or any(part in {"", ".", ".."} for part in path.parts):
+        return None
+    return path
+
+
+def _resolved_source_move_review(root: Path, record: dict[str, Any]) -> bool:
+    if record.get("lifecycle_state") != "source_moved":
+        return False
+    previous_mirror = _safe_manifest_rel(record.get("previous_mirror_path"))
+    if previous_mirror is None:
+        return False
+    return not (root / previous_mirror).exists()
+
+
 def _queue_once(
     root: Path,
     event_kind: str,
@@ -159,7 +177,11 @@ def reconcile_workspace(
         record = records_by_path.get(rel)
         if record is not None:
             current_size = source.stat().st_size
-            if _record_size(record) != current_size or _record_modified(record) != _source_modified(source):
+            if (
+                _record_size(record) != current_size
+                or _record_modified(record) != _source_modified(source)
+                or _resolved_source_move_review(root, record)
+            ):
                 events.append(
                     _queue_once(
                         root,

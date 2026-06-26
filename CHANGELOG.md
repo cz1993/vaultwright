@@ -6,6 +6,10 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 ## [Unreleased]
 
 ### Added
+- Added Stage 1B move/recreate replay coverage: reconciliation now requeues resolved
+  `source_moved` records after the previous generated mirror is removed, allowing
+  `sync --changed` to generate the new mirror with the same source ID, and tests cover
+  delete/recreate returning a source record to `clean`.
 - Added Stage 1B deleted-source replay handling: manifest-backed `deleted` journal events now mark
   Office source records `source_missing`, retain generated mirrors for review, append audit
   evidence, and finish as applied work instead of generic review-required events.

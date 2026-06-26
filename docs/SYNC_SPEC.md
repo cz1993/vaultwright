@@ -24,8 +24,8 @@ reconciliation that queues missed source/manifest events with metadata-first com
 candidate-only hashing for safe move detection. `vaultwright sync --changed` composes
 reconciliation and replay, while `vaultwright sync` and `vaultwright sync --full` preserve the full
 sync recovery path. `vaultwright watch --once` runs the deterministic watch-start cycle: startup
-reconciliation, feed-event queueing, and journal replay. Continuous native watching, broader
-move/recreate reconciliation handling, and benchmark evidence remain open.
+reconciliation, feed-event queueing, and journal replay. Continuous native watching and benchmark
+evidence remain open.
 
 ## Source Identity
 
@@ -91,6 +91,11 @@ Current implementation status:
   record `source_missing`, retaining the generated mirror for review, appending audit evidence,
   and finishing the journal event as applied; deleted events without matching manifest evidence
   still require review;
+- implemented for Stage 1B move/recreate replay: `sync --changed` blocks unambiguous moved-source
+  materialization while the previous generated mirror still exists, then reconciliation requeues
+  the resolved `source_moved` record after that previous mirror is removed so replay can create the
+  new mirror with the same source ID; delete/recreate of the same source path queues a metadata
+  update and returns the manifest record to `clean`;
 - implemented for Stage 1B journal replay: `vaultwright.changes.replay` and
   `vaultwright journal replay` recover interrupted `processing` events, optionally requeue failed
   events only when `--retry-failed` is requested, process claimable work through the existing
@@ -99,6 +104,7 @@ Current implementation status:
   `vaultwright reconcile` discover current Office/PDF candidates through the existing mirror
   scanner, compare source metadata against `_meta/source-manifest.json`, queue missed creates,
   metadata-changed updates, missing-source deletes, and same-hash moves into the local journal,
+  requeue resolved `source_moved` records after the previous generated mirror has been removed,
   avoid duplicate unresolved events, update `last_reconciliation_at`, and full-hash only
   suspicious new paths that can match missing manifest records;
 - implemented for Stage 1B changed sync: `vaultwright.changes.changed_sync` and
