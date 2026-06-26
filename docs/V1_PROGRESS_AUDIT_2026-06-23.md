@@ -232,6 +232,30 @@ existing required dependency set. Focused tests cover content-root selection, ev
 directory/outside-path rejection, `watch --once`, plain watch mode guidance, and actionable
 `vaultwright[watch]` install guidance when native capture is requested without the extra.
 
+## 2026-06-26 Stage 1B Gate Closure
+
+This checkpoint closes the Stage 1B V1-C10 gate without starting Stage 2+ work. The journaled
+changed-file path now has durable local state, feed filtering/coalescing, cheap metadata
+fingerprints, source-addressable materialization through the existing Office mirror engine,
+file-stability settling, lease-protected event claiming, idempotent replay, explicit
+reconciliation, changed-sync orchestration, deterministic watch startup, optional native capture,
+deleted/moved/recreated lifecycle replay, and recorded synthetic benchmark evidence.
+
+Gate validation passed after the optional native capture batch:
+
+- focused watch/feed tests: 23 passed;
+- affected Stage 1B and safety-adjacent tests: 422 passed;
+- full repository suite: 469 passed;
+- Python compile checks, template-copy drift check, template lint, shell syntax checks,
+  `git diff --check`, no-data scan, built-wheel smoke, optional-extra metadata check, and residue
+  check: OK.
+
+The first no-data scan during the packaging gate correctly caught generated
+`src/vaultwright.egg-info` residue from wheel building; the residue was removed and the final
+no-data and residue checks passed. No architectural conflict was found with journaled incremental
+materialization. Stage 2 profile work, Obsidian adapter work, index, Explorer, adapters, model
+enrichment, reports, and visualizations remain outside this completed goal.
+
 ## 2026-06-25 Stage 1A Profile-Assumption Inventory
 
 This checkpoint closes the first Stage 1A evidence gap by inventorying the remaining hard-coded
@@ -843,8 +867,8 @@ non-goals, journaled incremental architecture, ADRs, and finish-line matrix are 
 
 Stage 1 is now split into Stage 1A and Stage 1B. Stage 1A is closed by the inventory and closure
 evidence above: remaining profile assumptions are either universal, profile-owned, compatibility
-fallbacks, or fixtures, and no inventory-confirmed blocking defect is known. Stage 1B is now active,
-with the local journal/state foundation started while the remaining V1-C10 clauses stay open.
+fallbacks, or fixtures, and no inventory-confirmed blocking defect is known. Stage 1B is closed by
+the V1-C10 implementation and gate evidence above.
 
 | Requirement | Status |
 | --- | --- |
@@ -853,30 +877,30 @@ with the local journal/state foundation started while the remaining V1-C10 claus
 | V1-C3 official profiles | In progress. `business-operations` remains the only scaffolded template/profile shape, but package-owned contracts for `research-learning`, `software-project`, and `blank` now validate and are exposed through `vaultwright profile list/show`. |
 | V1-C4 safe migration path | Closed for Stage 1A. Reports, frontmatter-domain normalization, read-only plans, and conservative write-mode profile migration exist; migration reports now use profile-defined canonical domains with domain-map aliases, and profile migration creates directories from validated `folder_plan` records plus the target profile's Office mirror root without overwriting sources, mirrors, annotation sidecars, or drifted existing files. Broader workspace/profile migration coverage remains tied to later profile expansion. |
 | V1-C5 machine-owned mirrors | Stage 1 closed by this batch. Fresh mirrors are machine-owned, sync blocks unmigrated mirror annotations, sidecar-aware sync rewrites migrated mirrors as machine-owned, and lint blocks unmigrated annotations. |
-| V1-C10 journaled changed-file materialization | Foundation started. Package-owned journal event/state modules, `.vaultwright/state.sqlite` initialization, `vaultwright journal status`, `.vaultwright/` ignore posture, no-data staged blocking, deterministic feed queueing, generated/local/operational/temp path filtering, repeated-event coalescing, cheap metadata fingerprints, no-full-hash-on-unchanged-fingerprint tests, workspace leases, stale-lease recovery, transactional event claims, claimed-event finish checkpoints, failed-event retry, interrupted-`processing` recovery, a source-addressable Office materialization primitive, deterministic file-stability settling, lease-protected current-path Office worker processing, manifest-backed deleted-event replay to `source_missing`, resolved `source_moved` replay after old-mirror cleanup, delete/recreate replay back to `clean`, idempotent `vaultwright journal replay`, explicit `vaultwright reconcile`, `vaultwright sync --changed`/`--full`, deterministic `vaultwright watch --once` startup/feed/replay orchestration, optional watchdog-backed `vaultwright watch --native` capture, and synthetic benchmark evidence now exist. Final Stage 1B safety-gate closure remains open. |
+| V1-C10 journaled changed-file materialization | Closed for Stage 1B. Package-owned journal event/state modules, `.vaultwright/state.sqlite` initialization, `vaultwright journal status`, `.vaultwright/` ignore posture, no-data staged blocking, deterministic feed queueing, generated/local/operational/temp path filtering, repeated-event coalescing, cheap metadata fingerprints, no-full-hash-on-unchanged-fingerprint tests, workspace leases, stale-lease recovery, transactional event claims, claimed-event finish checkpoints, failed-event retry, interrupted-`processing` recovery, a source-addressable Office materialization primitive, deterministic file-stability settling, lease-protected current-path Office worker processing, manifest-backed deleted-event replay to `source_missing`, resolved `source_moved` replay after old-mirror cleanup, delete/recreate replay back to `clean`, idempotent `vaultwright journal replay`, explicit `vaultwright reconcile`, `vaultwright sync --changed`/`--full`, deterministic `vaultwright watch --once` startup/feed/replay orchestration, optional watchdog-backed `vaultwright watch --native` capture, synthetic benchmark evidence, and focused/affected/full safety gate evidence now exist. |
 
 Stage 3 has one preparatory slice: package-owned `profile views --check/--write` generates the
 current profile's `Documents.base` without requiring Obsidian. Governance skills, Canvas outputs,
 and the broader Obsidian adapter gate remain open. Stage 2 and Stage 3 evidence is preserved but
-paused behind Stage 1B. Stages 4, 5, and 6 have not started and should remain gated until Stage 1B
-exits.
+paused until their own explicitly bounded batches. Stages 4, 5, and 6 have not started and should
+remain gated until the official-profile and Obsidian gates are intentionally reopened.
 
 ## Remaining Execution Plan
 
-1. Implement Stage 1B now that Stage 1A exit criteria pass:
-   - add journaled changed-file materialization mapped to V1-C10;
-   - preserve full sync as baseline and recovery;
-   - record benchmark evidence instead of claiming performance from design alone.
-2. Continue Stage 2 only after Stage 1B exit criteria pass:
+1. Stage 1B is closed:
+   - journaled changed-file materialization is mapped to V1-C10;
+   - full sync remains the baseline and recovery path;
+   - benchmark evidence is recorded instead of claiming performance from design alone.
+2. Continue Stage 2 only in a new, explicitly bounded batch or goal:
    - scaffolded init fixtures for `research-learning`, `software-project`, and `blank`;
    - one synthetic example and benchmark task pack per maintained profile;
    - identical lifecycle and safety tests across profiles.
-3. Hold Stage 4 index and Stage 5 Explorer work until profile/core schema groundwork, Stage 1B, and
-   Stage 2 profiles exist. The index must earn v1 scope through benchmark improvement.
+3. Hold Stage 4 index and Stage 5 Explorer work until Stage 2 profiles exist. The index must earn
+   v1 scope through benchmark improvement.
 
 ## Next Recommended Slice
 
-Stage 1A is closed. The first Stage 1B V1-C10 slices now prove local derived state location,
+Stage 1A and Stage 1B are closed. The Stage 1B V1-C10 slices prove local derived state location,
 schema creation, basic status introspection, ignore/no-data posture for `.vaultwright/`, event
 state persistence, deterministic feed queueing, path filtering, event coalescing, and cheap
 fingerprint-based full-hash avoidance, plus lease-protected event claiming, stale-lock recovery,
@@ -892,7 +916,6 @@ names the full-sync recovery path explicitly. `vaultwright watch --once` now pro
 startup reconciliation/feed queueing/replay, and optional `vaultwright watch --native` provides
 watchdog-backed event capture over configured content roots. Synthetic benchmark evidence now
 proves known-path replay over 1,000 sources avoids whole-workspace discovery and untouched-source
-hashing. The next Stage 1B slice should remain bounded to final V1-C10 safety-gate closure and
-should not start profile,
-Obsidian, index, Explorer, adapter, enrichment, or
-visualization work.
+hashing. The current pursuing goal ends at this Stage 1B gate; future work should start a new
+explicitly bounded batch and should not automatically start profile, Obsidian, index, Explorer,
+adapter, enrichment, report, or visualization work from this goal.

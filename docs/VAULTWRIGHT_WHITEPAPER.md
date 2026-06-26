@@ -73,24 +73,29 @@ As of the reviewed commit:
 
 - Stage 0 scope freeze and architecture decisions are recorded as complete.
 - Package-owned runtime covers the main operator commands and mirror implementations.
-- The versioned profile contract is actively replacing hard-coded business assumptions.
+- The versioned profile contract has closed the Stage 1A kernel/profile-convergence gate.
 - Source-authority and no-real-data policy defaults are validated through the profile schema.
 - Machine-owned mirrors and annotation-sidecar migration are implemented and treated as closed Stage 1 work.
-- Compatibility scripts remain as thin shims while package and profile convergence continues.
-- The latest checkpoint on `main` is green in CI at `004a3617f15e8234a056b8b1711b139ebe9b8e2f`; local
-  verification at that checkpoint reported 398 passing tests.
+- Compatibility scripts remain thin shims over package-owned runtime behavior.
+- Stage 1B journaled changed-file materialization is implemented and gate-validated on the active
+  development branch with focused, affected, full-suite, packaging, lint, no-data, template-copy,
+  shell syntax, diff, and residue checks.
 
 This progress matters. The incremental design should not replace the existing lifecycle engine. It should make the existing engine addressable by source and drive it through a durable queue.
 
-The present performance issue is structural: normal Office synchronization still discovers the source tree and computes content hashes during planning for all eligible files. Conversion is avoided for clean files, but traversal and full hashing still scale with the whole corpus. Stage 1B is planned to remove that repeated steady-state cost; the journaled changed-file materialization engine is not implemented at this checkpoint.
+Full sync remains the baseline and recovery mode. The Stage 1B changed-file path removes the
+normal steady-state need to rediscover and fully hash the whole source corpus by processing
+event-identified candidates through the same mirror engine. The recorded synthetic benchmark
+proves known-path replay over 1,000 sources with no whole-workspace discovery, no untouched-source
+body hashing, and one conversion for one modified source.
 
 The main remaining risks are:
 
-- profile behavior is not yet fully extracted from core assumptions;
 - compatibility surfaces can still drift if they stop being thin;
-- the CLI and reporting surface can continue to expand without convergence;
-- the new journal could become a second lifecycle authority if poorly designed;
-- event-driven operation could silently miss changes unless reconciliation is mandatory.
+- the CLI and reporting surface can expand without convergence discipline;
+- the local journal must stay derived delivery state, never a second lifecycle authority;
+- event-driven operation must keep reconciliation mandatory because watcher delivery is advisory;
+- Stage 2+ profiles, Obsidian adapter work, index, Explorer, and pilots still need separate gates.
 
 ## 4. Refined Product Scope
 
@@ -704,27 +709,28 @@ preserves these constraints:
 - V1-C1, V1-C2, V1-C4, and V1-C5 meet their Stage 1 definitions;
 - the full existing suite and repository gates pass.
 
-Stage 1B is the next active lane. Stage 2+ profile, Obsidian, index, and Explorer work remains
-paused until the journaled materialization gate passes.
+The Stage 1B journaled materialization gate is closed. Stage 2+ profile, Obsidian, index, and
+Explorer work remains paused until opened by a new, explicitly bounded batch or goal.
 
 ### Stage 1B — Journaled changed-file synchronization
 
-Add one mandatory requirement, **V1-C10: journaled incremental materialization**.
+Requirement **V1-C10: journaled incremental materialization** is closed for Stage 1B.
 
-Deliverables:
+Delivered:
 
 - package-owned journal module and SQLite schema;
 - source-addressable Office synchronization API;
-- local change-feed adapter;
+- deterministic change-feed adapter plus optional native filesystem capture;
 - event coalescing and file-stability gate;
 - metadata-first reconciliation;
-- `watch`, `sync --changed`, `journal status/replay`, and `reconcile` surfaces;
+- `watch --once`, optional `watch --native`, `sync --changed`, `sync --full`,
+  `journal status/replay`, and `reconcile` surfaces;
 - workspace locking;
 - crash-replay and missed-event recovery tests;
 - synthetic large-vault benchmark;
 - updated recovery, security, profile, and operator documentation.
 
-**Exit criteria:**
+**Exit criteria passed:**
 
 - one changed source causes no full-vault discovery on the event path;
 - untouched source bodies are not hashed;

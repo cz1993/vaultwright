@@ -54,8 +54,8 @@ python3.11 tools/vaultwright.py lint
 Review the plan before sync if the source tree changed, especially after folder renames or cloud
 sync conflicts.
 
-Full sync remains the authoritative recovery mode after Stage 1B. The future local journal and
-state database are derived operational state; if they are lost or suspect, stop any watcher, run
+Full sync remains the authoritative recovery mode after Stage 1B. The local journal and state
+database are derived operational state; if they are lost or suspect, stop any watcher, run
 reconciliation or full sync, and rebuild journal state from sources and manifests rather than
 treating the journal as authority.
 
@@ -274,8 +274,9 @@ move, and review-required candidate events; the current `watch --once` path runs
 startup reconciliation, feed queueing, and replay; manifest-backed deleted events now mark records
 `source_missing` while retaining generated mirrors; resolved `source_moved` records replay after
 old-mirror cleanup, and delete/recreate can return records to `clean`. Optional `watch --native`
-capture now maps watchdog events through the same feed/replay boundary; final Stage 1B safety-gate
-closure remains open.
+capture now maps watchdog events through the same feed/replay boundary. The Stage 1B safety-gate
+closure records focused, affected, full-suite, packaging, lint, no-data, template-copy, shell
+syntax, diff, and residue validation.
 
 The test suite now exercises the copied-vault regeneration path, source-byte preservation,
 converter-failure, Office mirror-write-failure, and repo-note write-failure recovery that preserve

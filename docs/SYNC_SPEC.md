@@ -5,8 +5,8 @@
 Vaultwright sync must prove the core product promise: source files remain untouched while generated
 knowledge artifacts can be regenerated, audited, and reviewed.
 
-Full sync is the current implemented baseline and remains the recovery/verification path. Stage 1B
-adds journaled changed-file materialization as the normal future steady-state path: event-identified
+Full sync is the implemented baseline and remains the recovery/verification path. Stage 1B adds
+journaled changed-file materialization as the normal steady-state path: event-identified
 candidate sources are fingerprinted, hashed only when needed, materialized through the same
 package-owned mirror logic, and reconciled against authoritative sources because watcher events are
 not authoritative.

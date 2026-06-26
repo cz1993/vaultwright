@@ -6,6 +6,9 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 ## [Unreleased]
 
 ### Added
+- Closed the Stage 1B V1-C10 safety gate in the controlling docs after the focused, affected,
+  full-suite, packaging, lint, no-data, template-copy, shell syntax, diff, and residue gates passed
+  for journaled changed-file materialization.
 - Added optional Stage 1B native watch capture with `vaultwright watch --native`, backed by the
   `vaultwright[watch]` watchdog extra; native events are observed only under configured content
   roots, buffered, normalized through the existing feed filters, and flushed through journal replay.
@@ -21,8 +24,8 @@ All notable changes to Vaultwright are documented here. Format loosely follows
   Office source records `source_missing`, retain generated mirrors for review, append audit
   evidence, and finish as applied work instead of generic review-required events.
 - Added Stage 1B watch startup orchestration with `vaultwright watch --once`, composing startup
-  reconciliation, feed-event queueing, and journal replay while leaving continuous native watcher
-  delivery as an explicit remaining Stage 1B gap.
+  reconciliation, feed-event queueing, and journal replay; optional native capture is now handled
+  by `vaultwright watch --native`.
 - Added Stage 1B changed-file sync orchestration with `vaultwright sync --changed`, composing
   explicit reconciliation and journal replay while preserving the existing full-sync path as
   `vaultwright sync` / `vaultwright sync --full`.
@@ -51,7 +54,7 @@ All notable changes to Vaultwright are documented here. Format loosely follows
   local `.vaultwright/state.sqlite` initialization, `vaultwright journal status`, `.vaultwright/`
   ignore/no-data safeguards, and focused persistence tests without starting watcher delivery.
 - Closed the Stage 1A kernel/profile-convergence gate in the controlling docs, preserving the
-  package-runtime/shim boundary and making Stage 1B journaled materialization the next active lane.
+  package-runtime/shim boundary and opening the Stage 1B journaled materialization lane.
 - Documented the Stage 1A profile-assumption inventory across package code, copied-tool shims,
   templates, examples, and tests, with classifications for universal invariants, business profile
   data, legacy compatibility fallbacks, test fixtures, and verified defects.
