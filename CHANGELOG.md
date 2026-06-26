@@ -6,6 +6,10 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 ## [Unreleased]
 
 ### Added
+- Added deterministic Stage 1B journaled-materialization benchmark evidence with
+  `scripts/benchmark_journaled_materialization.py`, proving known-path replay over 1,000 synthetic
+  sources performs zero whole-workspace discovery, hashes no untouched source bodies, and invokes
+  the converter once for one modified source.
 - Added Stage 1B move/recreate replay coverage: reconciliation now requeues resolved
   `source_moved` records after the previous generated mirror is removed, allowing
   `sync --changed` to generate the new mirror with the same source ID, and tests cover

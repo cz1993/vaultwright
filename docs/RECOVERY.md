@@ -274,7 +274,7 @@ move, and review-required candidate events; the current `watch --once` path runs
 startup reconciliation, feed queueing, and replay; manifest-backed deleted events now mark records
 `source_missing` while retaining generated mirrors; resolved `source_moved` records replay after
 old-mirror cleanup, and delete/recreate can return records to `clean`. Continuous native watch
-delivery and benchmark evidence remain open.
+delivery remains open.
 
 The test suite now exercises the copied-vault regeneration path, source-byte preservation,
 converter-failure, Office mirror-write-failure, and repo-note write-failure recovery that preserve

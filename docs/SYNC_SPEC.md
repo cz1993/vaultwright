@@ -24,8 +24,8 @@ reconciliation that queues missed source/manifest events with metadata-first com
 candidate-only hashing for safe move detection. `vaultwright sync --changed` composes
 reconciliation and replay, while `vaultwright sync` and `vaultwright sync --full` preserve the full
 sync recovery path. `vaultwright watch --once` runs the deterministic watch-start cycle: startup
-reconciliation, feed-event queueing, and journal replay. Continuous native watching and benchmark
-evidence remain open.
+reconciliation, feed-event queueing, and journal replay. `docs/JOURNALED_MATERIALIZATION_BENCHMARK.md`
+records synthetic known-path replay evidence. Continuous native watching remains open.
 
 ## Source Identity
 
@@ -116,6 +116,11 @@ Current implementation status:
   through the existing change-feed interface, and replay claimable journal work under the existing
   worker lease; plain `vaultwright watch` still exits with guidance until continuous native watcher
   delivery is added behind the feed interface;
+- implemented for Stage 1B benchmark evidence:
+  `scripts/benchmark_journaled_materialization.py` builds a temporary synthetic vault with 1,000
+  source records, replays a known-path event batch with one save storm, one move, and one deletion,
+  and records paths enumerated, source bodies read, bytes hashed, converter invocations, event
+  counts, elapsed time, and peak memory in `docs/JOURNALED_MATERIALIZATION_BENCHMARK.md`;
 - implemented for repo mirrors: stable repo IDs, configured/resolved repo, note path, local-tree or
   remote HEAD hash, lifecycle state, warnings/errors, non-mutating plan/status reports, and
   generated-region manual-edit detection, plus contract-backed lifecycle next-action guidance in plan/status

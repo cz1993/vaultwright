@@ -203,6 +203,21 @@ stable source-ID preservation, previous-source-path history, old-mirror review b
 returning the manifest record to `clean` after the new mirror is generated. They also cover
 delete/recreate of the same source path returning the record from `source_missing` to `clean`.
 
+## 2026-06-26 Stage 1B Benchmark Evidence
+
+This checkpoint adds deterministic synthetic benchmark evidence without adding continuous native
+filesystem watching or any Stage 2+ work. `scripts/benchmark_journaled_materialization.py` builds a
+temporary synthetic vault with 1,000 source records, replays a known-path event batch containing
+one ten-event save storm, one move, and one deletion, and records structural metrics in
+`docs/JOURNALED_MATERIALIZATION_BENCHMARK.md`.
+
+The recorded 1,000-source run queued 3 events after coalescing 12 observations, processed 3 events,
+applied 2, left the moved source in expected review state while the previous mirror existed, made
+0 discovery calls, enumerated 0 paths through discovery, read/hashed 0 untouched source bodies,
+hashed 301 bytes across 3 source-body reads, invoked the converter once, and completed without
+failed events. A focused test runs the same harness with a smaller corpus and asserts the
+structural pass conditions.
+
 ## 2026-06-25 Stage 1A Profile-Assumption Inventory
 
 This checkpoint closes the first Stage 1A evidence gap by inventorying the remaining hard-coded
@@ -824,7 +839,7 @@ with the local journal/state foundation started while the remaining V1-C10 claus
 | V1-C3 official profiles | In progress. `business-operations` remains the only scaffolded template/profile shape, but package-owned contracts for `research-learning`, `software-project`, and `blank` now validate and are exposed through `vaultwright profile list/show`. |
 | V1-C4 safe migration path | Closed for Stage 1A. Reports, frontmatter-domain normalization, read-only plans, and conservative write-mode profile migration exist; migration reports now use profile-defined canonical domains with domain-map aliases, and profile migration creates directories from validated `folder_plan` records plus the target profile's Office mirror root without overwriting sources, mirrors, annotation sidecars, or drifted existing files. Broader workspace/profile migration coverage remains tied to later profile expansion. |
 | V1-C5 machine-owned mirrors | Stage 1 closed by this batch. Fresh mirrors are machine-owned, sync blocks unmigrated mirror annotations, sidecar-aware sync rewrites migrated mirrors as machine-owned, and lint blocks unmigrated annotations. |
-| V1-C10 journaled changed-file materialization | Foundation started. Package-owned journal event/state modules, `.vaultwright/state.sqlite` initialization, `vaultwright journal status`, `.vaultwright/` ignore posture, no-data staged blocking, deterministic feed queueing, generated/local/operational/temp path filtering, repeated-event coalescing, cheap metadata fingerprints, no-full-hash-on-unchanged-fingerprint tests, workspace leases, stale-lease recovery, transactional event claims, claimed-event finish checkpoints, failed-event retry, interrupted-`processing` recovery, a source-addressable Office materialization primitive, deterministic file-stability settling, lease-protected current-path Office worker processing, manifest-backed deleted-event replay to `source_missing`, resolved `source_moved` replay after old-mirror cleanup, delete/recreate replay back to `clean`, idempotent `vaultwright journal replay`, explicit `vaultwright reconcile`, `vaultwright sync --changed`/`--full`, and deterministic `vaultwright watch --once` startup/feed/replay orchestration now exist. Continuous native watch/event capture and benchmark evidence remain open. |
+| V1-C10 journaled changed-file materialization | Foundation started. Package-owned journal event/state modules, `.vaultwright/state.sqlite` initialization, `vaultwright journal status`, `.vaultwright/` ignore posture, no-data staged blocking, deterministic feed queueing, generated/local/operational/temp path filtering, repeated-event coalescing, cheap metadata fingerprints, no-full-hash-on-unchanged-fingerprint tests, workspace leases, stale-lease recovery, transactional event claims, claimed-event finish checkpoints, failed-event retry, interrupted-`processing` recovery, a source-addressable Office materialization primitive, deterministic file-stability settling, lease-protected current-path Office worker processing, manifest-backed deleted-event replay to `source_missing`, resolved `source_moved` replay after old-mirror cleanup, delete/recreate replay back to `clean`, idempotent `vaultwright journal replay`, explicit `vaultwright reconcile`, `vaultwright sync --changed`/`--full`, deterministic `vaultwright watch --once` startup/feed/replay orchestration, and synthetic benchmark evidence now exist. Continuous native watch/event capture remains open. |
 
 Stage 3 has one preparatory slice: package-owned `profile views --check/--write` generates the
 current profile's `Documents.base` without requiring Obsidian. Governance skills, Canvas outputs,
@@ -860,8 +875,9 @@ failed-event retry. Explicit `vaultwright reconcile` now queues missed source/ma
 metadata-first comparison and candidate-only hashing for same-hash move detection.
 `vaultwright sync --changed` now composes reconciliation and replay, while `vaultwright sync --full`
 names the full-sync recovery path explicitly. `vaultwright watch --once` now provides deterministic
-startup reconciliation/feed queueing/replay without continuous native watcher delivery. The next
-Stage 1B slice should remain bounded to native watch capture or benchmark
-evidence, and should not start profile,
+startup reconciliation/feed queueing/replay without continuous native watcher delivery. Synthetic
+benchmark evidence now proves known-path replay over 1,000 sources avoids whole-workspace
+discovery and untouched-source hashing. The next Stage 1B slice should remain bounded to native
+watch capture and should not start profile,
 Obsidian, index, Explorer, adapter, enrichment, or
 visualization work.
