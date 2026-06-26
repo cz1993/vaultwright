@@ -23,8 +23,9 @@ events and optionally retries failed events under the same worker lease, plus ex
 reconciliation that queues missed source/manifest events with metadata-first comparison and
 candidate-only hashing for safe move detection. `vaultwright sync --changed` composes
 reconciliation and replay, while `vaultwright sync` and `vaultwright sync --full` preserve the full
-sync recovery path. Native watching, watcher-startup reconciliation, broader delete/reconcile event
-handling, and benchmark evidence remain open.
+sync recovery path. `vaultwright watch --once` runs the deterministic watch-start cycle: startup
+reconciliation, feed-event queueing, and journal replay. Continuous native watching, broader
+delete/reconcile event handling, and benchmark evidence remain open.
 
 ## Source Identity
 
@@ -98,6 +99,11 @@ Current implementation status:
   `vaultwright sync --changed` run explicit reconciliation and then replay claimable journal work
   through the existing worker/materialization path; plain `vaultwright sync` remains the existing
   full Office/repo sync path, and `vaultwright sync --full` names that recovery path explicitly;
+- implemented for Stage 1B watch startup orchestration: `vaultwright.changes.watch` and
+  `vaultwright watch --once` run startup reconciliation, queue normalized/coalesced feed events
+  through the existing change-feed interface, and replay claimable journal work under the existing
+  worker lease; plain `vaultwright watch` still exits with guidance until continuous native watcher
+  delivery is added behind the feed interface;
 - implemented for repo mirrors: stable repo IDs, configured/resolved repo, note path, local-tree or
   remote HEAD hash, lifecycle state, warnings/errors, non-mutating plan/status reports, and
   generated-region manual-edit detection, plus contract-backed lifecycle next-action guidance in plan/status

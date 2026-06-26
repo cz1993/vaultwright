@@ -34,6 +34,7 @@ from vaultwright.changes import changed_sync as changed_sync_module
 from vaultwright.changes import journal as journal_module
 from vaultwright.changes import reconcile as reconcile_module
 from vaultwright.changes import replay as replay_module
+from vaultwright.changes import watch as watch_module
 from vaultwright.mirrors import github_repos as repo_sync_module
 from vaultwright.mirrors import office as office_sync_module
 from vaultwright.profile_migration import profile_migration_plan, write_profile_migration
@@ -589,6 +590,60 @@ def command_sync(args: argparse.Namespace) -> int:
     return office or repos
 
 
+def command_watch(args: argparse.Namespace) -> int:
+    root = args.root.expanduser().resolve()
+    if not args.once:
+        print(
+            "watch: continuous native watching is not implemented yet; use --once for a deterministic "
+            "startup reconciliation/feed replay cycle",
+            file=sys.stderr,
+        )
+        return 2
+    holder = args.holder or f"watch-{os.getpid()}"
+    try:
+        payload = watch_module.watch_once(
+            root,
+            holder,
+            retry_failed=args.retry_failed,
+            max_events=args.max_events,
+            lease_ttl_seconds=args.lease_ttl_seconds,
+            reconcile_on_start=not args.no_reconcile_on_start,
+        )
+    except (
+        journal_module.JournalError,
+        reconcile_module.ReconciliationError,
+        replay_module.ReplayError,
+        watch_module.WatchError,
+    ) as exc:
+        print(f"watch: {exc}", file=sys.stderr)
+        return 1
+    if args.json:
+        print(json.dumps(payload, indent=2, sort_keys=True))
+    else:
+        print(
+            "vaultwright watch --once: "
+            f"queued {payload['events_queued']} event(s), "
+            f"processed {payload['processed']} event(s)"
+        )
+        print(f"startup reconciliation: {'yes' if payload['reconcile_on_start'] else 'no'}")
+        print(f"feed events queued: {payload['feed_events_queued']}")
+        counts = payload["finish_counts"]
+        print(
+            "finish counts: "
+            f"applied={counts['applied']} "
+            f"review-required={counts['review-required']} "
+            f"failed={counts['failed']}"
+        )
+        lease = payload["replay"]["lease"]
+        if payload["replay"]["acquired"]:
+            print(f"worker: acquired by {holder} until {lease['expires_at']}")
+        else:
+            print(f"worker: locked by {lease['holder']} until {lease['expires_at']}")
+    if not payload["replay"]["acquired"]:
+        return 1
+    return 1 if payload["finish_counts"]["failed"] else 0
+
+
 def command_status(args: argparse.Namespace) -> int:
     root = args.root.expanduser().resolve()
     status = office_sync_module.main(["--status"], default_root=root)
@@ -825,6 +880,28 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sync.add_argument("--json", action="store_true", help="Print machine-readable --changed results.")
     sync.set_defaults(func=command_sync)
+    watch = sub.add_parser("watch", help="Run journaled watch orchestration.")
+    watch.add_argument(
+        "--once",
+        action="store_true",
+        help="Run one startup reconciliation/feed replay cycle and exit.",
+    )
+    watch.add_argument(
+        "--no-reconcile-on-start",
+        action="store_true",
+        help="Skip startup reconciliation for this --once run.",
+    )
+    watch.add_argument("--holder", help="Worker lease holder ID for --once.")
+    watch.add_argument("--retry-failed", action="store_true", help="Retry failed journal events during --once.")
+    watch.add_argument("--max-events", type=int, help="Maximum events to process during --once.")
+    watch.add_argument(
+        "--lease-ttl-seconds",
+        type=int,
+        default=300,
+        help="Worker lease time-to-live in seconds for --once.",
+    )
+    watch.add_argument("--json", action="store_true", help="Print machine-readable --once results.")
+    watch.set_defaults(func=command_watch)
     sub.add_parser("status", help="Report manifest-backed lifecycle status.").set_defaults(func=command_status)
     journal = sub.add_parser("journal", help="Inspect local journaled materialization state.")
     journal_sub = journal.add_subparsers(dest="journal_command", required=True)

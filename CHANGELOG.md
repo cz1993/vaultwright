@@ -6,6 +6,9 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 ## [Unreleased]
 
 ### Added
+- Added Stage 1B watch startup orchestration with `vaultwright watch --once`, composing startup
+  reconciliation, feed-event queueing, and journal replay while leaving continuous native watcher
+  delivery as an explicit remaining Stage 1B gap.
 - Added Stage 1B changed-file sync orchestration with `vaultwright sync --changed`, composing
   explicit reconciliation and journal replay while preserving the existing full-sync path as
   `vaultwright sync` / `vaultwright sync --full`.
