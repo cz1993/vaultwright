@@ -6,6 +6,9 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 ## [Unreleased]
 
 ### Added
+- Added Stage 1B changed-file sync orchestration with `vaultwright sync --changed`, composing
+  explicit reconciliation and journal replay while preserving the existing full-sync path as
+  `vaultwright sync` / `vaultwright sync --full`.
 - Added Stage 1B explicit reconciliation with `vaultwright reconcile`, queuing missed created,
   modified, moved, deleted, and review-required candidate events from source/manifest state with
   metadata-first comparison and candidate-only hashing for safe move detection.

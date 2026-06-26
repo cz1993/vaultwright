@@ -30,6 +30,7 @@ from vaultwright.annotation_migration import (
     public_plan,
     write_annotation_sidecars,
 )
+from vaultwright.changes import changed_sync as changed_sync_module
 from vaultwright.changes import journal as journal_module
 from vaultwright.changes import reconcile as reconcile_module
 from vaultwright.changes import replay as replay_module
@@ -528,6 +529,61 @@ def command_plan(args: argparse.Namespace) -> int:
 
 def command_sync(args: argparse.Namespace) -> int:
     root = args.root.expanduser().resolve()
+    if getattr(args, "changed", False):
+        holder = args.holder or f"cli-{os.getpid()}"
+        try:
+            payload = changed_sync_module.sync_changed(
+                root,
+                holder,
+                retry_failed=args.retry_failed,
+                max_events=args.max_events,
+                lease_ttl_seconds=args.lease_ttl_seconds,
+            )
+        except (
+            journal_module.JournalError,
+            reconcile_module.ReconciliationError,
+            replay_module.ReplayError,
+        ) as exc:
+            print(f"sync --changed: {exc}", file=sys.stderr)
+            return 1
+        if args.json:
+            print(json.dumps(payload, indent=2, sort_keys=True))
+        else:
+            replay_payload = payload["replay"]
+            print(
+                "vaultwright sync --changed: "
+                f"queued {payload['events_queued']} event(s), "
+                f"processed {payload['processed']} event(s)"
+            )
+            counts = payload["finish_counts"]
+            print(
+                "finish counts: "
+                f"applied={counts['applied']} "
+                f"review-required={counts['review-required']} "
+                f"failed={counts['failed']}"
+            )
+            print(
+                "candidate full hashes: "
+                f"{payload['reconciliation']['full_hashes']} "
+                f"({payload['reconciliation']['bytes_hashed']} bytes)"
+            )
+            if not replay_payload["acquired"]:
+                lease = replay_payload["lease"]
+                print(f"worker: locked by {lease['holder']} until {lease['expires_at']}")
+        if not payload["replay"]["acquired"]:
+            return 1
+        return 1 if payload["finish_counts"]["failed"] else 0
+
+    if any(
+        (
+            getattr(args, "json", False),
+            getattr(args, "retry_failed", False),
+            getattr(args, "max_events", None) is not None,
+            getattr(args, "holder", None),
+        )
+    ):
+        print("sync: --json, --retry-failed, --max-events, and --holder require --changed", file=sys.stderr)
+        return 2
     office = office_sync_module.main([], default_root=root)
     repos = repo_sync_module.main([], default_root=root, default_config=repo_config(root))
     return office or repos
@@ -754,7 +810,21 @@ def build_parser() -> argparse.ArgumentParser:
     annotations.add_argument("--json", action="store_true", help="Print machine-readable migration output.")
     annotations.set_defaults(func=command_migrate_annotations)
     sub.add_parser("plan", help="Inventory sources and proposed mirror actions without writing.").set_defaults(func=command_plan)
-    sub.add_parser("sync", help="Run Office and repo mirror syncs.").set_defaults(func=command_sync)
+    sync = sub.add_parser("sync", help="Run Office/repo full sync or journaled changed-file sync.")
+    sync_mode = sync.add_mutually_exclusive_group()
+    sync_mode.add_argument("--changed", action="store_true", help="Run journaled changed-file sync.")
+    sync_mode.add_argument("--full", action="store_true", help="Run the full Office/repo sync path.")
+    sync.add_argument("--holder", help="Worker lease holder ID for --changed.")
+    sync.add_argument("--retry-failed", action="store_true", help="Retry failed journal events during --changed.")
+    sync.add_argument("--max-events", type=int, help="Maximum events to process during --changed.")
+    sync.add_argument(
+        "--lease-ttl-seconds",
+        type=int,
+        default=300,
+        help="Worker lease time-to-live in seconds for --changed.",
+    )
+    sync.add_argument("--json", action="store_true", help="Print machine-readable --changed results.")
+    sync.set_defaults(func=command_sync)
     sub.add_parser("status", help="Report manifest-backed lifecycle status.").set_defaults(func=command_status)
     journal = sub.add_parser("journal", help="Inspect local journaled materialization state.")
     journal_sub = journal.add_subparsers(dest="journal_command", required=True)

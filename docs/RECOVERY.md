@@ -81,8 +81,9 @@ Interrupted Stage 1B changed-file materialization should first be inspected with
 `vaultwright journal status` and recovered with `vaultwright journal replay`. Replay recovers
 events left in `processing`; use `vaultwright journal replay --retry-failed` only when a failed
 event is ready for an explicit retry. Use `vaultwright reconcile` to queue missed source/manifest
-events before replaying recovered work. When replay or reconciliation cannot prove consistency, run
-full sync as the recovery path.
+events before replaying recovered work, or use `vaultwright sync --changed` to run those two steps
+as one changed-file pass. When changed sync, replay, or reconciliation cannot prove consistency,
+run full sync as the recovery path.
 
 When an error state exists, inspect the newest `_meta/sync-audit.jsonl` event for that `source_id` or
 `repo_id`. The event records the generated artifact path, lifecycle state, sync status, and

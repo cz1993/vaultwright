@@ -21,8 +21,10 @@ deterministic file-stability settling before conversion and a lease-protected wo
 current-path Office events, plus idempotent journal replay that recovers interrupted processing
 events and optionally retries failed events under the same worker lease, plus explicit
 reconciliation that queues missed source/manifest events with metadata-first comparison and
-candidate-only hashing for safe move detection. Native watching, watcher-startup reconciliation,
-changed sync, broader delete/reconcile event handling, and benchmark evidence remain open.
+candidate-only hashing for safe move detection. `vaultwright sync --changed` composes
+reconciliation and replay, while `vaultwright sync` and `vaultwright sync --full` preserve the full
+sync recovery path. Native watching, watcher-startup reconciliation, broader delete/reconcile event
+handling, and benchmark evidence remain open.
 
 ## Source Identity
 
@@ -92,6 +94,10 @@ Current implementation status:
   metadata-changed updates, missing-source deletes, and same-hash moves into the local journal,
   avoid duplicate unresolved events, update `last_reconciliation_at`, and full-hash only
   suspicious new paths that can match missing manifest records;
+- implemented for Stage 1B changed sync: `vaultwright.changes.changed_sync` and
+  `vaultwright sync --changed` run explicit reconciliation and then replay claimable journal work
+  through the existing worker/materialization path; plain `vaultwright sync` remains the existing
+  full Office/repo sync path, and `vaultwright sync --full` names that recovery path explicitly;
 - implemented for repo mirrors: stable repo IDs, configured/resolved repo, note path, local-tree or
   remote HEAD hash, lifecycle state, warnings/errors, non-mutating plan/status reports, and
   generated-region manual-edit detection, plus contract-backed lifecycle next-action guidance in plan/status
