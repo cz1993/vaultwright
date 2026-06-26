@@ -31,6 +31,7 @@ from vaultwright.annotation_migration import (
     write_annotation_sidecars,
 )
 from vaultwright.changes import journal as journal_module
+from vaultwright.changes import reconcile as reconcile_module
 from vaultwright.changes import replay as replay_module
 from vaultwright.mirrors import github_repos as repo_sync_module
 from vaultwright.mirrors import office as office_sync_module
@@ -613,6 +614,33 @@ def command_journal_replay(args: argparse.Namespace) -> int:
     return 1 if payload["finish_counts"]["failed"] else 0
 
 
+def command_reconcile(args: argparse.Namespace) -> int:
+    root = args.root.expanduser().resolve()
+    try:
+        payload = reconcile_module.reconcile_workspace(root)
+    except (journal_module.JournalError, reconcile_module.ReconciliationError) as exc:
+        print(f"reconcile: {exc}", file=sys.stderr)
+        return 1
+    if args.json:
+        print(json.dumps(payload, indent=2, sort_keys=True))
+        return 0
+    print(f"vaultwright reconcile: queued {payload['events_queued']} event(s)")
+    print(f"scanned sources: {payload['scanned_sources']}")
+    print(f"manifest records: {payload['manifest_records']}")
+    print(
+        "event counts: "
+        f"created={payload['event_counts']['created']} "
+        f"modified={payload['event_counts']['modified']} "
+        f"moved={payload['event_counts']['moved']} "
+        f"deleted={payload['event_counts']['deleted']} "
+        f"reconcile-required={payload['event_counts']['reconcile-required']}"
+    )
+    print(f"existing unresolved events skipped: {payload['events_skipped']}")
+    print(f"candidate full hashes: {payload['full_hashes']} ({payload['bytes_hashed']} bytes)")
+    print(f"last reconciliation: {payload['reconciled_at']}")
+    return 0
+
+
 def command_migrate_annotations(args: argparse.Namespace) -> int:
     root = args.root.expanduser().resolve()
     plan = annotation_migration_plan(root)
@@ -753,6 +781,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     journal_replay.add_argument("--json", action="store_true", help="Print machine-readable replay results.")
     journal_replay.set_defaults(func=command_journal_replay)
+    reconcile = sub.add_parser("reconcile", help="Queue missed journal events from source/manifest state.")
+    reconcile.add_argument("--json", action="store_true", help="Print machine-readable reconciliation results.")
+    reconcile.set_defaults(func=command_reconcile)
     sub.add_parser("doctor", help="Check required files, Python version, and dependencies.").set_defaults(func=command_doctor)
     sub.add_parser("lint", help="Run vault health checks.").set_defaults(func=command_lint)
     overlap = sub.add_parser("overlap", help="Print a read-only overlap threshold calibration report.")

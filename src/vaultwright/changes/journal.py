@@ -23,6 +23,7 @@ DEFAULT_WORKSPACE_ID = "default"
 CLAIMABLE_STATUSES = ("queued", "ready")
 RECOVERABLE_STATUSES = ("processing",)
 FINISH_STATUSES = {"applied", "failed", "review-required"}
+UNRESOLVED_STATUSES = ("queued", "ready", "stabilizing", "processing", "failed")
 
 META_DEFAULTS = {
     "schema_version": str(SCHEMA_VERSION),
@@ -478,6 +479,46 @@ def failed_event_sequences(root: Path) -> list[int]:
             """
         ).fetchall()
     return [int(row["sequence"]) for row in rows]
+
+
+def matching_event_sequences(
+    root: Path,
+    event_kind: str,
+    *,
+    current_path: str | Path | None = None,
+    previous_path: str | Path | None = None,
+    statuses: tuple[str, ...] | list[str] = UNRESOLVED_STATUSES,
+) -> list[int]:
+    try:
+        event_kind = validate_event_kind(event_kind)
+        current = normalize_vault_relative_path(current_path, field="current_path")
+        previous = normalize_vault_relative_path(previous_path, field="previous_path")
+    except JournalEventError as exc:
+        raise JournalError(str(exc)) from exc
+    checked_statuses = _validate_statuses(statuses)
+    placeholders = ", ".join("?" for _status in checked_statuses)
+    with _connect_existing(root) as conn:
+        rows = conn.execute(
+            f"""
+            SELECT sequence
+              FROM journal_events
+             WHERE event_kind = ?
+               AND COALESCE(current_path, '') = ?
+               AND COALESCE(previous_path, '') = ?
+               AND status IN ({placeholders})
+          ORDER BY sequence
+            """,
+            (event_kind, current or "", previous or "", *checked_statuses),
+        ).fetchall()
+    return [int(row["sequence"]) for row in rows]
+
+
+def record_reconciliation(root: Path, *, now: str | None = None) -> str:
+    reconciled_at = utc_text(_now_datetime(now))
+    initialize(root)
+    with _connect_existing(root) as conn:
+        _write_meta(conn, "last_reconciliation_at", reconciled_at)
+    return reconciled_at
 
 
 def recover_processing_events(

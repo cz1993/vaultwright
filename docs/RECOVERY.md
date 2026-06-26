@@ -80,8 +80,9 @@ from the current sources and mirrors, then review all `planned`, `stale`, `sourc
 Interrupted Stage 1B changed-file materialization should first be inspected with
 `vaultwright journal status` and recovered with `vaultwright journal replay`. Replay recovers
 events left in `processing`; use `vaultwright journal replay --retry-failed` only when a failed
-event is ready for an explicit retry. Missed-event reconciliation remains a V1-C10 target. When
-replay or reconciliation cannot prove consistency, run full sync as the recovery path.
+event is ready for an explicit retry. Use `vaultwright reconcile` to queue missed source/manifest
+events before replaying recovered work. When replay or reconciliation cannot prove consistency, run
+full sync as the recovery path.
 
 When an error state exists, inspect the newest `_meta/sync-audit.jsonl` event for that `source_id` or
 `repo_id`. The event records the generated artifact path, lifecycle state, sync status, and
@@ -266,7 +267,9 @@ Before public release, recovery must be tested on a copied vault:
 Stage 1B adds recovery gates for journal replay, missed-event reconciliation, stale-lock recovery,
 duplicate event delivery, crash after mirror write but before checkpoint, and full-sync recovery
 after journal loss. The current replay path covers interrupted `processing` events and explicit
-failed-event retry; missed-event reconciliation remains open.
+failed-event retry; the current explicit reconciliation path queues missed create, update, delete,
+move, and review-required candidate events. Watcher-startup reconciliation and broader delete/move
+lifecycle automation remain open.
 
 The test suite now exercises the copied-vault regeneration path, source-byte preservation,
 converter-failure, Office mirror-write-failure, and repo-note write-failure recovery that preserve

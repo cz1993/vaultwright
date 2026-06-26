@@ -6,6 +6,9 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 ## [Unreleased]
 
 ### Added
+- Added Stage 1B explicit reconciliation with `vaultwright reconcile`, queuing missed created,
+  modified, moved, deleted, and review-required candidate events from source/manifest state with
+  metadata-first comparison and candidate-only hashing for safe move detection.
 - Added Stage 1B idempotent journal replay with `vaultwright journal replay`, recovering
   interrupted `processing` events under the workspace lease, explicitly retrying failed events
   only with `--retry-failed`, and exposing bounded/JSON replay output.
