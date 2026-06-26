@@ -130,8 +130,18 @@ def test_watch_once_cli_json_reconciles_review_required_legacy_doc(tmp_path: Pat
     assert payload["finish_counts"] == {"applied": 0, "failed": 0, "review-required": 1}
 
 
-def test_plain_watch_explains_continuous_native_watch_is_not_ready(tmp_path: Path) -> None:
+def test_plain_watch_requires_an_explicit_watch_mode(tmp_path: Path) -> None:
     result = run_cli(tmp_path, "watch")
 
     assert result.returncode == 2
-    assert "continuous native watching is not implemented yet" in result.stderr
+    assert "choose --once" in result.stderr
+    assert "--native" in result.stderr
+
+
+def test_native_watch_without_optional_dependency_explains_install(tmp_path: Path) -> None:
+    (tmp_path / "40_delivery").mkdir()
+
+    result = run_cli(tmp_path, "watch", "--native", "--cycles", "1", "--flush-interval-seconds", "0.01")
+
+    assert result.returncode == 2
+    assert "vaultwright[watch]" in result.stderr

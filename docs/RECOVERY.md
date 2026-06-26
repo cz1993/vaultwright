@@ -273,8 +273,9 @@ failed-event retry; the current explicit reconciliation path queues missed creat
 move, and review-required candidate events; the current `watch --once` path runs deterministic
 startup reconciliation, feed queueing, and replay; manifest-backed deleted events now mark records
 `source_missing` while retaining generated mirrors; resolved `source_moved` records replay after
-old-mirror cleanup, and delete/recreate can return records to `clean`. Continuous native watch
-delivery remains open.
+old-mirror cleanup, and delete/recreate can return records to `clean`. Optional `watch --native`
+capture now maps watchdog events through the same feed/replay boundary; final Stage 1B safety-gate
+closure remains open.
 
 The test suite now exercises the copied-vault regeneration path, source-byte preservation,
 converter-failure, Office mirror-write-failure, and repo-note write-failure recovery that preserve

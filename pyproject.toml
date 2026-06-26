@@ -20,6 +20,11 @@ dependencies = [
   "pyyaml>=6.0",
 ]
 
+[project.optional-dependencies]
+watch = [
+  "watchdog>=4.0",
+]
+
 [project.scripts]
 vaultwright = "vaultwright.cli:main"
 

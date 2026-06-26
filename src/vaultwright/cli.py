@@ -11,6 +11,7 @@ import json
 import os
 import shutil
 import sys
+import time
 from pathlib import Path
 
 from vaultwright import benchmark as benchmark_module
@@ -31,7 +32,9 @@ from vaultwright.annotation_migration import (
     write_annotation_sidecars,
 )
 from vaultwright.changes import changed_sync as changed_sync_module
+from vaultwright.changes import feed as feed_module
 from vaultwright.changes import journal as journal_module
+from vaultwright.changes import native_watch as native_watch_module
 from vaultwright.changes import reconcile as reconcile_module
 from vaultwright.changes import replay as replay_module
 from vaultwright.changes import watch as watch_module
@@ -590,38 +593,12 @@ def command_sync(args: argparse.Namespace) -> int:
     return office or repos
 
 
-def command_watch(args: argparse.Namespace) -> int:
-    root = args.root.expanduser().resolve()
-    if not args.once:
-        print(
-            "watch: continuous native watching is not implemented yet; use --once for a deterministic "
-            "startup reconciliation/feed replay cycle",
-            file=sys.stderr,
-        )
-        return 2
-    holder = args.holder or f"watch-{os.getpid()}"
-    try:
-        payload = watch_module.watch_once(
-            root,
-            holder,
-            retry_failed=args.retry_failed,
-            max_events=args.max_events,
-            lease_ttl_seconds=args.lease_ttl_seconds,
-            reconcile_on_start=not args.no_reconcile_on_start,
-        )
-    except (
-        journal_module.JournalError,
-        reconcile_module.ReconciliationError,
-        replay_module.ReplayError,
-        watch_module.WatchError,
-    ) as exc:
-        print(f"watch: {exc}", file=sys.stderr)
-        return 1
-    if args.json:
+def _print_watch_payload(payload: dict, holder: str, *, json_output: bool, label: str) -> int:
+    if json_output:
         print(json.dumps(payload, indent=2, sort_keys=True))
     else:
         print(
-            "vaultwright watch --once: "
+            f"vaultwright {label}: "
             f"queued {payload['events_queued']} event(s), "
             f"processed {payload['processed']} event(s)"
         )
@@ -642,6 +619,98 @@ def command_watch(args: argparse.Namespace) -> int:
     if not payload["replay"]["acquired"]:
         return 1
     return 1 if payload["finish_counts"]["failed"] else 0
+
+
+def _watch_once_payload(args: argparse.Namespace, root: Path, holder: str, observed: list | None = None) -> dict:
+    return watch_module.watch_once(
+        root,
+        holder,
+        observed_feed=feed_module.StaticChangeFeed(observed or []) if observed is not None else None,
+        retry_failed=args.retry_failed,
+        max_events=args.max_events,
+        lease_ttl_seconds=args.lease_ttl_seconds,
+        reconcile_on_start=not args.no_reconcile_on_start,
+    )
+
+
+def command_watch(args: argparse.Namespace) -> int:
+    root = args.root.expanduser().resolve()
+    if not args.once and not args.native:
+        print(
+            "watch: choose --once for deterministic startup replay or --native for optional "
+            "watchdog-backed continuous capture",
+            file=sys.stderr,
+        )
+        return 2
+    holder = args.holder or f"watch-{os.getpid()}"
+    if args.once:
+        try:
+            payload = _watch_once_payload(args, root, holder)
+        except (
+            journal_module.JournalError,
+            reconcile_module.ReconciliationError,
+            replay_module.ReplayError,
+            watch_module.WatchError,
+        ) as exc:
+            print(f"watch: {exc}", file=sys.stderr)
+            return 1
+        return _print_watch_payload(payload, holder, json_output=args.json, label="watch --once")
+
+    if args.cycles is not None and args.cycles < 1:
+        print("watch --native: --cycles must be positive when provided", file=sys.stderr)
+        return 2
+    if args.flush_interval_seconds <= 0:
+        print("watch --native: --flush-interval-seconds must be positive", file=sys.stderr)
+        return 2
+    try:
+        observer, handler, roots = native_watch_module.build_watchdog_observer(root)
+    except native_watch_module.NativeWatchError as exc:
+        print(f"watch --native: {exc}", file=sys.stderr)
+        return 2
+    if not args.json:
+        print("vaultwright watch --native: watching " + ", ".join(path.relative_to(root).as_posix() for path in roots))
+    observer.start()
+    exit_code = 0
+    cycles = 0
+    try:
+        while True:
+            time.sleep(args.flush_interval_seconds)
+            cycles += 1
+            observed = handler.drain()
+            try:
+                payload = _watch_once_payload(
+                    args,
+                    root,
+                    holder,
+                    observed=observed,
+                )
+            except (
+                journal_module.JournalError,
+                reconcile_module.ReconciliationError,
+                replay_module.ReplayError,
+                watch_module.WatchError,
+            ) as exc:
+                print(f"watch --native: {exc}", file=sys.stderr)
+                exit_code = 1
+                break
+            exit_code = _print_watch_payload(
+                payload,
+                holder,
+                json_output=args.json,
+                label=f"watch --native cycle {cycles}",
+            )
+            if exit_code:
+                break
+            args.no_reconcile_on_start = True
+            if args.cycles is not None and cycles >= args.cycles:
+                break
+    except KeyboardInterrupt:
+        if not args.json:
+            print("vaultwright watch --native: stopped")
+    finally:
+        observer.stop()
+        observer.join()
+    return exit_code
 
 
 def command_status(args: argparse.Namespace) -> int:
@@ -881,26 +950,39 @@ def build_parser() -> argparse.ArgumentParser:
     sync.add_argument("--json", action="store_true", help="Print machine-readable --changed results.")
     sync.set_defaults(func=command_sync)
     watch = sub.add_parser("watch", help="Run journaled watch orchestration.")
-    watch.add_argument(
+    watch_mode = watch.add_mutually_exclusive_group()
+    watch_mode.add_argument(
         "--once",
         action="store_true",
         help="Run one startup reconciliation/feed replay cycle and exit.",
     )
+    watch_mode.add_argument(
+        "--native",
+        action="store_true",
+        help="Continuously capture native filesystem events with the optional watchdog extra.",
+    )
     watch.add_argument(
         "--no-reconcile-on-start",
         action="store_true",
-        help="Skip startup reconciliation for this --once run.",
+        help="Skip startup reconciliation for this watch run.",
     )
-    watch.add_argument("--holder", help="Worker lease holder ID for --once.")
-    watch.add_argument("--retry-failed", action="store_true", help="Retry failed journal events during --once.")
-    watch.add_argument("--max-events", type=int, help="Maximum events to process during --once.")
+    watch.add_argument("--holder", help="Worker lease holder ID for watch replay.")
+    watch.add_argument("--retry-failed", action="store_true", help="Retry failed journal events during watch replay.")
+    watch.add_argument("--max-events", type=int, help="Maximum events to process during each watch replay.")
+    watch.add_argument("--cycles", type=int, help="Maximum native watch flush cycles before exiting.")
+    watch.add_argument(
+        "--flush-interval-seconds",
+        type=float,
+        default=2.0,
+        help="Seconds between native watch queue flushes.",
+    )
     watch.add_argument(
         "--lease-ttl-seconds",
         type=int,
         default=300,
-        help="Worker lease time-to-live in seconds for --once.",
+        help="Worker lease time-to-live in seconds for watch replay.",
     )
-    watch.add_argument("--json", action="store_true", help="Print machine-readable --once results.")
+    watch.add_argument("--json", action="store_true", help="Print machine-readable watch results.")
     watch.set_defaults(func=command_watch)
     sub.add_parser("status", help="Report manifest-backed lifecycle status.").set_defaults(func=command_status)
     journal = sub.add_parser("journal", help="Inspect local journaled materialization state.")

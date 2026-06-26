@@ -6,6 +6,9 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 ## [Unreleased]
 
 ### Added
+- Added optional Stage 1B native watch capture with `vaultwright watch --native`, backed by the
+  `vaultwright[watch]` watchdog extra; native events are observed only under configured content
+  roots, buffered, normalized through the existing feed filters, and flushed through journal replay.
 - Added deterministic Stage 1B journaled-materialization benchmark evidence with
   `scripts/benchmark_journaled_materialization.py`, proving known-path replay over 1,000 synthetic
   sources performs zero whole-workspace discovery, hashes no untouched source bodies, and invokes

@@ -25,7 +25,8 @@ candidate-only hashing for safe move detection. `vaultwright sync --changed` com
 reconciliation and replay, while `vaultwright sync` and `vaultwright sync --full` preserve the full
 sync recovery path. `vaultwright watch --once` runs the deterministic watch-start cycle: startup
 reconciliation, feed-event queueing, and journal replay. `docs/JOURNALED_MATERIALIZATION_BENCHMARK.md`
-records synthetic known-path replay evidence. Continuous native watching remains open.
+records synthetic known-path replay evidence. `vaultwright watch --native` provides optional
+watchdog-backed native event capture through the same feed/replay boundary.
 
 ## Source Identity
 
@@ -114,8 +115,13 @@ Current implementation status:
 - implemented for Stage 1B watch startup orchestration: `vaultwright.changes.watch` and
   `vaultwright watch --once` run startup reconciliation, queue normalized/coalesced feed events
   through the existing change-feed interface, and replay claimable journal work under the existing
-  worker lease; plain `vaultwright watch` still exits with guidance until continuous native watcher
-  delivery is added behind the feed interface;
+  worker lease; plain `vaultwright watch` exits with mode guidance;
+- implemented for Stage 1B optional native watch capture: `vaultwright.changes.native_watch` maps
+  watchdog events to advisory `ObservedChange` records, watches only existing profile/legacy
+  content roots, ignores directories and outside paths, buffers events under a thread-safe handler,
+  and `vaultwright watch --native` flushes captured events through the same reconciliation, feed,
+  coalescing, lease, replay, and source-addressable materialization path; the optional
+  `vaultwright[watch]` extra supplies the watchdog dependency without changing default installs;
 - implemented for Stage 1B benchmark evidence:
   `scripts/benchmark_journaled_materialization.py` builds a temporary synthetic vault with 1,000
   source records, replays a known-path event batch with one save storm, one move, and one deletion,

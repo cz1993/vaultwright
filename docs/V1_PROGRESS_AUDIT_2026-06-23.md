@@ -218,6 +218,20 @@ hashed 301 bytes across 3 source-body reads, invoked the converter once, and com
 failed events. A focused test runs the same harness with a smaller corpus and asserts the
 structural pass conditions.
 
+## 2026-06-26 Stage 1B Optional Native Watch Capture
+
+This checkpoint adds optional continuous native watch capture without changing default
+dependencies or starting Stage 2+ work. `vaultwright.changes.native_watch` maps watchdog file
+events into advisory `ObservedChange` records, observes only existing profile/legacy content roots,
+ignores directories and outside paths, and buffers events behind a thread-safe handler.
+`vaultwright watch --native` starts the optional watchdog observer, flushes captured events through
+the existing feed/coalescing/replay path, and supports bounded `--cycles` for controlled runs.
+
+The optional `vaultwright[watch]` extra supplies `watchdog`; default installs still use only the
+existing required dependency set. Focused tests cover content-root selection, event normalization,
+directory/outside-path rejection, `watch --once`, plain watch mode guidance, and actionable
+`vaultwright[watch]` install guidance when native capture is requested without the extra.
+
 ## 2026-06-25 Stage 1A Profile-Assumption Inventory
 
 This checkpoint closes the first Stage 1A evidence gap by inventorying the remaining hard-coded
@@ -839,7 +853,7 @@ with the local journal/state foundation started while the remaining V1-C10 claus
 | V1-C3 official profiles | In progress. `business-operations` remains the only scaffolded template/profile shape, but package-owned contracts for `research-learning`, `software-project`, and `blank` now validate and are exposed through `vaultwright profile list/show`. |
 | V1-C4 safe migration path | Closed for Stage 1A. Reports, frontmatter-domain normalization, read-only plans, and conservative write-mode profile migration exist; migration reports now use profile-defined canonical domains with domain-map aliases, and profile migration creates directories from validated `folder_plan` records plus the target profile's Office mirror root without overwriting sources, mirrors, annotation sidecars, or drifted existing files. Broader workspace/profile migration coverage remains tied to later profile expansion. |
 | V1-C5 machine-owned mirrors | Stage 1 closed by this batch. Fresh mirrors are machine-owned, sync blocks unmigrated mirror annotations, sidecar-aware sync rewrites migrated mirrors as machine-owned, and lint blocks unmigrated annotations. |
-| V1-C10 journaled changed-file materialization | Foundation started. Package-owned journal event/state modules, `.vaultwright/state.sqlite` initialization, `vaultwright journal status`, `.vaultwright/` ignore posture, no-data staged blocking, deterministic feed queueing, generated/local/operational/temp path filtering, repeated-event coalescing, cheap metadata fingerprints, no-full-hash-on-unchanged-fingerprint tests, workspace leases, stale-lease recovery, transactional event claims, claimed-event finish checkpoints, failed-event retry, interrupted-`processing` recovery, a source-addressable Office materialization primitive, deterministic file-stability settling, lease-protected current-path Office worker processing, manifest-backed deleted-event replay to `source_missing`, resolved `source_moved` replay after old-mirror cleanup, delete/recreate replay back to `clean`, idempotent `vaultwright journal replay`, explicit `vaultwright reconcile`, `vaultwright sync --changed`/`--full`, deterministic `vaultwright watch --once` startup/feed/replay orchestration, and synthetic benchmark evidence now exist. Continuous native watch/event capture remains open. |
+| V1-C10 journaled changed-file materialization | Foundation started. Package-owned journal event/state modules, `.vaultwright/state.sqlite` initialization, `vaultwright journal status`, `.vaultwright/` ignore posture, no-data staged blocking, deterministic feed queueing, generated/local/operational/temp path filtering, repeated-event coalescing, cheap metadata fingerprints, no-full-hash-on-unchanged-fingerprint tests, workspace leases, stale-lease recovery, transactional event claims, claimed-event finish checkpoints, failed-event retry, interrupted-`processing` recovery, a source-addressable Office materialization primitive, deterministic file-stability settling, lease-protected current-path Office worker processing, manifest-backed deleted-event replay to `source_missing`, resolved `source_moved` replay after old-mirror cleanup, delete/recreate replay back to `clean`, idempotent `vaultwright journal replay`, explicit `vaultwright reconcile`, `vaultwright sync --changed`/`--full`, deterministic `vaultwright watch --once` startup/feed/replay orchestration, optional watchdog-backed `vaultwright watch --native` capture, and synthetic benchmark evidence now exist. Final Stage 1B safety-gate closure remains open. |
 
 Stage 3 has one preparatory slice: package-owned `profile views --check/--write` generates the
 current profile's `Documents.base` without requiring Obsidian. Governance skills, Canvas outputs,
@@ -867,17 +881,18 @@ schema creation, basic status introspection, ignore/no-data posture for `.vaultw
 state persistence, deterministic feed queueing, path filtering, event coalescing, and cheap
 fingerprint-based full-hash avoidance, plus lease-protected event claiming, stale-lock recovery,
 failed-event retry, interrupted-processing recovery, and source-addressable Office
-materialization through the existing mirror engine without starting native watcher delivery or
-profile/content expansion. Deterministic file-stability settling now exists for candidate
+materialization through the existing mirror engine without starting profile/content expansion.
+Deterministic file-stability settling now exists for candidate
 materialization, the first lease-protected worker path now processes current-path Office events,
 and `vaultwright journal replay` now performs idempotent interrupted-work recovery plus explicit
 failed-event retry. Explicit `vaultwright reconcile` now queues missed source/manifest work with
 metadata-first comparison and candidate-only hashing for same-hash move detection.
 `vaultwright sync --changed` now composes reconciliation and replay, while `vaultwright sync --full`
 names the full-sync recovery path explicitly. `vaultwright watch --once` now provides deterministic
-startup reconciliation/feed queueing/replay without continuous native watcher delivery. Synthetic
-benchmark evidence now proves known-path replay over 1,000 sources avoids whole-workspace
-discovery and untouched-source hashing. The next Stage 1B slice should remain bounded to native
-watch capture and should not start profile,
+startup reconciliation/feed queueing/replay, and optional `vaultwright watch --native` provides
+watchdog-backed event capture over configured content roots. Synthetic benchmark evidence now
+proves known-path replay over 1,000 sources avoids whole-workspace discovery and untouched-source
+hashing. The next Stage 1B slice should remain bounded to final V1-C10 safety-gate closure and
+should not start profile,
 Obsidian, index, Explorer, adapter, enrichment, or
 visualization work.
