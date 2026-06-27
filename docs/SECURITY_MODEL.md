@@ -21,6 +21,7 @@ that must guide the pre-release implementation.
 - Local filesystem and cloud-sync folders.
 - Git repository versus private working vaults.
 - Source files versus generated mirrors.
+- Local derived journal/cache state versus authoritative sources and manifests.
 - Generated content versus human-curated notes.
 - AI provider boundary.
 - GitHub/repository connector boundary.
@@ -79,6 +80,17 @@ guidance so reviewers and agents start from the same boundary:
 - source-backed citations and original records remain the authority for durable claims;
 - macros, scripts, links, or commands discovered in source documents must not be executed during
   catalog or handoff review.
+
+## Journaled Incremental State
+
+Stage 1B introduces local derived journal state for changed-file materialization. The journal is
+operational state, not source authority. It may expose relative paths, hashes, timestamps, retry
+state, and worker status, so it must remain local by default, be excluded from Git, avoid source or
+mirror bodies, and be safely disposable/rebuildable from sources, manifests, and reconciliation.
+
+Watcher or provider events are untrusted input. They must pass the same vault-bound, symlink-safe,
+reserved-path, profile-contract, source-boundary, and mirror-output checks as full sync. Event
+delivery does not prove completeness; reconciliation remains mandatory.
 
 ## Plugin and Connector Policy
 

@@ -5,12 +5,38 @@
 Vaultwright sync must prove the core product promise: source files remain untouched while generated
 knowledge artifacts can be regenerated, audited, and reviewed.
 
+Full sync is the implemented baseline and remains the recovery/verification path. Stage 1B adds
+journaled changed-file materialization as the normal steady-state path: event-identified
+candidate sources are fingerprinted, hashed only when needed, materialized through the same
+package-owned mirror logic, and reconciled against authoritative sources because watcher events are
+not authoritative.
+
+Journaled incremental materialization is tracked as V1-C10 in `docs/V1_FINISH_LINE.md` and
+specified by `docs/adr/0002-journaled-incremental-materialization.md`. The current runtime has the
+local journal/state foundation plus deterministic feed filtering, event coalescing, and cheap
+metadata fingerprint primitives, plus lease-protected event claims and interrupted-worker recovery.
+It also has a source-addressable Office materialization primitive that processes one vault-relative
+source through the existing Office mirror engine instead of creating a second mirror writer, plus
+deterministic file-stability settling before conversion and a lease-protected worker path for
+current-path Office events, plus idempotent journal replay that recovers interrupted processing
+events and optionally retries failed events under the same worker lease, plus explicit
+reconciliation that queues missed source/manifest events with metadata-first comparison and
+candidate-only hashing for safe move detection. `vaultwright sync --changed` composes
+reconciliation and replay, while `vaultwright sync` and `vaultwright sync --full` preserve the full
+sync recovery path. `vaultwright watch --once` runs the deterministic watch-start cycle: startup
+reconciliation, feed-event queueing, and journal replay. `docs/JOURNALED_MATERIALIZATION_BENCHMARK.md`
+records synthetic known-path replay evidence. `vaultwright watch --native` provides optional
+watchdog-backed native event capture through the same feed/replay boundary.
+
 ## Source Identity
 
 Path-based mirror names are user-friendly but insufficient as the durable identity model. Office
 mirror sync maintains `_meta/source-manifest.json` with stable source IDs. Repo mirror sync
 maintains `_meta/repo-manifest.json` with stable repo IDs derived from configured repo/note
 identity.
+
+The future change journal may store paths, fingerprints, hashes, event states, and checkpoints, but
+it does not replace manifest-owned source identity or lifecycle state.
 
 Each source record should include:
 
@@ -47,6 +73,60 @@ Current implementation status:
   placeholders and empty `Unnamed:*` table columns, plus ambiguous same-hash move detection that
   blocks sync as `conflict` when multiple missing manifest records could match one new source, plus
   profile-first source-domain routing with `_meta/domain-map.yml` retained as a legacy alias layer;
+- implemented for Stage 1B Office materialization: `vaultwright.changes.materialize` can process
+  one vault-relative Office source through the same Office mirror planning/sync path, preserving
+  source bytes, profile-defined mirror roots, manifest updates, audit events, and the existing
+  source-change-during-conversion safeguard;
+- implemented for Stage 1B candidate stability: `vaultwright.changes.stability` waits for the
+  cheap metadata fingerprint to remain unchanged for a configurable settle interval, supports a
+  bounded timeout, and can be injected into source-addressable materialization so unstable sources
+  skip conversion and writes before worker integration;
+- implemented for Stage 1B current-path Office worker processing:
+  `vaultwright.changes.worker` acquires the workspace lease, claims queued/ready journal events,
+  materializes supported current-path Office sources through `vaultwright.changes.materialize`,
+  records source ID/hash on finished journal rows, and finishes unsupported/no-current-path events
+  as review-required or materialization errors as failed;
+- implemented for Stage 1B deleted-source lifecycle replay:
+  manifest-backed `deleted` journal events with a previous source path are applied through
+  `vaultwright.changes.materialize.materialize_office_delete`, marking the Office source manifest
+  record `source_missing`, retaining the generated mirror for review, appending audit evidence,
+  and finishing the journal event as applied; deleted events without matching manifest evidence
+  still require review;
+- implemented for Stage 1B move/recreate replay: `sync --changed` blocks unambiguous moved-source
+  materialization while the previous generated mirror still exists, then reconciliation requeues
+  the resolved `source_moved` record after that previous mirror is removed so replay can create the
+  new mirror with the same source ID; delete/recreate of the same source path queues a metadata
+  update and returns the manifest record to `clean`;
+- implemented for Stage 1B journal replay: `vaultwright.changes.replay` and
+  `vaultwright journal replay` recover interrupted `processing` events, optionally requeue failed
+  events only when `--retry-failed` is requested, process claimable work through the existing
+  worker/materialization path under one lease, and expose bounded/JSON replay results;
+- implemented for Stage 1B explicit reconciliation: `vaultwright.changes.reconcile` and
+  `vaultwright reconcile` discover current Office/PDF candidates through the existing mirror
+  scanner, compare source metadata against `_meta/source-manifest.json`, queue missed creates,
+  metadata-changed updates, missing-source deletes, and same-hash moves into the local journal,
+  requeue resolved `source_moved` records after the previous generated mirror has been removed,
+  avoid duplicate unresolved events, update `last_reconciliation_at`, and full-hash only
+  suspicious new paths that can match missing manifest records;
+- implemented for Stage 1B changed sync: `vaultwright.changes.changed_sync` and
+  `vaultwright sync --changed` run explicit reconciliation and then replay claimable journal work
+  through the existing worker/materialization path; plain `vaultwright sync` remains the existing
+  full Office/repo sync path, and `vaultwright sync --full` names that recovery path explicitly;
+- implemented for Stage 1B watch startup orchestration: `vaultwright.changes.watch` and
+  `vaultwright watch --once` run startup reconciliation, queue normalized/coalesced feed events
+  through the existing change-feed interface, and replay claimable journal work under the existing
+  worker lease; plain `vaultwright watch` exits with mode guidance;
+- implemented for Stage 1B optional native watch capture: `vaultwright.changes.native_watch` maps
+  watchdog events to advisory `ObservedChange` records, watches only existing profile/legacy
+  content roots, ignores directories and outside paths, buffers events under a thread-safe handler,
+  and `vaultwright watch --native` flushes captured events through the same reconciliation, feed,
+  coalescing, lease, replay, and source-addressable materialization path; the optional
+  `vaultwright[watch]` extra supplies the watchdog dependency without changing default installs;
+- implemented for Stage 1B benchmark evidence:
+  `scripts/benchmark_journaled_materialization.py` builds a temporary synthetic vault with 1,000
+  source records, replays a known-path event batch with one save storm, one move, and one deletion,
+  and records paths enumerated, source bodies read, bytes hashed, converter invocations, event
+  counts, elapsed time, and peak memory in `docs/JOURNALED_MATERIALIZATION_BENCHMARK.md`;
 - implemented for repo mirrors: stable repo IDs, configured/resolved repo, note path, local-tree or
   remote HEAD hash, lifecycle state, warnings/errors, non-mutating plan/status reports, and
   generated-region manual-edit detection, plus contract-backed lifecycle next-action guidance in plan/status
@@ -172,6 +252,9 @@ A second sync with unchanged source bytes, unchanged converter/config version, a
 region must produce no content diff.
 The append-only `_meta/sync-audit.jsonl` log may receive new events; idempotency assertions should
 compare stable generated mirrors, repo notes, and manifests separately from the audit log.
+
+For Stage 1B, event replay must also be idempotent: duplicate or interrupted journal events must
+not produce duplicate successful materialization or corrupt manifests/mirrors.
 
 Current idempotency regression coverage includes:
 

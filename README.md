@@ -1,7 +1,7 @@
 # Vaultwright
 
-**Compile source collections into governed, profile-driven knowledge workspaces without modifying
-the original records.**
+**Compile changing source collections into governed, profile-driven knowledge workspaces without
+modifying the original records.**
 
 Vaultwright is a pre-release methodology + small toolkit for source-backed knowledge workspaces.
 The first commercial wedge remains consulting and implementation teams with document-heavy client
@@ -53,11 +53,12 @@ engagement document collections and need to turn them into governed, source-link
 knowledge. Owner-operators may benefit later, but the first release is scoped around teams that
 already understand provenance, engagement boundaries, and source preservation.
 
-## How it works (six layers)
+## How it works (seven layers)
 
 | Layer | What | Who owns it |
 | --- | --- | --- |
 | **Sources** | original files, repositories, exports, and external records | authoritative; never altered by Vaultwright |
+| **Change journal** | future ordered local observations, retries, and materialization checkpoints | operational, derived state |
 | **Mirrors** | machine-generated Markdown and extraction metadata | derived, reproducible artifacts |
 | **Curated knowledge** | human-reviewed notes, syntheses, entities, and decisions | human-governed |
 | **Profile** | domain vocabulary, schemas, templates, views, skills, and benchmarks | versioned contract |
@@ -79,6 +80,8 @@ Full write-up: [`docs/methodology.md`](docs/methodology.md).
 Professional review brief: [`docs/VAULTWRIGHT_WHITEPAPER.md`](docs/VAULTWRIGHT_WHITEPAPER.md).
 Current v1 architecture decision:
 [`docs/adr/0001-profile-driven-v1-architecture.md`](docs/adr/0001-profile-driven-v1-architecture.md).
+Journaled incremental materialization decision:
+[`docs/adr/0002-journaled-incremental-materialization.md`](docs/adr/0002-journaled-incremental-materialization.md).
 Finish-line matrix: [`docs/V1_FINISH_LINE.md`](docs/V1_FINISH_LINE.md).
 
 ## Quick start
@@ -156,8 +159,10 @@ Step-by-step: [`docs/quickstart.md`](docs/quickstart.md).
 
 **v0 - technical alpha.** The template vault, schema, thin tool CLI, source-installable console
 entry point, sync/lint tools, examples, safety guards, Office/repo manifests, and audit logs work
-today. The v1 finish line is now fixed around package-owned runtime behavior, versioned profiles,
-profile-aware views, and external validation before optional Explorer work becomes release-critical.
+today. The v1 finish line is now fixed around Stage 1A package/profile convergence followed by
+Stage 1B journaled changed-file materialization. Full sync remains today's baseline and recovery
+path; journaled incremental operation is the next required kernel gate before profile expansion,
+Obsidian work, indexing, or Explorer work resumes.
 
 ## License
 

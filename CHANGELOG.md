@@ -6,6 +6,62 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 ## [Unreleased]
 
 ### Added
+- Closed the Stage 1B V1-C10 safety gate in the controlling docs after the focused, affected,
+  full-suite, packaging, lint, no-data, template-copy, shell syntax, diff, and residue gates passed
+  for journaled changed-file materialization.
+- Added optional Stage 1B native watch capture with `vaultwright watch --native`, backed by the
+  `vaultwright[watch]` watchdog extra; native events are observed only under configured content
+  roots, buffered, normalized through the existing feed filters, and flushed through journal replay.
+- Added deterministic Stage 1B journaled-materialization benchmark evidence with
+  `scripts/benchmark_journaled_materialization.py`, proving known-path replay over 1,000 synthetic
+  sources performs zero whole-workspace discovery, hashes no untouched source bodies, and invokes
+  the converter once for one modified source.
+- Added Stage 1B move/recreate replay coverage: reconciliation now requeues resolved
+  `source_moved` records after the previous generated mirror is removed, allowing
+  `sync --changed` to generate the new mirror with the same source ID, and tests cover
+  delete/recreate returning a source record to `clean`.
+- Added Stage 1B deleted-source replay handling: manifest-backed `deleted` journal events now mark
+  Office source records `source_missing`, retain generated mirrors for review, append audit
+  evidence, and finish as applied work instead of generic review-required events.
+- Added Stage 1B watch startup orchestration with `vaultwright watch --once`, composing startup
+  reconciliation, feed-event queueing, and journal replay; optional native capture is now handled
+  by `vaultwright watch --native`.
+- Added Stage 1B changed-file sync orchestration with `vaultwright sync --changed`, composing
+  explicit reconciliation and journal replay while preserving the existing full-sync path as
+  `vaultwright sync` / `vaultwright sync --full`.
+- Added Stage 1B explicit reconciliation with `vaultwright reconcile`, queuing missed created,
+  modified, moved, deleted, and review-required candidate events from source/manifest state with
+  metadata-first comparison and candidate-only hashing for safe move detection.
+- Added Stage 1B idempotent journal replay with `vaultwright journal replay`, recovering
+  interrupted `processing` events under the workspace lease, explicitly retrying failed events
+  only with `--retry-failed`, and exposing bounded/JSON replay output.
+- Added a Stage 1B lease-protected changed-source worker primitive that claims journal events,
+  runs source-addressable Office materialization for current-path events, records source identity
+  on finished journal rows, and finishes events as applied, review-required, or failed.
+- Added deterministic Stage 1B file-stability settling for changed-source candidates, with
+  injectable clock/sleeper/fingerprint tests and optional pre-conversion settling in the
+  source-addressable Office materialization primitive.
+- Added a Stage 1B source-addressable Office materialization primitive that processes one
+  vault-relative source through the existing Office mirror engine, preserves source bytes, honors
+  profile-defined mirror roots, writes manifest/audit state, and skips unchanged conversions.
+- Added Stage 1B journal worker coordination primitives: workspace lease acquisition/release,
+  stale-lease takeover, transactional event claiming, claimed-event finishing, failed-event retry,
+  and recovery of events left `processing` after an interrupted worker.
+- Added deterministic Stage 1B change-feed and metadata-fingerprint primitives, including a static
+  test feed, generated/local/operational path filtering, event coalescing before queueing, and a
+  no-full-hash fast path when the cheap fingerprint is unchanged.
+- Added the first Stage 1B journal foundation: package-owned changed-file event/state modules,
+  local `.vaultwright/state.sqlite` initialization, `vaultwright journal status`, `.vaultwright/`
+  ignore/no-data safeguards, and focused persistence tests without starting watcher delivery.
+- Closed the Stage 1A kernel/profile-convergence gate in the controlling docs, preserving the
+  package-runtime/shim boundary and opening the Stage 1B journaled materialization lane.
+- Documented the Stage 1A profile-assumption inventory across package code, copied-tool shims,
+  templates, examples, and tests, with classifications for universal invariants, business profile
+  data, legacy compatibility fallbacks, test fixtures, and verified defects.
+- Adopted the June 24 canonical white paper, added ADR 0002 for journaled incremental
+  materialization, split Stage 1 into Stage 1A/Stage 1B in the finish-line controls, and added
+  V1-C10 for journaled changed-file materialization while preserving full sync as the
+  baseline/recovery path.
 - Added the 2026-06-23 strategic whitepaper revision, ADR 0001, and `docs/V1_FINISH_LINE.md` so
   v1 work is gated by the profile-driven architecture, explicit non-goals, and Core/Explorer
   finish-line matrix.

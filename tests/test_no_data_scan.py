@@ -341,6 +341,70 @@ def test_no_data_scan_default_includes_ignored_paths(tmp_path: Path) -> None:
     assert "generated/vendor directory" in result.stderr
 
 
+def test_no_data_scan_default_skips_ignored_vaultwright_state(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)
+    (repo / ".gitignore").write_text(".vaultwright/\n", encoding="utf-8")
+    state = repo / ".vaultwright" / "state.sqlite"
+    state.parent.mkdir()
+    state.write_bytes(b"SQLite format 3\0synthetic local state")
+
+    result = subprocess.run(
+        [sys.executable, str(SCAN)],
+        cwd=repo,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "OK" in result.stdout
+
+
+def test_no_data_scan_blocks_staged_vaultwright_state(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)
+    (repo / ".gitignore").write_text(".vaultwright/\n", encoding="utf-8")
+    state = repo / ".vaultwright" / "state.sqlite"
+    state.parent.mkdir()
+    state.write_bytes(b"SQLite format 3\0synthetic local state")
+    subprocess.run(["git", "add", "-f", ".vaultwright/state.sqlite"], cwd=repo, check=True)
+
+    result = subprocess.run(
+        [sys.executable, str(SCAN), "--staged"],
+        cwd=repo,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 1
+    assert ".vaultwright/state.sqlite" in result.stderr
+    assert "local derived state must not be committed" in result.stderr
+
+
+def test_no_data_scan_default_blocks_tracked_vaultwright_state(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)
+    (repo / ".gitignore").write_text(".vaultwright/\n", encoding="utf-8")
+    state = repo / ".vaultwright" / "state.sqlite"
+    state.parent.mkdir()
+    state.write_bytes(b"SQLite format 3\0synthetic local state")
+    subprocess.run(["git", "add", "-f", ".vaultwright/state.sqlite"], cwd=repo, check=True)
+
+    result = subprocess.run(
+        [sys.executable, str(SCAN)],
+        cwd=repo,
+        text=True,
+        capture_output=True,
+    )
+
+    assert result.returncode == 1
+    assert ".vaultwright/state.sqlite" in result.stderr
+    assert "local derived state must not be committed" in result.stderr
+
+
 def test_no_data_scan_scans_force_staged_skipped_dirs(tmp_path: Path) -> None:
     for dirname in ("__pycache__", "node_modules", "venv"):
         repo = tmp_path / dirname / "repo"

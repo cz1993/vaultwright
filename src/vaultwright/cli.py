@@ -11,6 +11,7 @@ import json
 import os
 import shutil
 import sys
+import time
 from pathlib import Path
 
 from vaultwright import benchmark as benchmark_module
@@ -30,6 +31,13 @@ from vaultwright.annotation_migration import (
     public_plan,
     write_annotation_sidecars,
 )
+from vaultwright.changes import changed_sync as changed_sync_module
+from vaultwright.changes import feed as feed_module
+from vaultwright.changes import journal as journal_module
+from vaultwright.changes import native_watch as native_watch_module
+from vaultwright.changes import reconcile as reconcile_module
+from vaultwright.changes import replay as replay_module
+from vaultwright.changes import watch as watch_module
 from vaultwright.mirrors import github_repos as repo_sync_module
 from vaultwright.mirrors import office as office_sync_module
 from vaultwright.profile_migration import profile_migration_plan, write_profile_migration
@@ -525,9 +533,184 @@ def command_plan(args: argparse.Namespace) -> int:
 
 def command_sync(args: argparse.Namespace) -> int:
     root = args.root.expanduser().resolve()
+    if getattr(args, "changed", False):
+        holder = args.holder or f"cli-{os.getpid()}"
+        try:
+            payload = changed_sync_module.sync_changed(
+                root,
+                holder,
+                retry_failed=args.retry_failed,
+                max_events=args.max_events,
+                lease_ttl_seconds=args.lease_ttl_seconds,
+            )
+        except (
+            journal_module.JournalError,
+            reconcile_module.ReconciliationError,
+            replay_module.ReplayError,
+        ) as exc:
+            print(f"sync --changed: {exc}", file=sys.stderr)
+            return 1
+        if args.json:
+            print(json.dumps(payload, indent=2, sort_keys=True))
+        else:
+            replay_payload = payload["replay"]
+            print(
+                "vaultwright sync --changed: "
+                f"queued {payload['events_queued']} event(s), "
+                f"processed {payload['processed']} event(s)"
+            )
+            counts = payload["finish_counts"]
+            print(
+                "finish counts: "
+                f"applied={counts['applied']} "
+                f"review-required={counts['review-required']} "
+                f"failed={counts['failed']}"
+            )
+            print(
+                "candidate full hashes: "
+                f"{payload['reconciliation']['full_hashes']} "
+                f"({payload['reconciliation']['bytes_hashed']} bytes)"
+            )
+            if not replay_payload["acquired"]:
+                lease = replay_payload["lease"]
+                print(f"worker: locked by {lease['holder']} until {lease['expires_at']}")
+        if not payload["replay"]["acquired"]:
+            return 1
+        return 1 if payload["finish_counts"]["failed"] else 0
+
+    if any(
+        (
+            getattr(args, "json", False),
+            getattr(args, "retry_failed", False),
+            getattr(args, "max_events", None) is not None,
+            getattr(args, "holder", None),
+        )
+    ):
+        print("sync: --json, --retry-failed, --max-events, and --holder require --changed", file=sys.stderr)
+        return 2
     office = office_sync_module.main([], default_root=root)
     repos = repo_sync_module.main([], default_root=root, default_config=repo_config(root))
     return office or repos
+
+
+def _print_watch_payload(payload: dict, holder: str, *, json_output: bool, label: str) -> int:
+    if json_output:
+        print(json.dumps(payload, indent=2, sort_keys=True))
+    else:
+        print(
+            f"vaultwright {label}: "
+            f"queued {payload['events_queued']} event(s), "
+            f"processed {payload['processed']} event(s)"
+        )
+        print(f"startup reconciliation: {'yes' if payload['reconcile_on_start'] else 'no'}")
+        print(f"feed events queued: {payload['feed_events_queued']}")
+        counts = payload["finish_counts"]
+        print(
+            "finish counts: "
+            f"applied={counts['applied']} "
+            f"review-required={counts['review-required']} "
+            f"failed={counts['failed']}"
+        )
+        lease = payload["replay"]["lease"]
+        if payload["replay"]["acquired"]:
+            print(f"worker: acquired by {holder} until {lease['expires_at']}")
+        else:
+            print(f"worker: locked by {lease['holder']} until {lease['expires_at']}")
+    if not payload["replay"]["acquired"]:
+        return 1
+    return 1 if payload["finish_counts"]["failed"] else 0
+
+
+def _watch_once_payload(args: argparse.Namespace, root: Path, holder: str, observed: list | None = None) -> dict:
+    return watch_module.watch_once(
+        root,
+        holder,
+        observed_feed=feed_module.StaticChangeFeed(observed or []) if observed is not None else None,
+        retry_failed=args.retry_failed,
+        max_events=args.max_events,
+        lease_ttl_seconds=args.lease_ttl_seconds,
+        reconcile_on_start=not args.no_reconcile_on_start,
+    )
+
+
+def command_watch(args: argparse.Namespace) -> int:
+    root = args.root.expanduser().resolve()
+    if not args.once and not args.native:
+        print(
+            "watch: choose --once for deterministic startup replay or --native for optional "
+            "watchdog-backed continuous capture",
+            file=sys.stderr,
+        )
+        return 2
+    holder = args.holder or f"watch-{os.getpid()}"
+    if args.once:
+        try:
+            payload = _watch_once_payload(args, root, holder)
+        except (
+            journal_module.JournalError,
+            reconcile_module.ReconciliationError,
+            replay_module.ReplayError,
+            watch_module.WatchError,
+        ) as exc:
+            print(f"watch: {exc}", file=sys.stderr)
+            return 1
+        return _print_watch_payload(payload, holder, json_output=args.json, label="watch --once")
+
+    if args.cycles is not None and args.cycles < 1:
+        print("watch --native: --cycles must be positive when provided", file=sys.stderr)
+        return 2
+    if args.flush_interval_seconds <= 0:
+        print("watch --native: --flush-interval-seconds must be positive", file=sys.stderr)
+        return 2
+    try:
+        observer, handler, roots = native_watch_module.build_watchdog_observer(root)
+    except native_watch_module.NativeWatchError as exc:
+        print(f"watch --native: {exc}", file=sys.stderr)
+        return 2
+    if not args.json:
+        print("vaultwright watch --native: watching " + ", ".join(path.relative_to(root).as_posix() for path in roots))
+    observer.start()
+    exit_code = 0
+    cycles = 0
+    try:
+        while True:
+            time.sleep(args.flush_interval_seconds)
+            cycles += 1
+            observed = handler.drain()
+            try:
+                payload = _watch_once_payload(
+                    args,
+                    root,
+                    holder,
+                    observed=observed,
+                )
+            except (
+                journal_module.JournalError,
+                reconcile_module.ReconciliationError,
+                replay_module.ReplayError,
+                watch_module.WatchError,
+            ) as exc:
+                print(f"watch --native: {exc}", file=sys.stderr)
+                exit_code = 1
+                break
+            exit_code = _print_watch_payload(
+                payload,
+                holder,
+                json_output=args.json,
+                label=f"watch --native cycle {cycles}",
+            )
+            if exit_code:
+                break
+            args.no_reconcile_on_start = True
+            if args.cycles is not None and cycles >= args.cycles:
+                break
+    except KeyboardInterrupt:
+        if not args.json:
+            print("vaultwright watch --native: stopped")
+    finally:
+        observer.stop()
+        observer.join()
+    return exit_code
 
 
 def command_status(args: argparse.Namespace) -> int:
@@ -539,6 +722,103 @@ def command_status(args: argparse.Namespace) -> int:
     else:
         print("vaultwright status: no tools/repos.yml found; repo status skipped")
     return status
+
+
+def command_journal_status(args: argparse.Namespace) -> int:
+    root = args.root.expanduser().resolve()
+    try:
+        payload = journal_module.journal_status(root, initialize_state=args.init)
+    except journal_module.JournalError as exc:
+        print(f"journal status: {exc}", file=sys.stderr)
+        return 1
+    if args.json:
+        print(json.dumps(payload, indent=2, sort_keys=True))
+        return 0
+    print(f"vaultwright journal status: {payload['state_path']}")
+    print(f"state: {'initialized' if payload['initialized'] else 'not initialized'}")
+    print(f"last event sequence: {payload['last_event_sequence']}")
+    print(f"last observed sequence: {payload['last_observed_sequence']}")
+    print(f"last applied sequence: {payload['last_applied_sequence']}")
+    print(
+        "counts: "
+        f"queued={payload['queued_count']} "
+        f"processing={payload['processing_count']} "
+        f"failed={payload['failed_count']} "
+        f"review-required={payload['review_required_count']}"
+    )
+    print(f"last reconciliation: {payload['last_reconciliation'] or 'never'}")
+    worker = payload["worker"]
+    if worker["locked"]:
+        print(f"worker: locked by {worker['holder']} until {worker['expires_at']}")
+    elif worker.get("stale"):
+        print(f"worker: stale lease from {worker['holder']} expired at {worker['expires_at']}")
+    else:
+        print("worker: unlocked")
+    return 0
+
+
+def command_journal_replay(args: argparse.Namespace) -> int:
+    root = args.root.expanduser().resolve()
+    holder = args.holder or f"cli-{os.getpid()}"
+    try:
+        payload = replay_module.replay_journal(
+            root,
+            holder,
+            retry_failed=args.retry_failed,
+            max_events=args.max_events,
+            lease_ttl_seconds=args.lease_ttl_seconds,
+        )
+    except (journal_module.JournalError, replay_module.ReplayError) as exc:
+        print(f"journal replay: {exc}", file=sys.stderr)
+        return 1
+    if args.json:
+        print(json.dumps(payload, indent=2, sort_keys=True))
+    else:
+        print(f"vaultwright journal replay: processed {payload['processed']} event(s)")
+        print(f"recovered processing: {len(payload['recovered_processing'])}")
+        print(f"retried failed: {len(payload['retried_failed'])}")
+        counts = payload["finish_counts"]
+        print(
+            "finish counts: "
+            f"applied={counts['applied']} "
+            f"review-required={counts['review-required']} "
+            f"failed={counts['failed']}"
+        )
+        lease = payload["lease"]
+        if payload["acquired"]:
+            print(f"worker: acquired by {holder} until {lease['expires_at']}")
+        else:
+            print(f"worker: locked by {lease['holder']} until {lease['expires_at']}")
+    if not payload["acquired"]:
+        return 1
+    return 1 if payload["finish_counts"]["failed"] else 0
+
+
+def command_reconcile(args: argparse.Namespace) -> int:
+    root = args.root.expanduser().resolve()
+    try:
+        payload = reconcile_module.reconcile_workspace(root)
+    except (journal_module.JournalError, reconcile_module.ReconciliationError) as exc:
+        print(f"reconcile: {exc}", file=sys.stderr)
+        return 1
+    if args.json:
+        print(json.dumps(payload, indent=2, sort_keys=True))
+        return 0
+    print(f"vaultwright reconcile: queued {payload['events_queued']} event(s)")
+    print(f"scanned sources: {payload['scanned_sources']}")
+    print(f"manifest records: {payload['manifest_records']}")
+    print(
+        "event counts: "
+        f"created={payload['event_counts']['created']} "
+        f"modified={payload['event_counts']['modified']} "
+        f"moved={payload['event_counts']['moved']} "
+        f"deleted={payload['event_counts']['deleted']} "
+        f"reconcile-required={payload['event_counts']['reconcile-required']}"
+    )
+    print(f"existing unresolved events skipped: {payload['events_skipped']}")
+    print(f"candidate full hashes: {payload['full_hashes']} ({payload['bytes_hashed']} bytes)")
+    print(f"last reconciliation: {payload['reconciled_at']}")
+    return 0
 
 
 def command_migrate_annotations(args: argparse.Namespace) -> int:
@@ -654,8 +934,85 @@ def build_parser() -> argparse.ArgumentParser:
     annotations.add_argument("--json", action="store_true", help="Print machine-readable migration output.")
     annotations.set_defaults(func=command_migrate_annotations)
     sub.add_parser("plan", help="Inventory sources and proposed mirror actions without writing.").set_defaults(func=command_plan)
-    sub.add_parser("sync", help="Run Office and repo mirror syncs.").set_defaults(func=command_sync)
+    sync = sub.add_parser("sync", help="Run Office/repo full sync or journaled changed-file sync.")
+    sync_mode = sync.add_mutually_exclusive_group()
+    sync_mode.add_argument("--changed", action="store_true", help="Run journaled changed-file sync.")
+    sync_mode.add_argument("--full", action="store_true", help="Run the full Office/repo sync path.")
+    sync.add_argument("--holder", help="Worker lease holder ID for --changed.")
+    sync.add_argument("--retry-failed", action="store_true", help="Retry failed journal events during --changed.")
+    sync.add_argument("--max-events", type=int, help="Maximum events to process during --changed.")
+    sync.add_argument(
+        "--lease-ttl-seconds",
+        type=int,
+        default=300,
+        help="Worker lease time-to-live in seconds for --changed.",
+    )
+    sync.add_argument("--json", action="store_true", help="Print machine-readable --changed results.")
+    sync.set_defaults(func=command_sync)
+    watch = sub.add_parser("watch", help="Run journaled watch orchestration.")
+    watch_mode = watch.add_mutually_exclusive_group()
+    watch_mode.add_argument(
+        "--once",
+        action="store_true",
+        help="Run one startup reconciliation/feed replay cycle and exit.",
+    )
+    watch_mode.add_argument(
+        "--native",
+        action="store_true",
+        help="Continuously capture native filesystem events with the optional watchdog extra.",
+    )
+    watch.add_argument(
+        "--no-reconcile-on-start",
+        action="store_true",
+        help="Skip startup reconciliation for this watch run.",
+    )
+    watch.add_argument("--holder", help="Worker lease holder ID for watch replay.")
+    watch.add_argument("--retry-failed", action="store_true", help="Retry failed journal events during watch replay.")
+    watch.add_argument("--max-events", type=int, help="Maximum events to process during each watch replay.")
+    watch.add_argument("--cycles", type=int, help="Maximum native watch flush cycles before exiting.")
+    watch.add_argument(
+        "--flush-interval-seconds",
+        type=float,
+        default=2.0,
+        help="Seconds between native watch queue flushes.",
+    )
+    watch.add_argument(
+        "--lease-ttl-seconds",
+        type=int,
+        default=300,
+        help="Worker lease time-to-live in seconds for watch replay.",
+    )
+    watch.add_argument("--json", action="store_true", help="Print machine-readable watch results.")
+    watch.set_defaults(func=command_watch)
     sub.add_parser("status", help="Report manifest-backed lifecycle status.").set_defaults(func=command_status)
+    journal = sub.add_parser("journal", help="Inspect local journaled materialization state.")
+    journal_sub = journal.add_subparsers(dest="journal_command", required=True)
+    journal_status = journal_sub.add_parser("status", help="Report local journal queue and worker state.")
+    journal_status.add_argument("--init", action="store_true", help="Initialize local journal state if missing.")
+    journal_status.add_argument("--json", action="store_true", help="Print machine-readable journal status.")
+    journal_status.set_defaults(func=command_journal_status)
+    journal_replay = journal_sub.add_parser("replay", help="Replay recoverable local journal work.")
+    journal_replay.add_argument(
+        "--holder",
+        help="Worker lease holder ID. Defaults to a process-scoped CLI holder.",
+    )
+    journal_replay.add_argument(
+        "--retry-failed",
+        action="store_true",
+        help="Requeue failed events before replaying. Interrupted processing events are always recovered.",
+    )
+    journal_replay.add_argument("--max-events", type=int, help="Maximum number of events to process.")
+    journal_replay.add_argument(
+        "--lease-ttl-seconds",
+        type=int,
+        default=300,
+        help="Worker lease time-to-live in seconds.",
+    )
+    journal_replay.add_argument("--json", action="store_true", help="Print machine-readable replay results.")
+    journal_replay.set_defaults(func=command_journal_replay)
+    reconcile = sub.add_parser("reconcile", help="Queue missed journal events from source/manifest state.")
+    reconcile.add_argument("--json", action="store_true", help="Print machine-readable reconciliation results.")
+    reconcile.set_defaults(func=command_reconcile)
     sub.add_parser("doctor", help="Check required files, Python version, and dependencies.").set_defaults(func=command_doctor)
     sub.add_parser("lint", help="Run vault health checks.").set_defaults(func=command_lint)
     overlap = sub.add_parser("overlap", help="Print a read-only overlap threshold calibration report.")

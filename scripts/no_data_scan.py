@@ -31,6 +31,8 @@ SKIP_DIRS = {
     "venv",
 }
 
+LOCAL_DERIVED_STATE_DIRS = {".vaultwright"}
+
 HIGH_RISK_NAME_PATTERNS = [
     re.compile(p, re.IGNORECASE)
     for p in (
@@ -174,6 +176,22 @@ def repo_root() -> Path:
 
 def path_is_skipped(path: Path) -> bool:
     return any(part in SKIP_DIRS for part in path.parts)
+
+
+def local_derived_state_part(rel: str) -> str:
+    for part in Path(rel).parts:
+        if part in LOCAL_DERIVED_STATE_DIRS:
+            return part
+    return ""
+
+
+def path_is_tracked(root: Path, rel: str) -> bool:
+    try:
+        lines = run_git(["ls-files", "--error-unmatch", "--", rel], root, text=True)
+    except subprocess.CalledProcessError:
+        return False
+    assert isinstance(lines, list)
+    return bool(lines)
 
 
 def provenance_texts(root: Path, staged: bool) -> list[str]:
@@ -545,6 +563,12 @@ def main() -> int:
     allow_generated_sync_audit = bool(args.paths and not args.staged)
     findings: list[str] = []
     for rel, path, raw, mode in collect_paths(root, args):
+        local_state = local_derived_state_part(rel)
+        if local_state and (args.staged or (not args.paths and path_is_tracked(root, rel))):
+            findings.append(f"{rel}: local derived state must not be committed ({local_state})")
+            continue
+        if local_state and not args.paths:
+            continue
         findings.extend(
             scan_file(
                 root,

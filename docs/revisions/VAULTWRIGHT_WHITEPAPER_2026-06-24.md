@@ -1,8 +1,11 @@
 # Vaultwright Whitepaper
 
-**Status:** canonical strategic product revision, incremental-materialization architecture, and finite v1 execution brief
+> Historical revision copy. The canonical editable white paper for this architecture now lives at
+> `docs/VAULTWRIGHT_WHITEPAPER.md`; update that file first and keep this copy as dated provenance.
+
+**Status:** strategic product revision, incremental-materialization architecture, and finite v1 execution brief
 **Date:** 2026-06-24
-**Repository reviewed:** `cz1993/vaultwright` at commit `004a3617f15e8234a056b8b1711b139ebe9b8e2f`
+**Repository reviewed:** `cz1993/vaultwright` at commit `a57ef29ec7d02ff5510da609c87710199b0931cc`
 **Audience:** maintainers, design partners, consulting operators, knowledge-management teams, and technical reviewers
 **Review posture:** ambitious, practical, evidence-based, source-preserving, and deliberately scope-bounded
 
@@ -73,29 +76,23 @@ As of the reviewed commit:
 
 - Stage 0 scope freeze and architecture decisions are recorded as complete.
 - Package-owned runtime covers the main operator commands and mirror implementations.
-- The versioned profile contract has closed the Stage 1A kernel/profile-convergence gate.
+- The versioned profile contract is actively replacing hard-coded business assumptions.
 - Source-authority and no-real-data policy defaults are validated through the profile schema.
 - Machine-owned mirrors and annotation-sidecar migration are implemented and treated as closed Stage 1 work.
-- Compatibility scripts remain thin shims over package-owned runtime behavior.
-- Stage 1B journaled changed-file materialization is implemented and gate-validated on the active
-  development branch with focused, affected, full-suite, packaging, lint, no-data, template-copy,
-  shell syntax, diff, and residue checks.
+- Compatibility scripts remain as thin shims while package and profile convergence continues.
+- The repository reports a current full test run of 332 passing tests in its progress documentation.
 
 This progress matters. The incremental design should not replace the existing lifecycle engine. It should make the existing engine addressable by source and drive it through a durable queue.
 
-Full sync remains the baseline and recovery mode. The Stage 1B changed-file path removes the
-normal steady-state need to rediscover and fully hash the whole source corpus by processing
-event-identified candidates through the same mirror engine. The recorded synthetic benchmark
-proves known-path replay over 1,000 sources with no whole-workspace discovery, no untouched-source
-body hashing, and one conversion for one modified source.
+The present performance issue is structural: normal Office synchronization still discovers the source tree and computes content hashes during planning for all eligible files. Conversion is avoided for clean files, but traversal and full hashing still scale with the whole corpus. The first incremental release should remove that repeated steady-state cost.
 
 The main remaining risks are:
 
+- profile behavior is not yet fully extracted from core assumptions;
 - compatibility surfaces can still drift if they stop being thin;
-- the CLI and reporting surface can expand without convergence discipline;
-- the local journal must stay derived delivery state, never a second lifecycle authority;
-- event-driven operation must keep reconciliation mandatory because watcher delivery is advisory;
-- Stage 2+ profiles, Obsidian adapter work, index, Explorer, and pilots still need separate gates.
+- the CLI and reporting surface can continue to expand without convergence;
+- the new journal could become a second lifecycle authority if poorly designed;
+- event-driven operation could silently miss changes unless reconciliation is mandatory.
 
 ## 4. Refined Product Scope
 
@@ -691,13 +688,11 @@ Retain the existing product statement, profile list, non-goals, and finish-line 
 
 ### Stage 1A — Kernel and profile convergence
 
-**Current status:** complete.
+**Current status:** in progress.
 
-The Stage 1A gate closed after the remaining profile-assumption inventory found no
-Stage 1A-blocking runtime defect and classified remaining vocabulary as profile data, legacy
-compatibility fallback, test fixture, or universal mirror-layer invariant. The closed gate
-preserves these constraints:
+Close the existing Stage 1 gaps:
 
+- finish extraction of remaining profile-dependent assumptions;
 - keep package modules authoritative;
 - keep compatibility scripts thin;
 - preserve machine-owned mirror and annotation-sidecar guarantees;
@@ -709,28 +704,24 @@ preserves these constraints:
 - V1-C1, V1-C2, V1-C4, and V1-C5 meet their Stage 1 definitions;
 - the full existing suite and repository gates pass.
 
-The Stage 1B journaled materialization gate is closed. Stage 2+ profile, Obsidian, index, and
-Explorer work remains paused until opened by a new, explicitly bounded batch or goal.
-
 ### Stage 1B — Journaled changed-file synchronization
 
-Requirement **V1-C10: journaled incremental materialization** is closed for Stage 1B.
+Add one mandatory requirement, **V1-C10: journaled incremental materialization**.
 
-Delivered:
+Deliverables:
 
 - package-owned journal module and SQLite schema;
 - source-addressable Office synchronization API;
-- deterministic change-feed adapter plus optional native filesystem capture;
+- local change-feed adapter;
 - event coalescing and file-stability gate;
 - metadata-first reconciliation;
-- `watch --once`, optional `watch --native`, `sync --changed`, `sync --full`,
-  `journal status/replay`, and `reconcile` surfaces;
+- `watch`, `sync --changed`, `journal status/replay`, and `reconcile` surfaces;
 - workspace locking;
 - crash-replay and missed-event recovery tests;
 - synthetic large-vault benchmark;
 - updated recovery, security, profile, and operator documentation.
 
-**Exit criteria passed:**
+**Exit criteria:**
 
 - one changed source causes no full-vault discovery on the event path;
 - untouched source bodies are not hashed;
@@ -862,9 +853,6 @@ The scope remains finite: changed-file incrementality is mandatory; package-part
 - Vaultwright repository: https://github.com/cz1993/vaultwright
 - Vaultwright June 23 strategic whitepaper: `docs/VAULTWRIGHT_WHITEPAPER_2026-06-23.md`
 - Vaultwright v1 finish-line matrix: `docs/V1_FINISH_LINE.md`
-- ADR 0001 profile-driven v1 architecture: `docs/adr/0001-profile-driven-v1-architecture.md`
-- ADR 0002 journaled incremental materialization:
-  `docs/adr/0002-journaled-incremental-materialization.md`
 - Vaultwright profile schema: `docs/PROFILE_SCHEMA.md`
 - Obsidian Agent Skills: https://github.com/kepano/obsidian-skills
 - CodeGraph: https://github.com/colbymchenry/codegraph

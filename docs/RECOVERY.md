@@ -54,6 +54,11 @@ python3.11 tools/vaultwright.py lint
 Review the plan before sync if the source tree changed, especially after folder renames or cloud
 sync conflicts.
 
+Full sync remains the authoritative recovery mode after Stage 1B. The local journal and state
+database are derived operational state; if they are lost or suspect, stop any watcher, run
+reconciliation or full sync, and rebuild journal state from sources and manifests rather than
+treating the journal as authority.
+
 ## Recover From Interrupted Sync
 
 Mirror writes are atomic, so an interrupted sync should preserve either the prior complete mirror or
@@ -71,6 +76,15 @@ If `_meta/source-manifest.json`, `_meta/repo-manifest.json`, or `_meta/sync-audi
 restore it from backup when possible. If no backup exists, rerun status/sync to rebuild manifests
 from the current sources and mirrors, then review all `planned`, `stale`, `source_missing`,
 `unreachable`, and `manual_modification` states.
+
+Interrupted Stage 1B changed-file materialization should first be inspected with
+`vaultwright journal status` and recovered with `vaultwright journal replay`. Replay recovers
+events left in `processing`; use `vaultwright journal replay --retry-failed` only when a failed
+event is ready for an explicit retry. Use `vaultwright reconcile` to queue missed source/manifest
+events before replaying recovered work, or use `vaultwright sync --changed` to run those two steps
+as one changed-file pass. `vaultwright watch --once` runs the same startup reconciliation posture
+plus any queued feed work for a deterministic one-cycle watch check. When changed sync, replay,
+reconciliation, or watch startup cannot prove consistency, run full sync as the recovery path.
 
 When an error state exists, inspect the newest `_meta/sync-audit.jsonl` event for that `source_id` or
 `repo_id`. The event records the generated artifact path, lifecycle state, sync status, and
@@ -251,6 +265,18 @@ Before public release, recovery must be tested on a copied vault:
 - run `tools/vaultwright.py recovery` and verify the checklist matches the manifest states;
 - restore a curated note from Git;
 - run no-data scan and lint after recovery.
+
+Stage 1B adds recovery gates for journal replay, missed-event reconciliation, stale-lock recovery,
+duplicate event delivery, crash after mirror write but before checkpoint, and full-sync recovery
+after journal loss. The current replay path covers interrupted `processing` events and explicit
+failed-event retry; the current explicit reconciliation path queues missed create, update, delete,
+move, and review-required candidate events; the current `watch --once` path runs deterministic
+startup reconciliation, feed queueing, and replay; manifest-backed deleted events now mark records
+`source_missing` while retaining generated mirrors; resolved `source_moved` records replay after
+old-mirror cleanup, and delete/recreate can return records to `clean`. Optional `watch --native`
+capture now maps watchdog events through the same feed/replay boundary. The Stage 1B safety-gate
+closure records focused, affected, full-suite, packaging, lint, no-data, template-copy, shell
+syntax, diff, and residue validation.
 
 The test suite now exercises the copied-vault regeneration path, source-byte preservation,
 converter-failure, Office mirror-write-failure, and repo-note write-failure recovery that preserve
