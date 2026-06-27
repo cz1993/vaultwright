@@ -6,6 +6,11 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 ## [Unreleased]
 
 ### Added
+- Closed the Stage 2 V1-C3 official-profile gate: `vaultwright init --profile` now scaffolds
+  `business-operations`, `research-learning`, `software-project`, and `blank` from the package,
+  with non-business profile folders, generated scaffold docs, matching domain maps, and
+  profile-declared note templates derived from the selected contract; tests now add a synthetic
+  source to each initialized profile and verify clean Office mirror lifecycle/status/lint behavior.
 - Closed the Stage 1B V1-C10 safety gate in the controlling docs after the focused, affected,
   full-suite, packaging, lint, no-data, template-copy, shell syntax, diff, and residue gates passed
   for journaled changed-file materialization.
@@ -68,8 +73,7 @@ All notable changes to Vaultwright are documented here. Format loosely follows
 - Added an initial package-owned profile contract validator plus `_meta/profile.yml` for the
   current `business-operations` template, establishing the first Stage 1 profile-schema seam.
 - Added package-owned v1 profile contracts for `research-learning`, `software-project`, and
-  `blank`; `vaultwright profile list/show` now exposes all four official profile contracts while
-  `init` and profile migration remain limited to scaffolded `business-operations`.
+  `blank`; `vaultwright profile list/show` now exposes all four official profile contracts.
 - Added a shared runtime profile helper for active content roots so lint, catalog, overlap
   calibration, and repo mirror output validation use the same profile-owned folder fallback.
 - Added shared runtime profile frontmatter-key ordering so Office and GitHub generated mirrors

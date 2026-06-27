@@ -7,9 +7,8 @@ properties.
 
 The current schema is `schema_version: 1`. Packaged v1 profile contracts currently include
 `business-operations`, `research-learning`, `software-project`, and `blank`, each at
-`profile_version: 0.1.0`. Only `business-operations` has a scaffolded `init` template today; the
-other official contracts are available for inspection while profile-specific fixtures and init
-flows are built out.
+`profile_version: 0.1.0`. All four official profiles can be initialized through the package-owned
+`vaultwright init --profile <id>` flow.
 
 ## Contract File
 
@@ -19,7 +18,7 @@ Each vault stores its active profile at:
 _meta/profile.yml
 ```
 
-The scaffolded `business-operations` target profile is copied from:
+The scaffolded `business-operations` target profile is copied from the compatibility template:
 
 ```text
 template/_meta/profile.yml
@@ -31,12 +30,24 @@ The other packaged profile contracts live under:
 src/vaultwright/builtin_profiles/
 ```
 
+For `research-learning`, `software-project`, and `blank`, `vaultwright init` derives starter
+folders, `_meta/domain-map.yml`, `CLAUDE.md`, `INDEX.md`, `RETENTION.md`, and
+`_meta/conventions.md` from the selected profile contract instead of copying the business
+template vocabulary. Only profile-declared note templates and views are included.
+
+The Stage 2 profile fixture tests generate temporary synthetic Office-source paths under each
+initialized profile, then verify mirror lifecycle/status/lint behavior without committing a real
+or private corpus to the repository.
+
 Use these commands to inspect and validate the contract:
 
 ```bash
 vaultwright profile list
 vaultwright profile show business-operations
 vaultwright profile show research-learning
+vaultwright init --profile research-learning <vault>
+vaultwright init --profile software-project <vault>
+vaultwright init --profile blank <vault>
 vaultwright --root <vault> profile validate
 vaultwright --root <vault> profile diff 0.1.0
 vaultwright --root <vault> profile migrate --plan
@@ -359,7 +370,7 @@ The packaged business profile marks `source-mirror` and `repo-mirror` as machine
 marks `draft` and `in-review` as attention states, and marks `superseded` and `archived` as
 inactive states for overlap/lint calibration.
 
-These values belong to the `business-operations` profile, not the long-term core. Future
-`research-learning`, `software-project`, and `blank` scaffold work must keep using their own
-package-owned domains, note types, statuses, policy defaults, views, and benchmark hooks instead
-of inheriting the business vocabulary.
+These values belong to the `business-operations` profile, not the long-term core.
+`research-learning`, `software-project`, and `blank` scaffolds use their own package-owned
+domains, note types, statuses, policy defaults, views, and benchmark hooks instead of inheriting
+the business vocabulary.

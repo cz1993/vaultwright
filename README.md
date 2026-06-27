@@ -138,6 +138,9 @@ From a source checkout, the pre-release console entry point is also available:
 python3.11 -m pip install -e .
 vaultwright profile list
 vaultwright init --profile business-operations ~/my-business-vault
+vaultwright init --profile research-learning ~/my-research-vault
+vaultwright init --profile software-project ~/my-software-vault
+vaultwright init --profile blank ~/my-blank-vault
 vaultwright --root ~/my-business-vault profile validate
 vaultwright --root ~/my-business-vault profile diff 0.1.0
 vaultwright --root ~/my-business-vault profile migrate --plan
@@ -147,9 +150,10 @@ vaultwright --root ~/my-business-vault migrate annotations --plan
 vaultwright --root ~/my-business-vault plan
 ```
 
-`business-operations` is the only packaged profile today. Research/learning, software-project, and
-blank profiles are v1 finish-line work, so the CLI rejects them until their contracts and fixtures
-exist.
+The packaged v1 profiles are `business-operations`, `research-learning`, `software-project`, and
+`blank`. Each initializes from the installable package; non-business profiles get profile-owned
+starter folders, `_meta/profile.yml`, generated scaffold docs, and only the templates declared by
+their contracts.
 
 Profile contract details: [`docs/PROFILE_SCHEMA.md`](docs/PROFILE_SCHEMA.md).
 
@@ -158,11 +162,11 @@ Step-by-step: [`docs/quickstart.md`](docs/quickstart.md).
 ## Status
 
 **v0 - technical alpha.** The template vault, schema, thin tool CLI, source-installable console
-entry point, sync/lint tools, examples, safety guards, Office/repo manifests, and audit logs work
-today. The v1 finish line is now fixed around Stage 1A package/profile convergence followed by
-Stage 1B journaled changed-file materialization. Full sync remains today's baseline and recovery
-path; journaled incremental operation is the next required kernel gate before profile expansion,
-Obsidian work, indexing, or Explorer work resumes.
+entry point, sync/lint tools, examples, safety guards, Office/repo manifests, audit logs,
+journaled changed-file materialization, and all four official profile init fixtures work today.
+The v1 finish line is now fixed around profile/core gates before optional Obsidian adapter,
+indexing, Explorer, and release-pilot work resumes. Full sync remains the baseline and recovery
+path; journaled incremental operation is the steady-state changed-file path.
 
 ## License
 

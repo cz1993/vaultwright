@@ -9,8 +9,15 @@ from pathlib import Path
 import pytest
 import yaml
 
+from vaultwright.mirrors import office as office_sync
 from vaultwright.profile_migration import target_dir_paths
-from vaultwright.profiles import ProfileContract, ProfileValidationError, load_profile, validate_profile_mapping
+from vaultwright.profiles import (
+    ProfileContract,
+    ProfileValidationError,
+    load_profile,
+    profile_folder_paths,
+    validate_profile_mapping,
+)
 from vaultwright.runtime_profile import (
     configured_office_mirror_root,
     profile_context_aliases,
@@ -25,6 +32,15 @@ from vaultwright.mirrors import github_repos
 
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+class ProfileFixtureConversion:
+    text_content = "Synthetic profile fixture source for lifecycle sync smoke tests."
+
+
+class ProfileFixtureConverter:
+    def convert(self, _path: str) -> ProfileFixtureConversion:
+        return ProfileFixtureConversion()
 
 
 def run_cli(*args: str, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
@@ -731,6 +747,157 @@ def test_profile_cli_initializes_and_validates_current_profile(tmp_path: Path) -
     assert json.loads(current.stdout)["id"] == "business-operations"
 
 
+@pytest.mark.parametrize(
+    ("profile_id", "expected_dirs", "unexpected_dirs"),
+    [
+        (
+            "business-operations",
+            {"10_governance", "30_customers", "80_sources"},
+            {"10_product", "10_sources", "20_literature"},
+        ),
+        (
+            "research-learning",
+            {"10_sources", "20_literature", "60_syntheses", "80_archive"},
+            {"10_governance", "10_product", "30_customers"},
+        ),
+        (
+            "software-project",
+            {"10_product", "20_architecture", "30_decisions", "80_sources/repos"},
+            {"10_governance", "20_literature", "30_customers"},
+        ),
+        (
+            "blank",
+            {"00_inbox", "80_sources/repos"},
+            {"10_governance", "10_product", "20_literature", "30_customers"},
+        ),
+    ],
+)
+def test_profile_cli_initializes_official_profile_fixtures(
+    tmp_path: Path,
+    profile_id: str,
+    expected_dirs: set[str],
+    unexpected_dirs: set[str],
+) -> None:
+    vault = tmp_path / profile_id
+
+    init = run_cli("init", "--profile", profile_id, str(vault))
+    assert init.returncode == 0, init.stderr
+    assert f"Profile: {profile_id} 0.1.0" in init.stdout
+
+    profile = load_profile(vault / "_meta" / "profile.yml")
+    assert profile.id == profile_id
+    assert profile.policy_defaults["original_sources_authoritative"] is True
+    assert profile.policy_defaults["real_data_in_repo"] is False
+
+    scaffold_dirs = {path.as_posix() for path in profile_folder_paths(profile)}
+    for rel in expected_dirs | scaffold_dirs | {"_archive", "_meta", "_templates", "_mirrors"}:
+        assert (vault / rel).is_dir(), rel
+    for rel in unexpected_dirs - scaffold_dirs:
+        assert not (vault / rel).exists(), rel
+    for rel in profile.templates:
+        assert (vault / rel).is_file(), rel
+
+    domain_map = yaml.safe_load((vault / "_meta" / "domain-map.yml").read_text(encoding="utf-8"))
+    assert set(domain_map["domains"]) == set(profile.domains)
+    for domain, definition in profile.domains.items():
+        assert domain_map["domains"][domain]["folder"] == definition["folder"]
+
+    validation = run_cli("--root", str(vault), "profile", "validate")
+    assert validation.returncode == 0, validation.stderr
+    lint = run_cli("--root", str(vault), "lint")
+    assert lint.returncode == 0, lint.stdout + lint.stderr
+
+    views = run_cli("--root", str(vault), "profile", "views", "--check", "--json")
+    assert views.returncode == 0, views.stderr
+    views_payload = json.loads(views.stdout)
+    assert views_payload["summary"]["blockers"] == 0
+    if profile.views:
+        assert views_payload["summary"]["up_to_date"] is True
+    else:
+        assert views_payload["summary"]["views"] == 0
+
+
+def test_non_business_profile_init_uses_profile_owned_scaffold_docs(tmp_path: Path) -> None:
+    vault = tmp_path / "research"
+
+    init = run_cli("init", "--profile", "research-learning", str(vault))
+    assert init.returncode == 0, init.stderr
+
+    assert "research-learning" in (vault / "CLAUDE.md").read_text(encoding="utf-8")
+    assert "20_literature" in (vault / "INDEX.md").read_text(encoding="utf-8")
+    assert "30_customers" not in (vault / "CLAUDE.md").read_text(encoding="utf-8")
+    assert not (vault / "_templates" / "account-hub.md").exists()
+
+
+@pytest.mark.parametrize(
+    ("profile_id", "source_rel"),
+    [
+        ("business-operations", "40_delivery/stage2-business-profile-smoke.docx"),
+        ("research-learning", "20_literature/stage2-research-profile-smoke.docx"),
+        ("software-project", "20_architecture/stage2-software-profile-smoke.docx"),
+        ("blank", "80_sources/stage2-blank-profile-smoke.docx"),
+    ],
+)
+def test_official_profile_synthetic_fixture_sync_status_lifecycle(
+    tmp_path: Path,
+    profile_id: str,
+    source_rel: str,
+) -> None:
+    vault = tmp_path / profile_id
+    init = run_cli("init", "--profile", profile_id, str(vault))
+    assert init.returncode == 0, init.stderr
+    profile = load_profile(vault / "_meta" / "profile.yml")
+
+    source = vault / source_rel
+    source.parent.mkdir(parents=True, exist_ok=True)
+    original = f"synthetic {profile_id} source bytes".encode("utf-8")
+    source.write_bytes(original)
+    config = office_sync.load_mirror_config(vault)
+    manifest = office_sync.empty_manifest()
+
+    result = office_sync.sync_one(
+        source,
+        vault,
+        ProfileFixtureConverter(),
+        False,
+        False,
+        config,
+        {},
+        manifest,
+        "markitdown",
+        office_sync.markitdown_version(),
+    )
+    wrote = office_sync.write_source_manifest(vault, manifest)
+
+    assert result == "created"
+    assert wrote is True
+    assert source.read_bytes() == original
+    saved = office_sync.load_source_manifest(vault)
+    assert len(saved["records"]) == 1
+    record = saved["records"][0]
+    assert record["current_source_path"] == source_rel
+    assert record["source_format"] == "docx"
+    assert record["lifecycle_state"] == "clean"
+    assert record["lifecycle_contract"] == "_meta/lifecycle-states.yml"
+    assert record["lifecycle_contract_schema_version"] == 1
+    mirror = vault / record["mirror_path"]
+    assert mirror.exists()
+    assert record["mirror_path"] == f"_mirrors/{Path(source_rel).with_suffix('.md').as_posix()}"
+    mirror_fm = yaml.safe_load(mirror.read_text(encoding="utf-8").split("---", 2)[1])
+    assert mirror_fm["type"] in profile.note_types
+    assert profile.note_types[mirror_fm["type"]]["machine_owned"] is True
+    assert mirror_fm["status"] == profile.policy_defaults["mirror_status"]
+    assert mirror_fm["domain"] in profile.domains
+
+    status = run_cli("--root", str(vault), "status")
+    assert status.returncode == 0, status.stderr or status.stdout
+    assert "sync_office_md status" in status.stdout
+    assert "clean=1" in status.stdout
+
+    lint = run_cli("--root", str(vault), "lint")
+    assert lint.returncode == 0, lint.stdout + lint.stderr
+
+
 def test_profile_cli_views_check_current_initialized_vault(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     init = run_cli("init", "--profile", "business-operations", str(vault))
@@ -974,22 +1141,28 @@ def test_profile_cli_migrate_plan_reports_profile_contract_drift(tmp_path: Path)
     } in payload["differences"]
 
 
-def test_profile_cli_rejects_unavailable_init_profile(tmp_path: Path) -> None:
-    result = run_cli("init", "--profile", "research-learning", str(tmp_path / "vault"))
+def test_profile_cli_rejects_unknown_init_profile(tmp_path: Path) -> None:
+    result = run_cli("init", "--profile", "unknown-profile", str(tmp_path / "vault"))
 
     assert result.returncode == 1
-    assert "packaged contract but no scaffold template yet" in result.stderr
-    assert "scaffolded profiles: business-operations" in result.stderr
+    assert "unknown built-in profile: unknown-profile" in result.stderr
 
 
-def test_profile_cli_migrate_rejects_non_scaffolded_profile_contract(tmp_path: Path) -> None:
+def test_profile_cli_migrate_plans_official_non_business_profile_contract(tmp_path: Path) -> None:
     vault = tmp_path / "vault"
     vault.mkdir()
 
-    result = run_cli("--root", str(vault), "profile", "migrate", "--profile", "software-project", "--plan")
+    result = run_cli("--root", str(vault), "profile", "migrate", "--profile", "software-project", "--plan", "--json")
 
-    assert result.returncode == 1
-    assert "packaged contract but no scaffold template yet" in result.stderr
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    assert payload["profile_id"] == "software-project"
+    assert payload["summary"]["blockers"] == 0
+    planned_paths = {action["path"] for action in payload["actions"]}
+    assert "_meta/profile.yml" in planned_paths
+    assert "CLAUDE.md" in planned_paths
+    assert "10_product" in planned_paths
+    assert "80_sources/repos" in planned_paths
 
 
 def test_profile_cli_diff_rejects_unavailable_target_version(tmp_path: Path) -> None:

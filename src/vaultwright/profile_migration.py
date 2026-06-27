@@ -7,26 +7,19 @@ import shutil
 from pathlib import Path
 from typing import Any
 
+from vaultwright.profile_scaffold import (
+    BUSINESS_OPERATIONS_PROFILE_ID,
+    BUSINESS_TEMPLATE_PROFILE_FILES,
+    CORE_TEMPLATE_FILES,
+    GENERATED_PROFILE_DOC_PATHS,
+    PROFILE_REL,
+    generated_profile_files,
+)
 from vaultwright.profiles import ProfileContract, profile_folder_paths
 from vaultwright.runtime_profile import LEGACY_MIRROR_ROOT
 
 
-SHARED_TEMPLATE_FILES = (
-    ".gitignore",
-    "AGENTS.md",
-    "CLAUDE.md",
-    "Documents.base",
-    "INDEX.md",
-    "RETENTION.md",
-    "_meta/conventions.md",
-    "_meta/domain-map.yml",
-    "_meta/lifecycle-states.yml",
-    "_meta/lint-config.yml",
-    "_meta/mirror-config.yml",
-    "_meta/profile.yml",
-    "log.md",
-    "tools/requirements.txt",
-)
+SHARED_TEMPLATE_FILES = (*CORE_TEMPLATE_FILES, "tools/requirements.txt")
 SHARED_TEMPLATE_DIRS = (
     "_archive",
     "_meta",
@@ -40,6 +33,10 @@ def sha256_file(path: Path) -> str:
         for chunk in iter(lambda: handle.read(1 << 20), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def sha256_bytes(content: bytes) -> str:
+    return hashlib.sha256(content).hexdigest()
 
 
 def string_set(values: Any) -> set[str]:
@@ -126,9 +123,40 @@ def profile_differences(current: ProfileContract, target: ProfileContract) -> li
 
 def target_file_paths(target: ProfileContract) -> list[Path]:
     rels = {Path(rel) for rel in SHARED_TEMPLATE_FILES}
+    rels.add(PROFILE_REL)
+    if target.id == BUSINESS_OPERATIONS_PROFILE_ID:
+        rels.update(Path(rel) for rel in BUSINESS_TEMPLATE_PROFILE_FILES)
+    else:
+        rels.update(GENERATED_PROFILE_DOC_PATHS)
     rels.update(Path(rel) for rel in target.templates)
     rels.update(Path(rel) for rel in target.views)
     return sorted(rels, key=lambda path: path.as_posix())
+
+
+def target_file_source_path(
+    template_root: Path,
+    target: ProfileContract,
+    target_profile_path: Path,
+    rel: Path,
+) -> Path | None:
+    if rel == PROFILE_REL:
+        return target_profile_path
+    if target.id != BUSINESS_OPERATIONS_PROFILE_ID and rel in GENERATED_PROFILE_DOC_PATHS:
+        return None
+    return template_root / rel
+
+
+def target_file_bytes(
+    template_root: Path,
+    target: ProfileContract,
+    target_profile_path: Path,
+    rel: Path,
+) -> bytes:
+    generated = generated_profile_files(target)
+    source = target_file_source_path(template_root, target, target_profile_path, rel)
+    if source is None:
+        return generated[rel]
+    return source.read_bytes()
 
 
 def target_mirror_root_path(target: ProfileContract) -> Path:
@@ -207,9 +235,10 @@ def profile_migration_plan(
             if action.get("action") == "copy-template-file"
         }
         for rel in target_file_paths(target):
-            source = template_root / rel
             destination = root / rel
-            if not source.exists():
+            try:
+                target_bytes = target_file_bytes(template_root, target, target_profile_path, rel)
+            except OSError:
                 blockers.append(
                     {
                         "code": "target-file-missing",
@@ -217,7 +246,7 @@ def profile_migration_plan(
                     }
                 )
                 continue
-            target_sha = sha256_file(source)
+            target_sha = sha256_bytes(target_bytes)
             if not destination.exists():
                 if rel.as_posix() not in planned_copies:
                     actions.append(
@@ -266,7 +295,13 @@ def checked_rel_path(rel: str) -> Path:
     return path
 
 
-def write_profile_migration(root: Path, template_root: Path, plan: dict[str, Any]) -> dict[str, Any]:
+def write_profile_migration(
+    root: Path,
+    template_root: Path,
+    plan: dict[str, Any],
+    target: ProfileContract,
+    target_profile_path: Path,
+) -> dict[str, Any]:
     written: list[dict[str, str]] = []
     skipped: list[dict[str, str]] = []
     errors: list[dict[str, str]] = []
@@ -321,8 +356,10 @@ def write_profile_migration(root: Path, template_root: Path, plan: dict[str, Any
             continue
 
         if action_type == "copy-template-file":
-            source = template_root / rel
-            if not source.exists() or not source.is_file():
+            source = target_file_source_path(template_root, target, target_profile_path, rel)
+            try:
+                content = target_file_bytes(template_root, target, target_profile_path, rel)
+            except OSError:
                 errors.append(
                     {
                         "action": action_type,
@@ -332,7 +369,7 @@ def write_profile_migration(root: Path, template_root: Path, plan: dict[str, Any
                 )
                 continue
             expected_sha = str(action.get("target_sha256", ""))
-            actual_sha = sha256_file(source)
+            actual_sha = sha256_bytes(content)
             if expected_sha and actual_sha != expected_sha:
                 errors.append(
                     {
@@ -352,7 +389,10 @@ def write_profile_migration(root: Path, template_root: Path, plan: dict[str, Any
                 )
                 continue
             destination.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(source, destination)
+            if source and source.exists() and source.is_file():
+                shutil.copy2(source, destination)
+            else:
+                destination.write_bytes(content)
             written.append({"action": action_type, "path": rel.as_posix(), "detail": "file copied"})
             continue
 

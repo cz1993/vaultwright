@@ -41,11 +41,11 @@ from vaultwright.changes import watch as watch_module
 from vaultwright.mirrors import github_repos as repo_sync_module
 from vaultwright.mirrors import office as office_sync_module
 from vaultwright.profile_migration import profile_migration_plan, write_profile_migration
+from vaultwright.profile_scaffold import BUSINESS_OPERATIONS_PROFILE_ID, scaffold_profile_vault
 from vaultwright.profiles import ProfileContract, ProfileValidationError, load_profile
 from vaultwright.views import profile_views_plan, write_profile_views
 
 BUILTIN_PROFILE_DIR = Path(__file__).resolve().parent / "builtin_profiles"
-SCAFFOLDED_PROFILE_IDS = {"business-operations"}
 
 
 def template_source() -> Path | None:
@@ -251,12 +251,6 @@ def load_target_profile(profile_id: str | None = None) -> tuple[ProfileContract,
     if not loaded:
         raise ProfileValidationError(f"unknown built-in profile: {target_id}")
     profile, path = loaded
-    if profile.id not in SCAFFOLDED_PROFILE_IDS:
-        available = ", ".join(sorted(SCAFFOLDED_PROFILE_IDS))
-        raise ProfileValidationError(
-            f"profile '{profile.id}' has a packaged contract but no scaffold template yet; "
-            f"scaffolded profiles: {available}"
-        )
     return profile, path, template
 
 
@@ -300,7 +294,7 @@ def command_profile_migrate(args: argparse.Namespace) -> int:
     plan = profile_migration_plan(root, template, current, target, target_path)
     write_result = None
     if args.write:
-        write_result = write_profile_migration(root, template, plan)
+        write_result = write_profile_migration(root, template, plan, target, target_path)
     if args.json:
         payload = {"plan": plan, "write": write_result} if write_result is not None else plan
         print(json.dumps(payload, indent=2, sort_keys=True))
@@ -352,7 +346,10 @@ def command_init(args: argparse.Namespace) -> int:
         print(str(exc), file=sys.stderr)
         return 1
     target.mkdir(parents=True, exist_ok=True)
-    shutil.copytree(template, target, dirs_exist_ok=True)
+    if profile.id == BUSINESS_OPERATIONS_PROFILE_ID:
+        shutil.copytree(template, target, dirs_exist_ok=True)
+    else:
+        scaffold_profile_vault(target, template, profile, _profile_path)
     print(f"Vaultwright vault created at: {target}")
     print(f"Profile: {profile.id} {profile.profile_version}")
     print("Next: python3.11 tools/vaultwright.py doctor && python3.11 tools/vaultwright.py plan")
@@ -877,7 +874,7 @@ def build_parser() -> argparse.ArgumentParser:
     init.add_argument(
         "--profile",
         default="business-operations",
-        help="Profile to initialize. Currently scaffolded: business-operations.",
+        help="Official profile to initialize.",
     )
     init.add_argument("target", type=Path)
     init.set_defaults(func=command_init)
