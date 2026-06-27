@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 import yaml
 
+from vaultwright.mirrors import office as office_sync
 from vaultwright.profile_migration import target_dir_paths
 from vaultwright.profiles import (
     ProfileContract,
@@ -31,6 +32,15 @@ from vaultwright.mirrors import github_repos
 
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+class ProfileFixtureConversion:
+    text_content = "Synthetic profile fixture source for lifecycle sync smoke tests."
+
+
+class ProfileFixtureConverter:
+    def convert(self, _path: str) -> ProfileFixtureConversion:
+        return ProfileFixtureConversion()
 
 
 def run_cli(*args: str, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
@@ -817,6 +827,75 @@ def test_non_business_profile_init_uses_profile_owned_scaffold_docs(tmp_path: Pa
     assert "20_literature" in (vault / "INDEX.md").read_text(encoding="utf-8")
     assert "30_customers" not in (vault / "CLAUDE.md").read_text(encoding="utf-8")
     assert not (vault / "_templates" / "account-hub.md").exists()
+
+
+@pytest.mark.parametrize(
+    ("profile_id", "source_rel"),
+    [
+        ("business-operations", "40_delivery/stage2-business-profile-smoke.docx"),
+        ("research-learning", "20_literature/stage2-research-profile-smoke.docx"),
+        ("software-project", "20_architecture/stage2-software-profile-smoke.docx"),
+        ("blank", "80_sources/stage2-blank-profile-smoke.docx"),
+    ],
+)
+def test_official_profile_synthetic_fixture_sync_status_lifecycle(
+    tmp_path: Path,
+    profile_id: str,
+    source_rel: str,
+) -> None:
+    vault = tmp_path / profile_id
+    init = run_cli("init", "--profile", profile_id, str(vault))
+    assert init.returncode == 0, init.stderr
+    profile = load_profile(vault / "_meta" / "profile.yml")
+
+    source = vault / source_rel
+    source.parent.mkdir(parents=True, exist_ok=True)
+    original = f"synthetic {profile_id} source bytes".encode("utf-8")
+    source.write_bytes(original)
+    config = office_sync.load_mirror_config(vault)
+    manifest = office_sync.empty_manifest()
+
+    result = office_sync.sync_one(
+        source,
+        vault,
+        ProfileFixtureConverter(),
+        False,
+        False,
+        config,
+        {},
+        manifest,
+        "markitdown",
+        office_sync.markitdown_version(),
+    )
+    wrote = office_sync.write_source_manifest(vault, manifest)
+
+    assert result == "created"
+    assert wrote is True
+    assert source.read_bytes() == original
+    saved = office_sync.load_source_manifest(vault)
+    assert len(saved["records"]) == 1
+    record = saved["records"][0]
+    assert record["current_source_path"] == source_rel
+    assert record["source_format"] == "docx"
+    assert record["lifecycle_state"] == "clean"
+    assert record["lifecycle_contract"] == "_meta/lifecycle-states.yml"
+    assert record["lifecycle_contract_schema_version"] == 1
+    mirror = vault / record["mirror_path"]
+    assert mirror.exists()
+    assert record["mirror_path"] == f"_mirrors/{Path(source_rel).with_suffix('.md').as_posix()}"
+    mirror_fm = yaml.safe_load(mirror.read_text(encoding="utf-8").split("---", 2)[1])
+    assert mirror_fm["type"] in profile.note_types
+    assert profile.note_types[mirror_fm["type"]]["machine_owned"] is True
+    assert mirror_fm["status"] == profile.policy_defaults["mirror_status"]
+    assert mirror_fm["domain"] in profile.domains
+
+    status = run_cli("--root", str(vault), "status")
+    assert status.returncode == 0, status.stderr or status.stdout
+    assert "sync_office_md status" in status.stdout
+    assert "clean=1" in status.stdout
+
+    lint = run_cli("--root", str(vault), "lint")
+    assert lint.returncode == 0, lint.stdout + lint.stderr
 
 
 def test_profile_cli_views_check_current_initialized_vault(tmp_path: Path) -> None:

@@ -35,6 +35,10 @@ folders, `_meta/domain-map.yml`, `CLAUDE.md`, `INDEX.md`, `RETENTION.md`, and
 `_meta/conventions.md` from the selected profile contract instead of copying the business
 template vocabulary. Only profile-declared note templates and views are included.
 
+The Stage 2 profile fixture tests generate temporary synthetic Office-source paths under each
+initialized profile, then verify mirror lifecycle/status/lint behavior without committing a real
+or private corpus to the repository.
+
 Use these commands to inspect and validate the contract:
 
 ```bash
