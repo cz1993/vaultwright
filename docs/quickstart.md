@@ -19,13 +19,16 @@ bash scripts/init.sh ~/my-business-vault
 `init.sh` copies `template/` into `~/my-business-vault` (the schema, templates, tools, Bases view,
 and the business-operations starter folders). It refuses to overwrite a non-empty target.
 
-Alternatively, from a source checkout, the package CLI can scaffold and validate the same profile
-contract:
+Alternatively, from a source checkout, the package CLI can scaffold and validate any official
+profile:
 
 ```bash
 python3.11 -m pip install -e .
 vaultwright profile list
 vaultwright init --profile business-operations ~/my-business-vault
+vaultwright init --profile research-learning ~/my-research-vault
+vaultwright init --profile software-project ~/my-software-vault
+vaultwright init --profile blank ~/my-blank-vault
 vaultwright --root ~/my-business-vault profile validate
 vaultwright --root ~/my-business-vault profile diff 0.1.0
 vaultwright --root ~/my-business-vault profile migrate --plan
@@ -35,9 +38,9 @@ vaultwright --root ~/my-business-vault migrate annotations --plan
 ```
 
 Packaged profile contracts now include `business-operations`, `research-learning`,
-`software-project`, and `blank`. `business-operations` is still the only scaffolded `init` profile;
-the other contracts are inspectable with `vaultwright profile show <profile-id>` while their
-profile-specific fixtures and initialization flows are built out.
+`software-project`, and `blank`. Each initializes through `vaultwright init --profile <profile-id>`;
+non-business starters derive their folders, scaffold docs, domain map, and note templates from the
+selected profile contract.
 
 Profile schema reference: [`PROFILE_SCHEMA.md`](PROFILE_SCHEMA.md).
 
